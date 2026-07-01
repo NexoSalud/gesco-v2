@@ -1,0 +1,48 @@
+# Versión: 0.1.0
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gesco
+      POSTGRES_PASSWORD: gesco123
+      POSTGRES_DB: gesco_v2
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gesco"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: ./backend/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://gesco:gesco123@db:5432/gesco_v2
+      CORS_ORIGINS: http://localhost:3000,http://frontend:3000
+      DEBUG: "false"
+    ports:
+      - "8000:8000"
+    volumes:
+      - uploads:/app/uploads
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:8000
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  uploads:

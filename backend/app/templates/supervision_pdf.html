@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: letter;
+    margin: 2cm 1.5cm;
+  }
+  body {
+    font-family: 'DejaVu Sans', Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.5;
+    color: #1a1a1a;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #1a5276;
+  }
+  .header h2 { margin: 5px 0; color: #1a5276; font-size: 13pt; }
+  .header h3 { margin: 3px 0; font-size: 11pt; }
+  .header p { margin: 2px 0; font-size: 9pt; color: #555; }
+
+  .info-grid { width: 100%; border-collapse: collapse; margin: 15px 0; }
+  .info-grid td, .info-grid th {
+    border: 1px solid #ccc;
+    padding: 5px 8px;
+    text-align: left;
+    font-size: 9pt;
+  }
+  .info-grid th {
+    background: #1a5276;
+    color: #fff;
+    font-weight: bold;
+    width: 30%;
+  }
+  .info-grid td { width: 20%; }
+
+  .section-title {
+    background: #d4e6f1;
+    padding: 6px 10px;
+    margin: 15px 0 5px 0;
+    font-weight: bold;
+    font-size: 10pt;
+    color: #1a5276;
+    border-left: 4px solid #1a5276;
+  }
+
+  table.planillas {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0;
+    font-size: 8.5pt;
+  }
+  table.planillas th {
+    background: #2980b9;
+    color: #fff;
+    padding: 5px;
+    text-align: center;
+  }
+  table.planillas td {
+    border: 1px solid #ddd;
+    padding: 4px;
+    text-align: center;
+  }
+  table.planillas tr:nth-child(even) { background: #f8f9fa; }
+
+  .firmas {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .firma-box {
+    width: 45%;
+    text-align: center;
+    border-top: 1px solid #333;
+    padding-top: 5px;
+    font-size: 9pt;
+  }
+  .footer {
+    text-align: center;
+    font-size: 8pt;
+    color: #888;
+    margin-top: 20px;
+    padding-top: 10px;
+    border-top: 1px solid #ddd;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 8pt;
+    font-weight: bold;
+  }
+  .badge-activo { background: #d4edda; color: #155724; }
+  .badge-supervision { background: #cce5ff; color: #004085; }
+  .valor { text-align: right; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h2>ESE NORTE 3</h2>
+  <h3>INFORME DE SUPERVISIÓN Y PAGO</h3>
+  <p>NIT. 891.xxx.xxx-x — Puerto Tejada, Cauca</p>
+</div>
+
+<table class="info-grid">
+  <tr>
+    <th>No. Contrato</th>
+    <td>{{ contrato.get('numero_contrato', '-') }}</td>
+    <th>Perfil</th>
+    <td>{{ contrato.get('perfil', '-') }}</td>
+  </tr>
+  <tr>
+    <th>Contratista</th>
+    <td>{{ contrato.get('nombre_contratista', '-') }}</td>
+    <th>C.C.</th>
+    <td>{{ contrato.get('identificacion', '-') }}</td>
+  </tr>
+  <tr>
+    <th>Supervisor</th>
+    <td>{{ contrato.get('supervisor', '-') }}</td>
+    <th>Unidad de Atención</th>
+    <td>{{ contrato.get('unidad_atencion', '-') }}</td>
+  </tr>
+  <tr>
+    <th>Período</th>
+    <td>{{ pago.get('periodo_desde', '-') }} → {{ pago.get('periodo_hasta', '-') }}</td>
+    <th>No. Pago</th>
+    <td>{{ pago.get('numero_pago', 0) }}</td>
+  </tr>
+  <tr>
+    <th>Valor a Pagar</th>
+    <td class="valor">${{ "{:,.0f}".format(pago.get('valor_a_pagar', 0)) }}</td>
+    <th>Cuentas de Cobro</th>
+    <td>{{ pago.get('cuentas_cobro', '-') }}</td>
+  </tr>
+  <tr>
+    <th>Valor en Letras</th>
+    <td colspan="3">{{ valor_letras }}</td>
+  </tr>
+</table>
+
+{% if planillas %}
+<div class="section-title">PLANILLAS DE SEGURIDAD SOCIAL</div>
+<table class="planillas">
+  <thead>
+    <tr>
+      <th>Planilla No.</th>
+      <th>Período</th>
+      <th>IBC</th>
+      <th>EPS</th>
+      <th>EPS $</th>
+      <th>ARL</th>
+      <th>ARL $</th>
+      <th>AFP</th>
+      <th>AFP $</th>
+      <th>CCF</th>
+      <th>CCF $</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for pl in planillas %}
+    <tr>
+      <td>{{ pl.get('planilla_no', '-') }}</td>
+      <td>{{ pl.get('periodo_cotizado', '-') }}</td>
+      <td>{{ pl.get('ibc', '0') }}</td>
+      <td>{{ pl.get('eps_nombre', '-') }}</td>
+      <td>${{ "{:,.0f}".format(pl.get('eps_valor', 0)) }}</td>
+      <td>{{ pl.get('arl_nombre', '-') }}</td>
+      <td>${{ "{:,.0f}".format(pl.get('arl_valor', 0)) }}</td>
+      <td>{{ pl.get('afp_nombre', '-') }}</td>
+      <td>${{ "{:,.0f}".format(pl.get('afp_valor', 0)) }}</td>
+      <td>{{ pl.get('ccf_nombre', '-') }}</td>
+      <td>${{ "{:,.0f}".format(pl.get('ccf_valor', 0)) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if pago.get('actividades') %}
+<div class="section-title">ACTIVIDADES REALIZADAS</div>
+<p style="font-size: 9pt;">{{ pago.get('actividades', '') }}</p>
+{% endif %}
+
+{% if pago.get('observaciones') %}
+<div class="section-title">OBSERVACIONES</div>
+<p style="font-size: 9pt;">{{ pago.get('observaciones', '') }}</p>
+{% endif %}
+
+<div class="firmas">
+  <div class="firma-box">
+    <strong>SUPERVISOR</strong><br>
+    {{ contrato.get('supervisor', '___________________') }}<br>
+    C.C. {{ contrato.get('cedula_supervisor', '_________') }}<br>
+    {{ contrato.get('cargo_supervisor', '_________') }}
+  </div>
+  <div class="firma-box">
+    <strong>CONTRATISTA</strong><br>
+    {{ contrato.get('nombre_contratista', '___________________') }}<br>
+    C.C. {{ contrato.get('identificacion', '_________') }}
+  </div>
+</div>
+
+<div class="footer">
+  Generado el {{ fecha_generacion }} — Gesco V2
+</div>
+
+</body>
+</html>

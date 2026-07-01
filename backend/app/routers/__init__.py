@@ -1,0 +1,7 @@
+from app.routers.resoluciones import router as resoluciones_router
+from app.routers.contratos import router as contratos_router
+from app.routers.contratistas import router as contratistas_router
+from app.routers.pagos import router as pagos_router
+from app.routers.perfiles import router as perfiles_router
+from app.routers.plantillas import router as plantillas_router
+from app.routers.export import router as export_router
