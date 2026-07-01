@@ -24,12 +24,8 @@ async def upload_logos(
     logo_left: UploadFile | None = File(None),
     logo_right: UploadFile | None = File(None),
 ):
-    """Sube uno o ambos logos (left/right) para los documentos DOCX.
-
-    Acepta PNG, JPEG y WebP. Guarda como PNG.
-    """
+    """Sube uno o ambos logos (left/right) para los documentos DOCX."""
     _ensure_logo_dir()
-
     uploaded = []
 
     if logo_left is not None:
@@ -56,7 +52,7 @@ async def upload_logos(
 
 @router.get("")
 async def get_logos():
-    """Devuelve las URLs de los logos si existen."""
+    """Devuelve las rutas de los logos si existen."""
     _ensure_logo_dir()
     result = {}
     if os.path.exists(LEFT_PATH):

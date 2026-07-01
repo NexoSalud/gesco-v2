@@ -165,6 +165,7 @@ export const getAlertas = (dias: number = 30) =>
 
 export const getDashboardGlobal = () => request<any>("/api/v1/export/dashboard-global")
 
+
 export interface ResolucionAnalytics {
   total_contratos: number
   contratos_activos: number
@@ -180,6 +181,8 @@ export interface ResolucionAnalytics {
 export const getResolucionAnalytics = (resolucionId: number) =>
   request<ResolucionAnalytics>(`/api/v1/export/resolucion/${resolucionId}/analytics`)
 
+
+ feature/editor-plantillas
 // ─── Import ──────────────────────────────────────────────────────────────────
 
 export interface ImportResult {

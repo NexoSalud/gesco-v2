@@ -1,3 +1,0 @@
-    # After updating cuotas_pagadas, check if should auto-finalize
-    if contrato.cuotas_pagadas >= contrato.cuotas_total and contrato.cuotas_total > 0:
-        contrato.estado = "FINALIZADO"

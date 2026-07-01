@@ -18,6 +18,7 @@ from app.routers import (
     export_router,
     import_router,
     logos_router,
+    logos_router,
 )
 from app.seed_data import seed_database
 
@@ -62,6 +63,7 @@ app.include_router(perfiles_router)
 app.include_router(plantillas_router)
 app.include_router(export_router)
 app.include_router(import_router)
+app.include_router(logos_router)
 app.include_router(logos_router)
 
 

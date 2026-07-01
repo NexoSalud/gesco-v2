@@ -39,7 +39,6 @@ COLUMN_MAP = {
     "No. CDP": "no_cdp",
 }
 
-# Normalizaciones de títulos (acentos, mayúsculas, espacios)
 _TITLE_NORMALIZE_RE = re.compile(r"[^A-Z0-9ÁÉÍÓÚÑ ]")
 
 
@@ -47,7 +46,6 @@ def _normalize_title(title: str) -> str:
     """Normaliza un título de columna para matching flexible."""
     t = title.strip().upper()
     t = _TITLE_NORMALIZE_RE.sub("", t)
-    # Compress spaces
     return re.sub(r"\s+", " ", t)
 
 
@@ -67,9 +65,7 @@ def _parse_number(val) -> float:
     if isinstance(val, (int, float)):
         return float(val)
     s = str(val).strip().replace("$", "").replace(" ", "").replace("\xa0", "")
-    # Detectar formato colombiano: 1.250.000,00
     if "," in s and "." in s:
-        # Si hay puntos y comas, el último separador define decimales
         if s.rfind(".") > s.rfind(","):
             s = s.replace(",", "")
         else:
@@ -82,9 +78,8 @@ def _parse_number(val) -> float:
             s = s.replace(",", "")
     elif "." in s:
         parts = s.split(".")
-        if len(parts) > 2:  # miles
+        if len(parts) > 2:
             s = s.replace(".", "")
-        # else: ya está bien
     try:
         return float(s) if s else 0.0
     except ValueError:
@@ -112,7 +107,6 @@ async def importar_contratos_excel(
     if not file.filename or not file.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(400, "El archivo debe ser .xlsx")
 
-    # Leer el Excel
     try:
         contents = await file.read()
         wb = load_workbook(filename=io.BytesIO(contents), read_only=True)
@@ -124,7 +118,6 @@ async def importar_contratos_excel(
 
     rows_iter = ws.iter_rows(values_only=True)
 
-    # Primera fila = headers
     try:
         raw_headers = next(rows_iter)
     except StopIteration:
@@ -140,26 +133,27 @@ async def importar_contratos_excel(
             col_indices[col_name] = idx
 
     if not col_indices:
-        raise HTTPException(400, "No se encontraron columnas reconocidas en el Excel. "
-                                 "Verifique que los encabezados coincidan con el formato esperado.")
+        raise HTTPException(
+            400,
+            "No se encontraron columnas reconocidas en el Excel. "
+            "Verifique que los encabezados coincidan con el formato esperado.",
+        )
 
-    # Obtener perfiles existentes para mapeo
+    # Perfiles existentes para mapeo
     result = await db.execute(select(Perfil))
     perfiles_existentes = {p.nombre.upper(): p.nombre for p in result.scalars().all()}
 
     result_summary = ImportResult()
 
-    # Procesar filas
-    for fila_idx, row in enumerate(rows_iter, start=2):  # fila 2 = primera de datos
-        # Saltar filas completamente vacías
+    for fila_idx, row in enumerate(rows_iter, start=2):
         if all(cell is None or str(cell).strip() == "" for cell in row):
             continue
 
         try:
-            # Extraer campos del Excel
+            # Extraer campos
             numero_contrato = _clean_str(row[col_indices.get("NO. CONTRATO")])
             if not numero_contrato:
-                continue  # saltar filas sin número de contrato
+                continue
 
             result_summary.total += 1
 
@@ -170,7 +164,7 @@ async def importar_contratos_excel(
             direccion = _clean_str(row[col_indices.get("DIRECCION")])
             correo = _clean_str(row[col_indices.get("CORREO")])
             perfil_raw = _clean_str(row[col_indices.get("TÍTULO")])
-            monto_total = _parse_number(row[col_indices.get("VALOR DEL CONTRATO")] if "VALOR DEL CONTRATO" in col_indices else None)
+            monto_total = _parse_number(row[col_indices.get("VALOR DEL CONTRATO")]) if "VALOR DEL CONTRATO" in col_indices else 0.0
             cuotas_raw = _clean_str(row[col_indices.get("CUOTAS")])
             vigencia_texto = _clean_str(row[col_indices.get("VIGENCIA DEL CONTRATO")])
             objeto = _clean_str(row[col_indices.get("OBJETO DEL CONTRATO")])
@@ -178,7 +172,7 @@ async def importar_contratos_excel(
             cedula_supervisor = _clean_str(row[col_indices.get("CEDULA SUPERVISOR")])
             no_cdp = _clean_str(row[col_indices.get("No. CDP")])
 
-            # --- Validaciones ---
+            # Validaciones
             if not cedula_contratista:
                 result_summary.errors.append({
                     "fila": fila_idx,
@@ -188,7 +182,7 @@ async def importar_contratos_excel(
                 result_summary.skipped += 1
                 continue
 
-            # --- Buscar o crear contratista ---
+            # Buscar o crear contratista
             result_db = await db.execute(
                 select(Contratista).where(Contratista.identificacion == cedula_contratista)
             )
@@ -196,7 +190,6 @@ async def importar_contratos_excel(
 
             if contratista:
                 contratista_id = contratista.id
-                # Actualizar datos si están presentes
                 if beneficiario_nombre:
                     contratista.nombre = beneficiario_nombre.upper()
                 if lugar_expedicion:
@@ -220,15 +213,13 @@ async def importar_contratos_excel(
                 await db.flush()
                 contratista_id = contratista.id
 
-            # --- Normalizar perfil ---
+            # Normalizar perfil
             perfil_normalized = None
             if perfil_raw:
                 perfil_upper = perfil_raw.upper()
-                # Buscar match exacto primero
                 if perfil_upper in perfiles_existentes:
                     perfil_normalized = perfiles_existentes[perfil_upper]
                 else:
-                    # Búsqueda flexible
                     for p_name in perfiles_existentes.values():
                         if perfil_upper in p_name.upper() or p_name.upper() in perfil_upper:
                             perfil_normalized = p_name
@@ -236,22 +227,18 @@ async def importar_contratos_excel(
                     if not perfil_normalized:
                         perfil_normalized = perfil_raw.upper()
 
-            # --- Parsear cuotas ---
+            # Parsear cuotas
             cuotas_total = 0
             cuotas_txt = None
             if cuotas_raw:
                 cuotas_txt = cuotas_raw
-                # Extraer número de cuotas (primer número encontrado)
                 nums = re.findall(r"\d+", cuotas_raw)
-                if nums:
-                    cuotas_total = int(nums[0])
-                else:
-                    cuotas_total = 1
+                cuotas_total = int(nums[0]) if nums else 1
             else:
                 cuotas_txt = "1"
                 cuotas_total = 1
 
-            # --- Verificar si el contrato ya existe ---
+            # Verificar duplicado
             existing = await db.execute(
                 select(Contrato).where(Contrato.numero_contrato == numero_contrato)
             )
@@ -264,10 +251,8 @@ async def importar_contratos_excel(
                 result_summary.skipped += 1
                 continue
 
-            # --- Generar valor en letras ---
+            # Crear contrato
             valor_letras = numero_a_letras(monto_total)
-
-            # --- Crear contrato ---
             contrato = Contrato(
                 resolucion_id=resolucion_id,
                 contratista_id=contratista_id,
@@ -289,9 +274,15 @@ async def importar_contratos_excel(
 
         except Exception as e:
             logger.exception(f"Error procesando fila {fila_idx}")
+            err_numero = ""
+            if col_indices.get("NO. CONTRATO") is not None:
+                try:
+                    err_numero = str(row[col_indices["NO. CONTRATO"]])
+                except Exception:
+                    err_numero = ""
             result_summary.errors.append({
                 "fila": fila_idx,
-                "numero_contrato": row[col_indices.get("NO. CONTRATO")] if col_indices.get("NO. CONTRATO") is not None and row else "",
+                "numero_contrato": err_numero or "",
                 "error": str(e),
             })
             result_summary.skipped += 1
@@ -299,6 +290,3 @@ async def importar_contratos_excel(
 
     await db.commit()
     return result_summary
-
-
-
