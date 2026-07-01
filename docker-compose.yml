@@ -39,6 +39,9 @@ services:
       - "9000:3000"
     labels:
       - "traefik.enable=true"
+      - "traefik.http.routers.gesco-http.entrypoints=http"
+      - "traefik.http.routers.gesco-http.rule=Host(`contratos.esenorte3.lat`)"
+      - "traefik.http.routers.gesco-http.middlewares=redirect-to-https"
       - "traefik.http.routers.gesco.entrypoints=https"
       - "traefik.http.routers.gesco.rule=Host(`contratos.esenorte3.lat`)"
       - "traefik.http.routers.gesco.tls.certresolver=letsencrypt"
