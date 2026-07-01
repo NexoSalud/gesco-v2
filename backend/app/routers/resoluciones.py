@@ -103,7 +103,13 @@ async def actualizar_resolucion(
         setattr(r, field, value)
     await db.commit()
     await db.refresh(r)
-    return r
+    # Recargar con relaciones para evitar MissingGreenlet
+    result = await db.execute(
+        select(Resolucion)
+        .options(selectinload(Resolucion.contratos))
+        .where(Resolucion.id == r.id)
+    )
+    return result.scalar_one()
 
 
 @router.delete("/{resolucion_id}", status_code=204)
