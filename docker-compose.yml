@@ -7,8 +7,8 @@ services:
       POSTGRES_USER: gesco
       POSTGRES_PASSWORD: gesco123
       POSTGRES_DB: gesco_v2
-    expose:
-      - "5432"
+    ports:
+      - "9002:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -26,8 +26,8 @@ services:
       DATABASE_URL: postgresql+asyncpg://gesco:gesco123@db:5432/gesco_v2
       CORS_ORIGINS: "http://localhost:3000,https://contratos.esenorte3.lat,https://www.contratos.esenorte3.lat"
       DEBUG: "false"
-    expose:
-      - "8000"
+    ports:
+      - "9001:8000"
     volumes:
       - uploads:/app/uploads
     restart: unless-stopped
@@ -36,8 +36,8 @@ services:
     build: ./frontend
     depends_on:
       - backend
-    expose:
-      - "3000"
+    ports:
+      - "9000:3000"
     environment:
       NEXT_PUBLIC_API_URL: https://contratos.esenorte3.lat
     restart: unless-stopped
