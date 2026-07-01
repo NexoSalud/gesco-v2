@@ -1,7 +1,7 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
-COPY package.json tsconfig.json next.config.js ./
-RUN npm install --legacy-peer-deps
+COPY package.json package-lock.json tsconfig.json next.config.js postcss.config.mjs ./
+RUN npm ci --legacy-peer-deps
 COPY . .
 RUN npm run build
 
