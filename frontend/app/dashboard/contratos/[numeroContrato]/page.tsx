@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import {
   getContrato, getPagos, createPago, descargarDocx,
   descargarPdfSupervision, registrarCuota, anularContrato,
+  abrirVistaImprimible,
   type Contrato, type Pago,
 } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -215,6 +216,15 @@ export default function ContratoDetailPage() {
           >
             <FileDown className="w-4 h-4" />
             DOCX
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => abrirVistaImprimible(numero)}
+          >
+            <Printer className="w-4 h-4" />
+            Imprimir
           </Button>
           {contrato.estado !== "ANULADO" && contrato.estado !== "FINALIZADO" && (
             <>
