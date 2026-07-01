@@ -22,10 +22,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    env_file: ./backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://gesco:gesco123@db:5432/gesco_v2
-      CORS_ORIGINS: http://localhost:3000,http://frontend:3000
+      CORS_ORIGINS: "http://localhost:3000,https://contratos.esenorte3.lat,https://www.contratos.esenorte3.lat"
       DEBUG: "false"
     ports:
       - "8000:8000"
@@ -40,7 +39,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://backend:8000
+      NEXT_PUBLIC_API_URL: https://contratos.esenorte3.lat
     restart: unless-stopped
 
 volumes:

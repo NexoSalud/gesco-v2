@@ -1,6 +1,7 @@
 /** API client for Gesco V2 backend */
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+// En producción apunta al dominio configurado, localhost:8099 para dev local
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8099"
 
 export const api = {
   base: API,
