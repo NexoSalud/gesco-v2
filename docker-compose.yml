@@ -36,7 +36,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "8787:3000"
+      - "9000:3000"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.gesco.entrypoints=https"
