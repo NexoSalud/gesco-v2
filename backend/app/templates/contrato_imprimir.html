@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: letter;
+    margin: 2.5cm 2.8cm 2.2cm 2.8cm;
+  }
+  @media print {
+    body { margin: 0; padding: 0; }
+    .no-print { display: none; }
+    .page-break { page-break-before: always; }
+  }
+  @media screen {
+    body { background: #f5f5f5; padding: 20px; }
+    .paper {
+      max-width: 21.59cm;
+      margin: 0 auto;
+      background: #fff;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+      padding: 2.5cm 2.8cm 2.2cm 2.8cm;
+      min-height: 27.94cm;
+    }
+  }
+  body {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 12pt;
+    line-height: 1.6;
+    color: #000;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #000;
+  }
+  .header p {
+    margin: 0;
+    font-size: 9pt;
+    font-family: Arial, sans-serif;
+    font-weight: bold;
+    line-height: 1.4;
+  }
+  h1 {
+    text-align: center;
+    font-size: 13pt;
+    font-weight: bold;
+    margin: 16px 0 4px 0;
+  }
+  h2 {
+    text-align: center;
+    font-size: 12pt;
+    font-weight: bold;
+    margin: 0 0 12px 0;
+  }
+  p {
+    margin: 0 0 6px 0;
+    text-align: justify;
+    font-size: 12pt;
+  }
+  .obligaciones-list {
+    margin: 6px 0 6px 30px;
+    padding: 0;
+  }
+  .obligaciones-list li {
+    margin-bottom: 4px;
+    text-align: justify;
+    font-size: 12pt;
+  }
+  .parrafo-italic {
+    font-style: italic;
+    font-size: 11pt;
+    margin: 8px 0;
+  }
+  .firmas-section {
+    margin-top: 32px;
+  }
+  .firma-texto {
+    margin: 12px 0 20px 0;
+    text-align: justify;
+    font-size: 12pt;
+  }
+  .firma-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+  }
+  .firma-table td {
+    width: 50%;
+    text-align: center;
+    padding: 12px 8px;
+    vertical-align: top;
+    font-size: 12pt;
+    border: 1px solid #000;
+  }
+  .firma-table td p {
+    text-align: center;
+    margin: 2px 0;
+  }
+  .firma-footer {
+    text-align: center;
+    font-style: italic;
+    font-size: 10pt;
+    margin: 4px 0;
+  }
+  .print-btn {
+    display: block;
+    margin: 20px auto;
+    padding: 10px 24px;
+    font-size: 14px;
+    background: #1a5276;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .print-btn:hover {
+    background: #154360;
+  }
+  .separator {
+    border: none;
+    border-top: 1px dashed #ccc;
+    margin: 20px 0;
+  }
+</style>
+</head>
+<body>
+<div class="no-print" style="text-align:center;margin-bottom:16px;">
+  <button class="print-btn" onclick="window.print()">🖨 Imprimir</button>
+</div>
+<div class="paper">
+
+  <!-- Encabezado -->
+  <div class="header">
+    <p>ESE NORTE 3</p>
+    <p>NIT. 891.xxx.xxx-x</p>
+    <p>Puerto Tejada – Cauca</p>
+  </div>
+
+  <!-- Título -->
+  <h1>CONTRATO DE PRESTACIÓN DE SERVICIOS</h1>
+  <h2>No. {{ numero_contrato }}</h2>
+
+  <!-- Considerandos -->
+  <p>
+    Entre los suscritos,
+    <strong>ADELA MESÚ PONTÓN</strong>,
+    GERENTE E.S.E. NORTE 3, C.C. 31.448.285, identificada con Nit
+    <strong>ESE NORTE 3</strong>
+    (NIT. 891.xxx.xxx-x), domiciliada en
+    <strong>Puerto Tejada – Cauca</strong>,
+    quien en adelante se denominará
+    <strong>LA ENTIDAD</strong>
+    y
+    <strong>{{ nombre_contratista }}</strong>,
+    identificado(a) con C.C. No. {{ cedula }} expedida en {{ lugar_expedicion }},
+    de {{ direccion }}, teléfono {{ telefono }}, correo {{ correo }},
+    quien se desempeñará como
+    <strong>{{ perfil }}</strong>,
+    quien en adelante se denominará
+    <strong>EL CONTRATISTA</strong>,
+    hemos acordado celebrar el presente contrato de prestación de servicios,
+    el cual se regirá por las siguientes cláusulas:
+  </p>
+
+  <!-- CLÁUSULAS -->
+  <p>
+    <strong>PRIMERA. – OBJETO:</strong>
+    El presente contrato tiene por objeto la prestación de servicios como
+    <strong>{{ perfil }}</strong> en la
+    ESE NORTE 3, en el municipio/Unidad de Atención
+    <strong>{{ unidad_atencion }}</strong>.
+    {{ objeto }}
+  </p>
+
+  <p>
+    <strong>SEGUNDA. – OBLIGACIONES GENERALES DEL CONTRATISTA:</strong>
+    El contratista se obliga a cumplir con el objeto del presente contrato de conformidad con las
+    especificaciones técnicas, normas profesionales y disposiciones legales vigentes, bajo su
+    exclusiva responsabilidad y con la más amplia autonomía técnica y administrativa.
+  </p>
+
+  <p>
+    <strong>TERCERA. – OBLIGACIONES ESPECÍFICAS:</strong>
+  </p>
+
+  {% if obligaciones_esp %}
+  <ol class="obligaciones-list">
+    {% for oblig in obligaciones_esp %}
+    <li>{{ oblig }}</li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p>El CONTRATISTA se obliga a cumplir con las obligaciones establecidas en el perfil
+    correspondiente y las que le sean asignadas por el supervisor del contrato.</p>
+  {% endif %}
+
+  <p>
+    <strong>CUARTA. – VALOR DEL CONTRATO:</strong>
+    El valor del presente contrato es de {{ valor_letras }}, equivalentes a
+    ${{ "{:,.0f}".format(valor_contrato) }} pesos moneda corriente colombiana. El valor incluye todos los
+    impuestos, tasas y contribuciones a cargo del CONTRATISTA.
+  </p>
+
+  <p>
+    <strong>QUINTA. – FORMA DE PAGO:</strong>
+    La ESE NORTE 3 pagará al CONTRATISTA el valor del contrato en
+    {{ cuotas }} cuota(s), previa presentación de la documentación requerida,
+    incluyendo las planillas de seguridad social de los períodos correspondientes.
+  </p>
+
+  <p>
+    <strong>SEXTA. – VIGENCIA DEL CONTRATO:</strong>
+    El presente contrato tendrá una vigencia desde el {{ fecha_inicio }}
+    hasta el {{ fecha_fin }}.
+  </p>
+
+  <p>
+    <strong>SÉPTIMA. – SUPERVISIÓN:</strong>
+    La supervisión del presente contrato estará a cargo de {{ supervisor }},
+    identificado con C.C. {{ cedula_supervisor }}, en su calidad de {{ cargo_supervisor }},
+    quien verificará el cumplimiento del objeto contractual.
+  </p>
+
+  <p>
+    <strong>OCTAVA. – LUGAR DE EJECUCIÓN:</strong>
+    El servicio se ejecutará en {{ lugar_ejecucion }},
+    Unidad de Atención {{ unidad_atencion }}.
+  </p>
+
+  <p>
+    <strong>NOVENA. – GARANTÍAS:</strong>
+    El CONTRATISTA declara que conoce y acepta las condiciones del contrato y se obliga a su
+    cumplimiento. La ESE NORTE 3 se reserva el derecho de exigir las garantías establecidas en
+    el Estatuto de Contratación de la entidad.
+  </p>
+
+  <p>
+    <strong>DÉCIMA. – CESIÓN:</strong>
+    El CONTRATISTA no podrá ceder ni transferir total ni parcialmente los derechos y obligaciones
+    derivados del presente contrato sin autorización previa y escrita de la ESE NORTE 3.
+  </p>
+
+  <p>
+    <strong>DÉCIMA PRIMERA. – INHABILIDADES E INCOMPATIBILIDADES:</strong>
+    El CONTRATISTA declara bajo la gravedad del juramento que no se encuentra incurso en ninguna
+    de las causales de inhabilidad e incompatibilidad previstas en la Constitución y la Ley.
+  </p>
+
+  <p>
+    <strong>DÉCIMA SEGUNDA. – CLÁUSULAS EXCEPCIONALES:</strong>
+    En cumplimiento del Estatuto de Contratación de la ESE NORTE 3, se incorporan las cláusulas
+    de interpretación unilateral, modificación unilateral, terminación unilateral, sometimiento
+    a las leyes nacionales y caducidad administrativa.
+  </p>
+
+  <p>
+    <strong>DÉCIMA TERCERA. – CAUSALES DE TERMINACIÓN:</strong>
+    El contrato podrá ser terminado anticipadamente por mutuo acuerdo, por decisión unilateral
+    de la entidad, o por las causales establecidas en el Estatuto de Contratación de la ESE NORTE 3.
+  </p>
+
+  <p>
+    <strong>DÉCIMA CUARTA. – PROTECCIÓN DE DATOS PERSONALES:</strong>
+    En cumplimiento de la Ley Estatutaria 1581 de 2012, EL CONTRATISTA autoriza el tratamiento
+    de sus datos personales para los fines contractuales, administrativos y contables de la ESE NORTE 3.
+  </p>
+
+  <p>
+    <strong>DÉCIMA QUINTA. – CLÁUSULA PENAL:</strong>
+    En caso de incumplimiento del CONTRATISTA, este pagará a la ESE NORTE 3, a título de sanción,
+    el equivalente al diez por ciento (10%) del valor del contrato.
+  </p>
+
+  <!-- Obligaciones específicas adicionales -->
+  <div class="parrafo-italic">
+    <p>
+      <strong>OBLIGACIONES DEL CONTRATISTA:</strong>
+    </p>
+  </div>
+
+  {% if obligaciones_esp %}
+  <ol class="obligaciones-list" start="1">
+    {% for oblig in obligaciones_esp %}
+    <li>{{ oblig }}</li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+
+  <div class="parrafo-italic">
+    <p>
+      PARÁGRAFO PRIMERO: El cumplimiento será validado mediante inspección y vigilancia
+      diaria a través del tablero de control dispuesto por el Ministerio de Salud y
+      Protección Social.
+    </p>
+  </div>
+
+  <!-- Firmas -->
+  <div class="firmas-section">
+    <p class="firma-texto">
+      Estando las partes de acuerdo con lo consignado en el presente documento, se firma
+      en Puerto Tejada – Cauca, el día {{ fecha_contrato }}.
+    </p>
+
+    <table class="firma-table">
+      <tr>
+        <td>
+          <p>ADELA MESÚ PONTÓN</p>
+          <p>GERENTE E.S.E. NORTE 3</p>
+          <p>C.C. 31.448.285</p>
+        </td>
+        <td>
+          <p>{{ nombre_contratista }}</p>
+          <p>{{ perfil }}</p>
+          <p>C.C. {{ cedula }}</p>
+        </td>
+      </tr>
+    </table>
+
+    <p class="firma-footer">ELABORADO POR: APOYO JURÍDICO</p>
+    <p class="firma-footer">APROBADO POR: ADELA MESÚ PONTÓN – GERENTE E.S.E. NORTE 3</p>
+  </div>
+
+</div>
+<div class="no-print" style="text-align:center;margin-top:16px;">
+  <hr class="separator">
+  <button class="print-btn" onclick="window.print()">🖨 Imprimir</button>
+</div>
+</body>
+</html>

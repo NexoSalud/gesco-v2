@@ -95,6 +95,10 @@ export const descargarDocx = (numero: string) => {
   window.open(`${API}/api/v1/contratos/${numero}/docx`, "_blank")
 }
 
+export const abrirVistaImprimible = (numero: string) => {
+  window.open(`${API}/api/v1/contratos/${numero}/imprimir`, "_blank")
+}
+
 export const anularContrato = (numero: string, motivo: string) =>
   request(`/api/v1/contratos/${numero}/anular?motivo=${encodeURIComponent(motivo)}`, { method: "POST" })
 
@@ -141,6 +145,9 @@ export const buscarContratistas = (q: string) =>
 // ─── Perfiles ────────────────────────────────────────────────────────────────
 
 export const getPerfiles = () => request<any[]>("/api/v1/perfiles")
+export const getPerfil = (id: number) => request<any>(`/api/v1/perfiles/${id}`)
+export const updatePerfil = (id: number, data: any) =>
+  request<any>(`/api/v1/perfiles/${id}`, { method: "PUT", body: JSON.stringify(data) })
 export const getPerfilesPredefinidos = () => request<{ perfiles: string[] }>("/api/v1/contratos/perfiles/predefinidos")
 
 // ─── Export ──────────────────────────────────────────────────────────────────
@@ -158,6 +165,64 @@ export const getAlertas = (dias: number = 30) =>
 
 export const getDashboardGlobal = () => request<any>("/api/v1/export/dashboard-global")
 
+export interface ResolucionAnalytics {
+  total_contratos: number
+  contratos_activos: number
+  contratos_por_vencer: number
+  contratos_vencidos: number
+  total_anulados: number
+  profesionales_por_tipo: Array<{ tipo: string; total: number; valor: number }>
+  proximos_vencer: Array<{ numero_contrato: string; beneficiario: string; fecha_fin: string; dias_restantes: number }>
+  motivos_anulacion: Array<{ motivo: string; total: number }>
+  contratos_por_unidad: Array<{ municipio: string; total: number; activos: number; valor: number }>
+}
+
+export const getResolucionAnalytics = (resolucionId: number) =>
+  request<ResolucionAnalytics>(`/api/v1/export/resolucion/${resolucionId}/analytics`)
+
+// ─── Import ──────────────────────────────────────────────────────────────────
+
+export interface ImportResult {
+  total: number
+  created: number
+  skipped: number
+  errors: Array<{ fila: number; numero_contrato: string | null; error: string }>
+}
+
+export async function uploadImportExcel(resolucionId: number, file: File): Promise<ImportResult> {
+  const formData = new FormData()
+  formData.append("file", file)
+  const res = await fetch(`${API}/api/v1/import/excel?resolucion_id=${resolucionId}`, {
+    method: "POST",
+    body: formData,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Error ${res.status}: ${text.slice(0, 200)}`)
+  }
+  return res.json()
+}
+
 // ─── Plantillas ──────────────────────────────────────────────────────────────
 
 export const getPlantillas = () => request<any[]>("/api/v1/plantillas")
+
+// ─── Actividades por perfil ──────────────────────────────────────────────────
+
+export interface ActividadPerfil {
+  id: number
+  descripcion: string
+  orden: number
+}
+
+export const getActividades = (perfilId: number) =>
+  request<ActividadPerfil[]>(`/api/v1/perfiles/${perfilId}/actividades`)
+
+export const createActividad = (perfilId: number, descripcion: string, orden: number = 0) =>
+  request<ActividadPerfil>(
+    `/api/v1/perfiles/${perfilId}/actividades?descripcion=${encodeURIComponent(descripcion)}&orden=${orden}`,
+    { method: "POST" }
+  )
+
+export const deleteActividad = (actividadId: number) =>
+  request<void>(`/api/v1/actividades/${actividadId}`, { method: "DELETE" })

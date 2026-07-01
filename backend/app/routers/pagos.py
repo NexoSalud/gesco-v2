@@ -87,7 +87,13 @@ async def crear_pago(data: PagoCreate, db: AsyncSession = Depends(get_db)):
 
     await db.commit()
     await db.refresh(pago)
-    return pago
+    # Recargar con relaciones para evitar MissingGreenlet
+    result = await db.execute(
+        select(Pago)
+        .options(selectinload(Pago.planillas), selectinload(Pago.contrato))
+        .where(Pago.id == pago.id)
+    )
+    return result.scalar_one()
 
 
 @router.get("/{pago_id}", response_model=PagoOut)

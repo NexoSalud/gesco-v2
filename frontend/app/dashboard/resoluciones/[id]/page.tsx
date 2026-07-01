@@ -7,7 +7,8 @@ import {
   getResolucion, getContratos, getPerfilesPredefinidos,
   createContrato, descargarDocx, descargarExcelResolucion,
   descargarPdfsMasivos, registrarCuota, anularContrato,
-  type Resolucion, type Contrato,
+  getResolucionAnalytics,
+  type Resolucion, type Contrato, type ResolucionAnalytics,
 } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge, getEstadoBadgeVariant } from "@/components/ui/badge"
@@ -42,6 +43,8 @@ export default function ResolucionDetailPage() {
   const [contratos, setContratos] = useState<Contrato[]>([])
   const [perfiles, setPerfiles] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [analytics, setAnalytics] = useState<ResolucionAnalytics | null>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("contratos")
   const [filterEstado, setFilterEstado] = useState("")
   const [filterBuscar, setFilterBuscar] = useState("")
@@ -94,6 +97,17 @@ export default function ResolucionDetailPage() {
   }
 
   useEffect(() => { loadData() }, [id])
+
+  // Load analytics when the analytics tab is active
+  useEffect(() => {
+    if (activeTab === "analytics") {
+      setAnalyticsLoading(true)
+      getResolucionAnalytics(id)
+        .then(setAnalytics)
+        .catch(() => toast.error("Error cargando analytics"))
+        .finally(() => setAnalyticsLoading(false))
+    }
+  }, [activeTab, id])
 
   const handleCreateContract = async (e: React.FormEvent) => {
     e.preventDefault()

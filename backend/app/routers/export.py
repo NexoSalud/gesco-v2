@@ -141,6 +141,150 @@ async def alertas_vencimiento(
     return [dict(r._mapping) for r in result.fetchall()]
 
 
+@router.get("/resolucion/{resolucion_id}/analytics")
+async def resolucion_analytics(
+    resolucion_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """KPIs detallados de una resolución (analytics)."""
+    hoy = date.today().isoformat()
+    treinta = (date.today() + timedelta(days=30)).isoformat()
+
+    # ── Totales ──
+    total_contratos = await db.execute(
+        text("""SELECT COUNT(*) FROM contratos
+                 WHERE resolucion_id = :rid AND estado <> 'ANULADO'"""),
+        {"rid": resolucion_id},
+    )
+    total_contratos = total_contratos.scalar() or 0
+
+    contratos_activos = await db.execute(
+        text("""SELECT COUNT(*) FROM contratos
+                 WHERE resolucion_id = :rid AND estado <> 'ANULADO'
+                   AND fecha_inicio::date <= :hoy AND fecha_fin::date >= :hoy"""),
+        {"rid": resolucion_id, "hoy": hoy},
+    )
+    contratos_activos = contratos_activos.scalar() or 0
+
+    contratos_por_vencer = await db.execute(
+        text("""SELECT COUNT(*) FROM contratos
+                 WHERE resolucion_id = :rid AND estado <> 'ANULADO'
+                   AND fecha_fin::date BETWEEN :hoy AND :treinta"""),
+        {"rid": resolucion_id, "hoy": hoy, "treinta": treinta},
+    )
+    contratos_por_vencer = contratos_por_vencer.scalar() or 0
+
+    contratos_vencidos = await db.execute(
+        text("""SELECT COUNT(*) FROM contratos
+                 WHERE resolucion_id = :rid AND estado <> 'ANULADO'
+                   AND fecha_fin::date < :hoy"""),
+        {"rid": resolucion_id, "hoy": hoy},
+    )
+    contratos_vencidos = contratos_vencidos.scalar() or 0
+
+    total_anulados = await db.execute(
+        text("""SELECT COUNT(*) FROM contratos
+                 WHERE resolucion_id = :rid AND estado = 'ANULADO'"""),
+        {"rid": resolucion_id},
+    )
+    total_anulados = total_anulados.scalar() or 0
+
+    # ── Profesionales por tipo (perfil) ──
+    rows_prof = await db.execute(
+        text("""
+            SELECT
+                COALESCE(NULLIF(TRIM(c.perfil), ''), 'SIN ESPECIFICAR') AS tipo,
+                COUNT(*) AS total,
+                COALESCE(SUM(c.monto_total + c.monto_transporte), 0) AS valor
+            FROM contratos c
+            WHERE c.resolucion_id = :rid AND c.estado <> 'ANULADO'
+            GROUP BY tipo
+            ORDER BY total DESC
+        """),
+        {"rid": resolucion_id},
+    )
+    profesionales_por_tipo = [
+        {"tipo": r.tipo, "total": r.total, "valor": float(r.valor)}
+        for r in rows_prof.fetchall()
+    ]
+
+    # ── Próximos a vencerse (hoy hasta hoy+30) ──
+    rows_prox = await db.execute(
+        text("""
+            SELECT
+                c.numero_contrato,
+                COALESCE(co.nombre, 'SIN CONTRATISTA') AS beneficiario,
+                c.fecha_fin::text AS fecha_fin,
+                (c.fecha_fin - CURRENT_DATE) AS dias_restantes
+            FROM contratos c
+            LEFT JOIN contratistas co ON co.id = c.contratista_id
+            WHERE c.resolucion_id = :rid AND c.estado <> 'ANULADO'
+              AND c.fecha_fin::date BETWEEN :hoy AND :treinta
+            ORDER BY c.fecha_fin
+        """),
+        {"rid": resolucion_id, "hoy": hoy, "treinta": treinta},
+    )
+    proximos_vencer = [
+        {
+            "numero_contrato": r.numero_contrato,
+            "beneficiario": r.beneficiario,
+            "fecha_fin": r.fecha_fin,
+            "dias_restantes": r.dias_restantes if r.dias_restantes is not None else 0,
+        }
+        for r in rows_prox.fetchall()
+    ]
+
+    # ── Motivos de anulación ──
+    rows_motivos = await db.execute(
+        text("""
+            SELECT
+                COALESCE(NULLIF(TRIM(c.motivo_anulacion), ''), 'Sin especificar') AS motivo,
+                COUNT(*) AS total
+            FROM contratos c
+            WHERE c.resolucion_id = :rid AND c.estado = 'ANULADO'
+            GROUP BY motivo
+            ORDER BY total DESC
+        """),
+        {"rid": resolucion_id},
+    )
+    motivos_anulacion = [
+        {"motivo": r.motivo, "total": r.total}
+        for r in rows_motivos.fetchall()
+    ]
+
+    # ── Contratos por unidad de atención ──
+    rows_unidad = await db.execute(
+        text("""
+            SELECT
+                COALESCE(NULLIF(TRIM(c.unidad_atencion), ''), 'SIN ESPECIFICAR') AS municipio,
+                COUNT(*) AS total,
+                COUNT(CASE WHEN c.fecha_inicio::date <= :hoy_a AND c.fecha_fin::date >= :hoy_a THEN 1 END) AS activos,
+                COALESCE(SUM(CASE WHEN c.estado <> 'ANULADO' THEN c.monto_total + c.monto_transporte ELSE 0 END), 0) AS valor
+            FROM contratos c
+            WHERE c.resolucion_id = :rid AND c.estado <> 'ANULADO'
+            GROUP BY municipio
+            ORDER BY activos DESC, total DESC
+        """),
+        {"rid": resolucion_id, "hoy_a": hoy},
+    )
+    contratos_por_unidad = [
+        {"municipio": r.municipio, "total": r.total, "activos": r.activos, "valor": float(r.valor)}
+        for r in rows_unidad.fetchall()
+    ]
+
+    return {
+        "total_contratos": total_contratos,
+        "contratos_activos": contratos_activos,
+        "contratos_por_vencer": contratos_por_vencer,
+        "contratos_vencidos": contratos_vencidos,
+        "total_anulados": total_anulados,
+        "profesionales_por_tipo": profesionales_por_tipo,
+        "proximos_vencer": proximos_vencer,
+        "motivos_anulacion": motivos_anulacion,
+        "contratos_por_unidad": contratos_por_unidad,
+    }
+
+
 @router.get("/dashboard-global")
 async def dashboard_global(db: AsyncSession = Depends(get_db)):
     """KPIs globales multi-resolución."""
