@@ -7,7 +7,8 @@ import {
   getResolucion, getContratos, getPerfilesPredefinidos,
   createContrato, descargarDocx, descargarExcelResolucion,
   descargarPdfsMasivos, registrarCuota, anularContrato,
-  type Resolucion, type Contrato,
+  type Resolucion, type Contrato, type ResolucionAnalytics,
+  getResolucionAnalytics,
 } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge, getEstadoBadgeVariant } from "@/components/ui/badge"
@@ -42,6 +43,8 @@ export default function ResolucionDetailPage() {
   const [contratos, setContratos] = useState<Contrato[]>([])
   const [perfiles, setPerfiles] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [analytics, setAnalytics] = useState<ResolucionAnalytics | null>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("contratos")
   const [filterEstado, setFilterEstado] = useState("")
   const [filterBuscar, setFilterBuscar] = useState("")

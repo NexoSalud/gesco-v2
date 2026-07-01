@@ -95,6 +95,10 @@ export const descargarDocx = (numero: string) => {
   window.open(`${API}/api/v1/contratos/${numero}/docx`, "_blank")
 }
 
+export const abrirVistaImprimible = (numero: string) => {
+  window.open(`${API}/api/v1/contratos/${numero}/imprimir`, "_blank")
+}
+
 export const anularContrato = (numero: string, motivo: string) =>
   request(`/api/v1/contratos/${numero}/anular?motivo=${encodeURIComponent(motivo)}`, { method: "POST" })
 
