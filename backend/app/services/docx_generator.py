@@ -6,10 +6,11 @@ con las 14 cláusulas legales, logos, firmas y formato ESE Norte 3.
 
 import io
 import json
+import os
 from typing import Any
 
 from docx import Document
-from docx.shared import Pt, Cm, RGBColor
+from docx.shared import Pt, Cm, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
@@ -145,10 +146,52 @@ def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None)
     header = doc.sections[0].header
     hp = header.paragraphs[0]
     hp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    hr = hp.add_run(f"{ESE_NOMBRE}\n{ESE_NIT}\n{ESE_MUNICIPIO}")
-    hr.bold = True
-    hr.font.size = Pt(9)
-    hr.font.name = "Arial"
+
+    # — Logos en el header —
+    logo_left_path = "/app/uploads/logos/logo_left.png"
+    logo_right_path = "/app/uploads/logos/logo_right.png"
+    has_left = os.path.exists(logo_left_path)
+    has_right = os.path.exists(logo_right_path)
+
+    if has_left or has_right:
+        hp.clear()
+        tbl = header.add_table(rows=1, cols=2, width=Cm(16))
+        tbl.autofit = True
+        cell_left = tbl.rows[0].cells[0]
+        cell_left.width = Cm(8)
+        if has_left:
+            p_left = cell_left.paragraphs[0]
+            p_left.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            run_pic = p_left.add_run()
+            run_pic.add_picture(logo_left_path, width=Inches(1.2))
+        else:
+            cell_left.text = ""
+        cell_right = tbl.rows[0].cells[1]
+        cell_right.width = Cm(8)
+        if has_right:
+            p_right = cell_right.paragraphs[0]
+            p_right.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            run_pic = p_right.add_run()
+            run_pic.add_picture(logo_right_path, width=Inches(1.2))
+        else:
+            cell_right.text = ""
+        tbl_pr = tbl._tbl.tblPr
+        tbl_borders = OxmlElement("w:tblBorders")
+        for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
+            child = OxmlElement(f"w:{side}")
+            child.set(qn("w:val"), "none")
+            child.set(qn("w:sz"), "0")
+            child.set(qn("w:space"), "0")
+            child.set(qn("w:color"), "auto")
+            tbl_borders.append(child)
+        tbl_pr.append(tbl_borders)
+        spacer = header.add_paragraph()
+        spacer.paragraph_format.space_after = Pt(2)
+    else:
+        hr = hp.add_run(f"{ESE_NOMBRE}\n{ESE_NIT}\n{ESE_MUNICIPIO}")
+        hr.bold = True
+        hr.font.size = Pt(9)
+        hr.font.name = "Arial"
 
     # ── TÍTULO ──
     _add_heading_line(doc, "CONTRATO DE PRESTACIÓN DE SERVICIOS", size=13)
