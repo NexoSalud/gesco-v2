@@ -95,14 +95,12 @@ export default function ImportarPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Importar Contratos</h1>
         <p className="text-gray-500 mt-1">Carga masiva de contratos desde archivo Excel</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Form */}
         <div className="lg:col-span-2 space-y-4">
           <Card>
             <CardHeader>
@@ -129,7 +127,6 @@ export default function ImportarPage() {
               <CardTitle className="text-base">Subir archivo Excel</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Drop zone */}
               <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -158,9 +155,7 @@ export default function ImportarPage() {
                     </div>
                     <div className="text-left">
                       <p className="font-medium text-gray-900">{file.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {(file.size / 1024).toFixed(1)} KB
-                      </p>
+                      <p className="text-sm text-gray-500">{(file.size / 1024).toFixed(1)} KB</p>
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); clearFile() }}
@@ -174,17 +169,12 @@ export default function ImportarPage() {
                     <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
                       <Upload className="w-6 h-6 text-gray-400" />
                     </div>
-                    <p className="text-gray-600 font-medium">
-                      Arrastra tu archivo Excel aquí
-                    </p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      o haz clic para seleccionar (.xlsx)
-                    </p>
+                    <p className="text-gray-600 font-medium">Arrastra tu archivo Excel aquí</p>
+                    <p className="text-sm text-gray-400 mt-1">o haz clic para seleccionar (.xlsx)</p>
                   </>
                 )}
               </div>
 
-              {/* Columnas esperadas */}
               <div className="mt-4 p-4 bg-gray-50 rounded-xl">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                   Columnas esperadas
@@ -205,7 +195,6 @@ export default function ImportarPage() {
                 </div>
               </div>
 
-              {/* Import button */}
               <Button
                 onClick={handleImport}
                 disabled={!selectedResolucion || !file || importing}
@@ -227,18 +216,13 @@ export default function ImportarPage() {
           </Card>
         </div>
 
-        {/* Result summary */}
         <div className="space-y-4">
-          {/* Quick info */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Formato requerido</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-gray-600 space-y-2">
-              <p>
-                El archivo Excel debe contener los contratos a importar con los encabezados
-                en la primera fila. Cada fila representa un contrato.
-              </p>
+              <p>El archivo Excel debe contener los contratos a importar con los encabezados en la primera fila. Cada fila representa un contrato.</p>
               <div className="flex items-center gap-2 text-xs text-gray-400 pt-2 border-t">
                 <Download className="w-3.5 h-3.5" />
                 <span>Descarga una plantilla desde Exportar &gt; Excel</span>
@@ -246,7 +230,6 @@ export default function ImportarPage() {
             </CardContent>
           </Card>
 
-          {/* Results */}
           {result && (
             <Card className={result.created > 0 ? "border-emerald-200" : "border-amber-200"}>
               <CardHeader className="pb-3">
@@ -277,21 +260,14 @@ export default function ImportarPage() {
 
                 {result.errors.length > 0 && (
                   <div>
-                    <p className="text-sm font-medium text-gray-700 mb-2">
-                      Errores ({result.errors.length})
-                    </p>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Errores ({result.errors.length})</p>
                     <div className="max-h-48 overflow-y-auto space-y-1">
                       {result.errors.map((err, i) => (
-                        <div
-                          key={i}
-                          className="p-2 rounded-lg bg-red-50 border border-red-100 text-xs"
-                        >
+                        <div key={i} className="p-2 rounded-lg bg-red-50 border border-red-100 text-xs">
                           <span className="font-medium text-red-700">Fila {err.fila}:</span>{" "}
                           <span className="text-red-600">{err.error}</span>
                           {err.numero_contrato && (
-                            <Badge variant="outline" className="ml-1 text-[10px]">
-                              {err.numero_contrato}
-                            </Badge>
+                            <Badge variant="outline" className="ml-1 text-[10px]">{err.numero_contrato}</Badge>
                           )}
                         </div>
                       ))}

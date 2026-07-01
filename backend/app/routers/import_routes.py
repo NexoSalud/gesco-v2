@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/import", tags=["Importación"])
 
-# Columnas esperadas en el Excel (mapeo a campos del modelo)
 COLUMN_MAP = {
     "NO. CONTRATO": "numero_contrato",
     "CONTRATISTA": "beneficiario_nombre",
@@ -43,14 +42,12 @@ _TITLE_NORMALIZE_RE = re.compile(r"[^A-Z0-9ÁÉÍÓÚÑ ]")
 
 
 def _normalize_title(title: str) -> str:
-    """Normaliza un título de columna para matching flexible."""
     t = title.strip().upper()
     t = _TITLE_NORMALIZE_RE.sub("", t)
     return re.sub(r"\s+", " ", t)
 
 
 def _find_column_index(headers: list[str], target: str) -> int | None:
-    """Busca una columna por nombre normalizado."""
     target_norm = _normalize_title(target)
     for i, h in enumerate(headers):
         if _normalize_title(str(h)) == target_norm:
@@ -59,7 +56,6 @@ def _find_column_index(headers: list[str], target: str) -> int | None:
 
 
 def _parse_number(val) -> float:
-    """Convierte un valor a número, soportando formatos colombianos."""
     if val is None:
         return 0.0
     if isinstance(val, (int, float)):
@@ -87,7 +83,6 @@ def _parse_number(val) -> float:
 
 
 def _clean_str(val) -> str | None:
-    """Limpia un valor string."""
     if val is None:
         return None
     s = str(val).strip()
@@ -100,10 +95,6 @@ async def importar_contratos_excel(
     file: UploadFile = File(..., description="Archivo Excel (.xlsx)"),
     db: AsyncSession = Depends(get_db),
 ):
-    """Importa contratos masivamente desde un archivo Excel.
-
-    El Excel debe tener las columnas esperadas en la primera fila (header).
-    """
     if not file.filename or not file.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(400, "El archivo debe ser .xlsx")
 
@@ -125,7 +116,6 @@ async def importar_contratos_excel(
 
     headers = [str(h) if h else "" for h in raw_headers]
 
-    # Mapear columnas
     col_indices: dict[str, int] = {}
     for col_name in COLUMN_MAP:
         idx = _find_column_index(headers, col_name)
@@ -139,9 +129,8 @@ async def importar_contratos_excel(
             "Verifique que los encabezados coincidan con el formato esperado.",
         )
 
-    # Perfiles existentes para mapeo
-    result = await db.execute(select(Perfil))
-    perfiles_existentes = {p.nombre.upper(): p.nombre for p in result.scalars().all()}
+    result_db = await db.execute(select(Perfil))
+    perfiles_existentes = {p.nombre.upper(): p.nombre for p in result_db.scalars().all()}
 
     result_summary = ImportResult()
 
@@ -150,7 +139,6 @@ async def importar_contratos_excel(
             continue
 
         try:
-            # Extraer campos
             numero_contrato = _clean_str(row[col_indices.get("NO. CONTRATO")])
             if not numero_contrato:
                 continue
@@ -166,40 +154,26 @@ async def importar_contratos_excel(
             perfil_raw = _clean_str(row[col_indices.get("TÍTULO")])
             monto_total = _parse_number(row[col_indices.get("VALOR DEL CONTRATO")]) if "VALOR DEL CONTRATO" in col_indices else 0.0
             cuotas_raw = _clean_str(row[col_indices.get("CUOTAS")])
-            vigencia_texto = _clean_str(row[col_indices.get("VIGENCIA DEL CONTRATO")])
             objeto = _clean_str(row[col_indices.get("OBJETO DEL CONTRATO")])
             supervisor = _clean_str(row[col_indices.get("SUPERVISOR")])
             cedula_supervisor = _clean_str(row[col_indices.get("CEDULA SUPERVISOR")])
             no_cdp = _clean_str(row[col_indices.get("No. CDP")])
 
-            # Validaciones
             if not cedula_contratista:
-                result_summary.errors.append({
-                    "fila": fila_idx,
-                    "numero_contrato": numero_contrato,
-                    "error": "Cédula del contratista vacía",
-                })
+                result_summary.errors.append({"fila": fila_idx, "numero_contrato": numero_contrato, "error": "Cédula del contratista vacía"})
                 result_summary.skipped += 1
                 continue
 
-            # Buscar o crear contratista
-            result_db = await db.execute(
-                select(Contratista).where(Contratista.identificacion == cedula_contratista)
-            )
-            contratista = result_db.scalar_one_or_none()
+            result_db2 = await db.execute(select(Contratista).where(Contratista.identificacion == cedula_contratista))
+            contratista = result_db2.scalar_one_or_none()
 
             if contratista:
                 contratista_id = contratista.id
-                if beneficiario_nombre:
-                    contratista.nombre = beneficiario_nombre.upper()
-                if lugar_expedicion:
-                    contratista.expedida_en = lugar_expedicion.upper()
-                if telefono:
-                    contratista.telefono = telefono
-                if direccion:
-                    contratista.direccion = direccion.upper()
-                if correo:
-                    contratista.correo = correo.lower()
+                if beneficiario_nombre: contratista.nombre = beneficiario_nombre.upper()
+                if lugar_expedicion: contratista.expedida_en = lugar_expedicion.upper()
+                if telefono: contratista.telefono = telefono
+                if direccion: contratista.direccion = direccion.upper()
+                if correo: contratista.correo = correo.lower()
             else:
                 contratista = Contratista(
                     identificacion=cedula_contratista,
@@ -213,7 +187,6 @@ async def importar_contratos_excel(
                 await db.flush()
                 contratista_id = contratista.id
 
-            # Normalizar perfil
             perfil_normalized = None
             if perfil_raw:
                 perfil_upper = perfil_raw.upper()
@@ -227,7 +200,6 @@ async def importar_contratos_excel(
                     if not perfil_normalized:
                         perfil_normalized = perfil_raw.upper()
 
-            # Parsear cuotas
             cuotas_total = 0
             cuotas_txt = None
             if cuotas_raw:
@@ -238,34 +210,20 @@ async def importar_contratos_excel(
                 cuotas_txt = "1"
                 cuotas_total = 1
 
-            # Verificar duplicado
-            existing = await db.execute(
-                select(Contrato).where(Contrato.numero_contrato == numero_contrato)
-            )
+            existing = await db.execute(select(Contrato).where(Contrato.numero_contrato == numero_contrato))
             if existing.scalar_one_or_none():
-                result_summary.errors.append({
-                    "fila": fila_idx,
-                    "numero_contrato": numero_contrato,
-                    "error": "El contrato ya existe",
-                })
+                result_summary.errors.append({"fila": fila_idx, "numero_contrato": numero_contrato, "error": "El contrato ya existe"})
                 result_summary.skipped += 1
                 continue
 
-            # Crear contrato
             valor_letras = numero_a_letras(monto_total)
             contrato = Contrato(
-                resolucion_id=resolucion_id,
-                contratista_id=contratista_id,
-                numero_contrato=numero_contrato,
-                perfil=perfil_normalized,
-                estado="EN_PROCESO",
-                objeto=objeto or "",
-                monto_total=monto_total,
-                valor_letras=valor_letras,
-                cuotas=cuotas_txt,
-                cuotas_total=cuotas_total,
-                supervisor=supervisor or "",
-                cedula_supervisor=cedula_supervisor or "",
+                resolucion_id=resolucion_id, contratista_id=contratista_id,
+                numero_contrato=numero_contrato, perfil=perfil_normalized,
+                estado="EN_PROCESO", objeto=objeto or "",
+                monto_total=monto_total, valor_letras=valor_letras,
+                cuotas=cuotas_txt, cuotas_total=cuotas_total,
+                supervisor=supervisor or "", cedula_supervisor=cedula_supervisor or "",
                 no_cdp=no_cdp or "",
             )
             db.add(contrato)
@@ -280,11 +238,7 @@ async def importar_contratos_excel(
                     err_numero = str(row[col_indices["NO. CONTRATO"]])
                 except Exception:
                     err_numero = ""
-            result_summary.errors.append({
-                "fila": fila_idx,
-                "numero_contrato": err_numero or "",
-                "error": str(e),
-            })
+            result_summary.errors.append({"fila": fila_idx, "numero_contrato": err_numero or "", "error": str(e)})
             result_summary.skipped += 1
             continue
 
