@@ -4,8 +4,9 @@ import json
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, Response
+from fastapi.templating import Jinja2Templates
 from sqlalchemy import text, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -21,6 +22,10 @@ from app.services.docx_generator import generar_contrato_docx
 from app.services.numero_letras import numero_a_letras
 
 router = APIRouter(prefix="/api/v1/contratos", tags=["Contratos"])
+
+import os
+templates_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
+templates = Jinja2Templates(directory=templates_dir)
 
 # Perfiles predefinidos (migrados de GESCO)
 PERFILES_PREDEFINIDOS = [
@@ -233,6 +238,68 @@ async def registrar_cuota(
         "cuotas_pagadas": contrato.cuotas_pagadas,
         "cuotas_total": contrato.cuotas_total,
     }
+
+
+@router.get("/{numero_contrato}/imprimir", response_class=HTMLResponse)
+async def imprimir_contrato(
+    numero_contrato: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Vista imprimible HTML del contrato."""
+    result = await db.execute(
+        select(Contrato)
+        .options(
+            selectinload(Contrato.contratista_rel),
+            selectinload(Contrato.pagos),
+        )
+        .where(Contrato.numero_contrato == numero_contrato)
+    )
+    contrato = result.scalar_one_or_none()
+    if not contrato:
+        raise HTTPException(404, "Contrato no encontrado")
+
+    # Obtener obligaciones del perfil
+    obligaciones = []
+    if contrato.perfil:
+        result = await db.execute(
+            select(Perfil).where(Perfil.nombre == contrato.perfil)
+        )
+        perfil = result.scalar_one_or_none()
+        if perfil and perfil.obligaciones_json:
+            try:
+                obligaciones = json.loads(perfil.obligaciones_json)
+            except Exception:
+                pass
+
+    contratista = contrato.contratista_rel
+
+    context = {
+        "request": request,
+        "numero_contrato": contrato.numero_contrato,
+        "nombre_contratista": contratista.nombre if contratista else "N/A",
+        "cedula": contratista.identificacion if contratista else "N/A",
+        "lugar_expedicion": contratista.expedida_en if contratista else "N/A",
+        "telefono": contratista.telefono if contratista else "N/A",
+        "direccion": contratista.direccion if contratista else "N/A",
+        "correo": contratista.correo if contratista else "N/A",
+        "perfil": contrato.perfil or "N/A",
+        "valor_contrato": contrato.monto_total,
+        "valor_letras": contrato.valor_letras or "",
+        "fecha_inicio": str(contrato.fecha_inicio) if contrato.fecha_inicio else "_________",
+        "fecha_fin": str(contrato.fecha_fin) if contrato.fecha_fin else "_________",
+        "fecha_contrato": str(contrato.fecha_contrato or contrato.fecha_inicio) if contrato.fecha_contrato else "_________",
+        "supervisor": contrato.supervisor or "N/A",
+        "cedula_supervisor": contrato.cedula_supervisor or "N/A",
+        "cargo_supervisor": contrato.cargo_supervisor or "N/A",
+        "lugar_ejecucion": contrato.lugar_ejecucion or "Puerto Tejada – Cauca",
+        "cuotas": contrato.cuotas or "1",
+        "objeto": contrato.objeto or "",
+        "unidad_atencion": contrato.unidad_atencion or "N/A",
+        "obligaciones_esp": obligaciones,
+    }
+
+    return templates.TemplateResponse("contrato_imprimir.html", context)
 
 
 @router.get("/{numero_contrato}/docx")
