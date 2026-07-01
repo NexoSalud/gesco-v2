@@ -1,6 +1,6 @@
 /** API client for Gesco V2 backend */
 
-// En producción apunta al dominio configurado, localhost:8099 para dev local
+// En producción usa rutas relativas (Next.js rewrites proxy /api al backend)
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8099"
 
 export const api = {

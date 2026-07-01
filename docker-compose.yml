@@ -1,46 +1,50 @@
-# Versión: 2.0.0
-
+# =============================================================================
+# GESCO V2 — docker-compose for Coolify / production
+# =============================================================================
 services:
   db:
     image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: gesco
-      POSTGRES_PASSWORD: gesco123
-      POSTGRES_DB: gesco_v2
-    ports:
-      - "9002:5432"
+    restart: unless-stopped
     volumes:
       - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gesco_v2}
+      POSTGRES_USER: ${POSTGRES_USER:-gesco}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gesco123}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gesco"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gesco}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   backend:
     build: ./backend
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://gesco:gesco123@db:5432/gesco_v2
-      CORS_ORIGINS: "http://localhost:3000,https://contratos.esenorte3.lat,https://www.contratos.esenorte3.lat"
+      DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-gesco}:${POSTGRES_PASSWORD:-gesco123}@db:5432/${POSTGRES_DB:-gesco_v2}"
+      CORS_ORIGINS: "https://contratos.esenorte3.lat,https://www.contratos.esenorte3.lat"
       DEBUG: "false"
-    ports:
-      - "9001:8000"
     volumes:
       - uploads:/app/uploads
-    restart: unless-stopped
 
   frontend:
     build: ./frontend
+    restart: unless-stopped
     depends_on:
       - backend
     ports:
-      - "9000:3000"
+      - "8787:3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gesco.entrypoints=https"
+      - "traefik.http.routers.gesco.rule=Host(`contratos.esenorte3.lat`)"
+      - "traefik.http.routers.gesco.tls.certresolver=letsencrypt"
+      - "traefik.http.services.gesco.loadbalancer.server.port=3000"
     environment:
-      NEXT_PUBLIC_API_URL: https://contratos.esenorte3.lat
-    restart: unless-stopped
+      NEXT_PUBLIC_API_URL: "https://contratos.esenorte3.lat"
 
 volumes:
   pgdata:
