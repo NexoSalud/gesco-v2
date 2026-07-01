@@ -1,7 +1,7 @@
 "use client"
 
 import { usePathname } from "next/navigation"
-import { Search, Wifi, WifiOff } from "lucide-react"
+import { Search, Bell, CheckCircle2, Wifi, WifiOff } from "lucide-react"
 import { useState, useEffect } from "react"
 
 const BREADCRUMB_LABELS: Record<string, string> = {
