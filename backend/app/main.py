@@ -16,6 +16,7 @@ from app.routers import (
     perfiles_router,
     plantillas_router,
     export_router,
+    import_router,
 )
 from app.seed_data import seed_database
 
@@ -59,6 +60,7 @@ app.include_router(pagos_router)
 app.include_router(perfiles_router)
 app.include_router(plantillas_router)
 app.include_router(export_router)
+app.include_router(import_router)
 
 
 @app.get("/api/health")

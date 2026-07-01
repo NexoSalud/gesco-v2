@@ -161,3 +161,26 @@ export const getDashboardGlobal = () => request<any>("/api/v1/export/dashboard-g
 // ─── Plantillas ──────────────────────────────────────────────────────────────
 
 export const getPlantillas = () => request<any[]>("/api/v1/plantillas")
+
+// ─── Import ──────────────────────────────────────────────────────────────────
+
+export interface ImportResult {
+  total: number
+  created: number
+  skipped: number
+  errors: Array<{ fila: number; numero_contrato: string | null; error: string }>
+}
+
+export async function uploadImportExcel(resolucionId: number, file: File): Promise<ImportResult> {
+  const formData = new FormData()
+  formData.append("file", file)
+  const res = await fetch(`${API}/api/v1/import/excel?resolucion_id=${resolucionId}`, {
+    method: "POST",
+    body: formData,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Error ${res.status}: ${text.slice(0, 200)}`)
+  }
+  return res.json()
+}

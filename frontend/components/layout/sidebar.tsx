@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronRight,
   Scale,
+  Upload,
 } from "lucide-react"
 import { useState } from "react"
 
@@ -43,6 +44,11 @@ const NAV_ITEMS = [
     label: "Plantillas",
     href: "/dashboard/plantillas",
     icon: FileSpreadsheet,
+  },
+  {
+    label: "Importar",
+    href: "/dashboard/importar",
+    icon: Upload,
   },
 ]
 
