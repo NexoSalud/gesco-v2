@@ -14,8 +14,15 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     ...options,
   })
   if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Error ${res.status}: ${text.slice(0, 200)}`)
+    let detail = `Error ${res.status}`
+    try {
+      const json = await res.json()
+      detail = json.detail || JSON.stringify(json.errors || json)
+    } catch {
+      const text = await res.text()
+      detail = text.slice(0, 300)
+    }
+    throw new Error(detail)
   }
   // Handle binary responses
   const ct = res.headers.get("content-type") || ""
