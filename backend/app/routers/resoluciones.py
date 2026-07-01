@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.resolucion import Resolucion
@@ -66,13 +67,21 @@ async def crear_resolucion(data: ResolucionCreate, db: AsyncSession = Depends(ge
     db.add(db_obj)
     await db.commit()
     await db.refresh(db_obj)
-    return db_obj
+    # Recargar con relaciones para evitar lazy loading en async
+    result = await db.execute(
+        select(Resolucion)
+        .options(selectinload(Resolucion.contratos))
+        .where(Resolucion.id == db_obj.id)
+    )
+    return result.scalar_one()
 
 
 @router.get("/{resolucion_id}", response_model=ResolucionOut)
 async def obtener_resolucion(resolucion_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(Resolucion).where(Resolucion.id == resolucion_id)
+        select(Resolucion)
+        .options(selectinload(Resolucion.contratos))
+        .where(Resolucion.id == resolucion_id)
     )
     r = result.scalar_one_or_none()
     if not r:
