@@ -7,7 +7,8 @@ import {
   getResolucion, getContratos, getPerfilesPredefinidos,
   createContrato, descargarDocx, descargarExcelResolucion,
   descargarPdfsMasivos, registrarCuota, anularContrato,
-  type Resolucion, type Contrato,
+  type Resolucion, type Contrato, type ResolucionAnalytics,
+  getResolucionAnalytics,
 } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge, getEstadoBadgeVariant } from "@/components/ui/badge"
@@ -42,6 +43,8 @@ export default function ResolucionDetailPage() {
   const [contratos, setContratos] = useState<Contrato[]>([])
   const [perfiles, setPerfiles] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [analytics, setAnalytics] = useState<ResolucionAnalytics | null>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("contratos")
   const [filterEstado, setFilterEstado] = useState("")
   const [filterBuscar, setFilterBuscar] = useState("")
@@ -94,6 +97,17 @@ export default function ResolucionDetailPage() {
   }
 
   useEffect(() => { loadData() }, [id])
+
+  // Load analytics when the analytics tab is active
+  useEffect(() => {
+    if (activeTab === "analytics") {
+      setAnalyticsLoading(true)
+      getResolucionAnalytics(id)
+        .then(setAnalytics)
+        .catch(() => toast.error("Error cargando analytics"))
+        .finally(() => setAnalyticsLoading(false))
+    }
+  }, [activeTab, id])
 
   const handleCreateContract = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -443,64 +457,181 @@ export default function ResolucionDetailPage() {
 
         {/* ── TAB: Analytics ── */}
         <TabsContent value="analytics" className="space-y-6">
-          {/* Extended KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-3xl font-bold text-emerald-600">{activos}</p>
-                <p className="text-xs text-gray-500 mt-1">Activos</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-3xl font-bold text-amber-600">{enProceso}</p>
-                <p className="text-xs text-gray-500 mt-1">En Proceso</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-3xl font-bold text-blue-600">{finalizados}</p>
-                <p className="text-xs text-gray-500 mt-1">Finalizados</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-3xl font-bold text-red-600">{anulados}</p>
-                <p className="text-xs text-gray-500 mt-1">Anulados</p>
-              </CardContent>
-            </Card>
-          </div>
+          {analyticsLoading ? (
+            <KPISkeleton />
+          ) : !analytics ? (
+            <p className="text-gray-400 text-sm text-center py-8">Cargando datos de analytics...</p>
+          ) : (
+            <>
+              {/* KPIs extendidos */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-3xl font-bold text-gray-800">{analytics.total_contratos}</p>
+                    <p className="text-xs text-gray-500 mt-1">Total Contratos</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-3xl font-bold text-emerald-600">{analytics.contratos_activos}</p>
+                    <p className="text-xs text-gray-500 mt-1">Activos</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-3xl font-bold text-amber-500">{analytics.contratos_por_vencer}</p>
+                    <p className="text-xs text-gray-500 mt-1">Por Vencer (30d)</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-3xl font-bold text-red-500">{analytics.contratos_vencidos}</p>
+                    <p className="text-xs text-gray-500 mt-1">Vencidos</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-3xl font-bold text-rose-600">{analytics.total_anulados}</p>
+                    <p className="text-xs text-gray-500 mt-1">Anulados</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-3xl font-bold text-gray-800">{analytics.contratos_por_unidad.length}</p>
+                    <p className="text-xs text-gray-500 mt-1">Unidades</p>
+                  </CardContent>
+                </Card>
+              </div>
 
-          {/* Profesionales por tipo */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Contratos por Perfil</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {perfilesAnalytics.length === 0 ? (
-                <p className="text-gray-400 text-sm">Sin datos de perfiles</p>
-              ) : (
-                <div className="space-y-3">
-                  {perfilesAnalytics.map(([perfil, count]) => (
-                    <div key={perfil} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-700">{perfil}</span>
-                      <div className="flex items-center gap-3">
-                        <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-blue-500 rounded-full"
-                            style={{
-                              width: `${(count / contratos.length) * 100}%`,
-                            }}
-                          />
+              {/* Profesionales por tipo */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Profesionales por Tipo</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {analytics.profesionales_por_tipo.length === 0 ? (
+                    <p className="text-gray-400 text-sm">Sin datos</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead className="text-right">Cantidad</TableHead>
+                          <TableHead className="text-right">Valor Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {analytics.profesionales_por_tipo.map((p: any) => (
+                          <TableRow key={p.tipo}>
+                            <TableCell className="font-medium">{p.tipo}</TableCell>
+                            <TableCell className="text-right">{p.total}</TableCell>
+                            <TableCell className="text-right font-mono text-sm">{fmt.format(p.valor)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Proximos a vencer */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Contratos Proximos a Vencer (30 dias)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {analytics.proximos_vencer.length === 0 ? (
+                    <p className="text-gray-400 text-sm">No hay contratos proximos a vencer</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Contrato</TableHead>
+                          <TableHead>Beneficiario</TableHead>
+                          <TableHead>Fecha Fin</TableHead>
+                          <TableHead className="text-right">Dias Restantes</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {analytics.proximos_vencer.map((c: any) => (
+                          <TableRow key={c.numero_contrato}>
+                            <TableCell className="font-medium">{c.numero_contrato}</TableCell>
+                            <TableCell>{c.beneficiario}</TableCell>
+                            <TableCell>{c.fecha_fin}</TableCell>
+                            <TableCell className="text-right">
+                              {c.dias_restantes <= 5 ? (
+                                <Badge variant="danger">{c.dias_restantes} dias</Badge>
+                              ) : c.dias_restantes <= 15 ? (
+                                <Badge variant="warning">{c.dias_restantes} dias</Badge>
+                              ) : (
+                                <Badge variant="info">{c.dias_restantes} dias</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Motivos de anulacion */}
+              {analytics.motivos_anulacion.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Motivos de Anulacion</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {analytics.motivos_anulacion.map((m: any) => (
+                        <div key={m.motivo} className="flex items-center justify-between">
+                          <span className="text-sm text-gray-700">{m.motivo}</span>
+                          <Badge variant="default">{m.total}</Badge>
                         </div>
-                        <span className="text-sm font-medium w-8 text-right">{count}</span>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </CardContent>
+                </Card>
               )}
-            </CardContent>
-          </Card>
+
+              {/* Contratos por unidad de atencion */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Contratos por Unidad de Atencion</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {analytics.contratos_por_unidad.length === 0 ? (
+                    <p className="text-gray-400 text-sm">Sin datos</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Municipio / Unidad</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                          <TableHead className="text-right">Activos</TableHead>
+                          <TableHead className="text-right">Valor</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {analytics.contratos_por_unidad.map((u: any) => (
+                          <TableRow key={u.municipio}>
+                            <TableCell className="font-medium">{u.municipio}</TableCell>
+                            <TableCell className="text-right">{u.total}</TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant={u.activos > 0 ? "success" : "default"}>
+                                {u.activos}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-sm">{fmt.format(u.valor)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
 
         {/* ── TAB: Exportar ── */}

@@ -158,6 +158,22 @@ export const getAlertas = (dias: number = 30) =>
 
 export const getDashboardGlobal = () => request<any>("/api/v1/export/dashboard-global")
 
+
+export interface ResolucionAnalytics {
+  total_contratos: number
+  contratos_activos: number
+  contratos_por_vencer: number
+  contratos_vencidos: number
+  total_anulados: number
+  profesionales_por_tipo: Array<{ tipo: string; total: number; valor: number }>
+  proximos_vencer: Array<{ numero_contrato: string; beneficiario: string; fecha_fin: string; dias_restantes: number }>
+  motivos_anulacion: Array<{ motivo: string; total: number }>
+  contratos_por_unidad: Array<{ municipio: string; total: number; activos: number; valor: number }>
+}
+
+export const getResolucionAnalytics = (resolucionId: number) =>
+  request<ResolucionAnalytics>(`/api/v1/export/resolucion/${resolucionId}/analytics`)
+
 // ─── Plantillas ──────────────────────────────────────────────────────────────
 
 export const getPlantillas = () => request<any[]>("/api/v1/plantillas")
