@@ -9,6 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import async_session_factory, engine
 from app.models.perfil import Perfil, ActividadPerfil
 from app.models.plantilla import PlantillaObservacion
+from app.models.resolucion import Resolucion
+from app.models.contrato import Contrato
+from app.models.contratista import Contratista
+from app.models.pago import Pago
+from app.models.planilla import Planilla
 
 logger = logging.getLogger(__name__)
 
@@ -320,6 +325,114 @@ async def seed_database():
 
             await db.commit()
             logger.info(f"Seed completado: {len(PERFILES_DATA)} perfiles creados")
+
+            # ─── DEMO DATA ────────────────────────────────────────────────────────
+            try:
+                existing_res = await db.execute(select(Resolucion).limit(1))
+                if not existing_res.scalar_one_or_none():
+                    logger.info("Insertando data demo...")
+
+                    # 1. Resolución demo
+                    resolucion = Resolucion(
+                        codigo="RES-DEMO-2026",
+                        titulo="CONTRATACIÓN TALENTO HUMANO ESE NORTE 3",
+                        vigencia=2026,
+                        presupuesto=500_000_000,
+                        indirect_percentage=15,
+                    )
+                    db.add(resolucion)
+                    await db.flush()
+
+                    # 2. Contratistas
+                    contratistas_data = [
+                        ("1143987654", "MARÍA ALEJANDRA VALENCIA"),
+                        ("76345218", "LUIS ALBERTO MOSQUERA"),
+                        ("1143890123", "DIANA PATRICIA HURTADO"),
+                    ]
+                    contratistas = []
+                    for cc, nombre in contratistas_data:
+                        cnt = Contratista(identificacion=cc, nombre=nombre)
+                        db.add(cnt)
+                        contratistas.append(cnt)
+                    await db.flush()
+
+                    # 3. Contratos
+                    contratos_data = [
+                        {
+                            "numero": "CT-DEMO-001",
+                            "perfil": "MÉDICO GENERAL",
+                            "contratista": contratistas[0],
+                            "monto": 48_000_000,
+                            "supervisor": "Dr. Carlos Méndez",
+                            "cuotas": 12,
+                        },
+                        {
+                            "numero": "CT-DEMO-002",
+                            "perfil": "AUXILIAR DE ENFERMERÍA",
+                            "contratista": contratistas[1],
+                            "monto": 28_800_000,
+                            "supervisor": "Dr. Carlos Méndez",
+                            "cuotas": 12,
+                        },
+                        {
+                            "numero": "CT-DEMO-003",
+                            "perfil": "PSICÓLOGO",
+                            "contratista": contratistas[2],
+                            "monto": 36_000_000,
+                            "supervisor": "Mg. Andrea Gómez",
+                            "cuotas": 12,
+                        },
+                    ]
+                    for cd in contratos_data:
+                        ct = Contrato(
+                            resolucion_id=resolucion.id,
+                            contratista_id=cd["contratista"].id,
+                            numero_contrato=cd["numero"],
+                            perfil=cd["perfil"],
+                            estado="ACTIVO",
+                            monto_total=cd["monto"],
+                            supervisor=cd["supervisor"],
+                            cuotas_total=cd["cuotas"],
+                            cuotas_pagadas=0,
+                        )
+                        db.add(ct)
+                    await db.flush()
+
+                    # 4. Pago demo para CT-DEMO-001
+                    pago = Pago(
+                        contrato_id="CT-DEMO-001",
+                        numero_pago=1,
+                        valor_a_pagar=4_000_000,
+                        valor_pagado=4_000_000,
+                        tipo_informe="SUPERVISION",
+                    )
+                    db.add(pago)
+                    await db.flush()
+
+                    # 5. Planilla de seguridad social
+                    eps_valor = 380_000
+                    arl_valor = 52_000
+                    afp_valor = 345_000
+                    ccf_valor = 28_000
+                    planilla = Planilla(
+                        pago_id=pago.id,
+                        eps_nombre="NUEVA EPS",
+                        eps_valor=eps_valor,
+                        arl_nombre="POSITIVA",
+                        arl_valor=arl_valor,
+                        afp_nombre="PORVENIR",
+                        afp_valor=afp_valor,
+                        ccf_nombre="COMFACAUCA",
+                        ccf_valor=ccf_valor,
+                        valor_total=eps_valor + arl_valor + afp_valor + ccf_valor,
+                    )
+                    db.add(planilla)
+
+                    await db.commit()
+                    logger.info("Demo data insertada correctamente")
+            except Exception as e:
+                await db.rollback()
+                logger.warning(f"Error insertando demo data: {e}")
 
         except Exception as e:
             await db.rollback()
