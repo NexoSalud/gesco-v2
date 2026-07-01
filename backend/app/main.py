@@ -16,11 +16,11 @@ from app.routers import (
     perfiles_router,
     plantillas_router,
     export_router,
-    import_router,
-    logos_router,
-    logos_router,
 )
 from app.seed_data import seed_database
+from app.error_handlers import global_exception_handler, validation_exception_handler, http_exception_handler
+from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -62,9 +62,11 @@ app.include_router(pagos_router)
 app.include_router(perfiles_router)
 app.include_router(plantillas_router)
 app.include_router(export_router)
-app.include_router(import_router)
-app.include_router(logos_router)
-app.include_router(logos_router)
+
+# Error handlers
+app.add_exception_handler(Exception, global_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
 
 
 @app.get("/api/health")

@@ -130,6 +130,8 @@ export const getPagos = (contrato_id?: string) => {
   return request<Pago[]>(`/api/v1/pagos${q}`)
 }
 
+export const getPlantillas = () => request<any[]>("/api/v1/plantillas")
+
 export const createPago = (data: any) =>
   request<Pago>("/api/v1/pagos", { method: "POST", body: JSON.stringify(data) })
 
@@ -182,7 +184,6 @@ export const getResolucionAnalytics = (resolucionId: number) =>
   request<ResolucionAnalytics>(`/api/v1/export/resolucion/${resolucionId}/analytics`)
 
 
- feature/editor-plantillas
 // ─── Import ──────────────────────────────────────────────────────────────────
 
 export interface ImportResult {
@@ -206,12 +207,7 @@ export async function uploadImportExcel(resolucionId: number, file: File): Promi
   return res.json()
 }
 
-// ─── Plantillas ──────────────────────────────────────────────────────────────
-
-export const getPlantillas = () => request<any[]>("/api/v1/plantillas")
-
-// ─── Actividades por perfil ──────────────────────────────────────────────────
-
+// ─── Actividades ────────────────────────────────────────────────────────────────
 export interface ActividadPerfil {
   id: number
   descripcion: string
@@ -222,32 +218,7 @@ export const getActividades = (perfilId: number) =>
   request<ActividadPerfil[]>(`/api/v1/perfiles/${perfilId}/actividades`)
 
 export const createActividad = (perfilId: number, descripcion: string, orden: number = 0) =>
-  request<ActividadPerfil>(
-    `/api/v1/perfiles/${perfilId}/actividades?descripcion=${encodeURIComponent(descripcion)}&orden=${orden}`,
-    { method: "POST" }
-  )
+  request<ActividadPerfil>(`/api/v1/perfiles/${perfilId}/actividades?descripcion=${encodeURIComponent(descripcion)}&orden=${orden}`, { method: "POST" })
 
 export const deleteActividad = (actividadId: number) =>
   request<void>(`/api/v1/actividades/${actividadId}`, { method: "DELETE" })
-// ─── Import ──────────────────────────────────────────────────────────────────
-
-export interface ImportResult {
-  total: number
-  created: number
-  skipped: number
-  errors: Array<{ fila: number; numero_contrato: string | null; error: string }>
-}
-
-export async function uploadImportExcel(resolucionId: number, file: File): Promise<ImportResult> {
-  const formData = new FormData()
-  formData.append("file", file)
-  const res = await fetch(`${API}/api/v1/import/excel?resolucion_id=${resolucionId}`, {
-    method: "POST",
-    body: formData,
-  })
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Error ${res.status}: ${text.slice(0, 200)}`)
-  }
-  return res.json()
-}
