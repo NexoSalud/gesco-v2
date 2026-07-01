@@ -141,6 +141,9 @@ export const buscarContratistas = (q: string) =>
 // ─── Perfiles ────────────────────────────────────────────────────────────────
 
 export const getPerfiles = () => request<any[]>("/api/v1/perfiles")
+export const getPerfil = (id: number) => request<any>(`/api/v1/perfiles/${id}`)
+export const updatePerfil = (id: number, data: any) =>
+  request<any>(`/api/v1/perfiles/${id}`, { method: "PUT", body: JSON.stringify(data) })
 export const getPerfilesPredefinidos = () => request<{ perfiles: string[] }>("/api/v1/contratos/perfiles/predefinidos")
 
 // ─── Export ──────────────────────────────────────────────────────────────────
@@ -157,6 +160,29 @@ export const getAlertas = (dias: number = 30) =>
   request<any[]>(`/api/v1/export/alertas?dias=${dias}`)
 
 export const getDashboardGlobal = () => request<any>("/api/v1/export/dashboard-global")
+
+// ─── Import ──────────────────────────────────────────────────────────────────
+
+export interface ImportResult {
+  total: number
+  created: number
+  skipped: number
+  errors: Array<{ fila: number; numero_contrato: string | null; error: string }>
+}
+
+export async function uploadImportExcel(resolucionId: number, file: File): Promise<ImportResult> {
+  const formData = new FormData()
+  formData.append("file", file)
+  const res = await fetch(`${API}/api/v1/import/excel?resolucion_id=${resolucionId}`, {
+    method: "POST",
+    body: formData,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Error ${res.status}: ${text.slice(0, 200)}`)
+  }
+  return res.json()
+}
 
 // ─── Plantillas ──────────────────────────────────────────────────────────────
 
