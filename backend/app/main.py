@@ -16,6 +16,7 @@ from app.routers import (
     perfiles_router,
     plantillas_router,
     export_router,
+    import_router,
 )
 from app.seed_data import seed_database
 from app.error_handlers import global_exception_handler, validation_exception_handler, http_exception_handler
@@ -62,6 +63,7 @@ app.include_router(pagos_router)
 app.include_router(perfiles_router)
 app.include_router(plantillas_router)
 app.include_router(export_router)
+app.include_router(import_router)
 
 # Error handlers
 app.add_exception_handler(Exception, global_exception_handler)
