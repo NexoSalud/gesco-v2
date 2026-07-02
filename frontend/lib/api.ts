@@ -86,8 +86,14 @@ export const getContratos = (params?: { resolucion_id?: number; estado?: string;
   return request<Contrato[]>(`/api/v1/contratos?${q}`)
 }
 
-export const getContrato = (numero: string) =>
-  request<Contrato>(`/api/v1/contratos/by-number?numero=${encodeURIComponent(numero)}`)
+export const getContrato = (numero: string): Promise<Contrato> =>
+  request<Contrato[]>(`/api/v1/contratos?buscar=${encodeURIComponent(numero)}`)
+  .then((list) => {
+    if (!Array.isArray(list)) throw new Error(`Respuesta inválida al buscar contrato ${numero}`)
+    const match = list.find((c) => c.numero_contrato === numero)
+    if (!match) throw new Error(`Contrato ${numero} no encontrado`)
+    return match
+  })
 
 export const getContratoById = (id: number) => request<Contrato>(`/api/v1/contratos/id/${id}`)
 
@@ -95,7 +101,7 @@ export const createContrato = (data: any) =>
   request<Contrato>("/api/v1/contratos", { method: "POST", body: JSON.stringify(data) })
 
 export const descargarDocx = (numero: string) => {
-  window.open(`${API}/api/v1/contratos/by-number/docx?numero=${encodeURIComponent(numero)}`, "_blank")
+  window.open(`${API}/api/v1/contratos/${numero}/docx`, "_blank")
 }
 
 export const descargarDocxById = (id: number) => {
@@ -107,15 +113,15 @@ export const abrirVistaImprimible = (numero: string) => {
 }
 
 export const anularContrato = (numero: string, motivo: string) =>
-  request(`/api/v1/contratos/by-number/anular?numero=${encodeURIComponent(numero)}&motivo=${encodeURIComponent(motivo)}`, { method: "POST" })
+  request(`/api/v1/contratos/${numero}/anular?motivo=${encodeURIComponent(motivo)}`, { method: "POST" })
 
 export const anularContratoById = (id: number, motivo: string) =>
   request(`/api/v1/contratos/id/${id}/anular?motivo=${encodeURIComponent(motivo)}`, { method: "POST" })
 
 export const registrarCuota = (numero: string, accion: string, valor?: number) => {
-  let q = `numero=${encodeURIComponent(numero)}&accion=${accion}`
+  let q = `accion=${accion}`
   if (valor !== undefined) q += `&valor=${valor}`
-  return request(`/api/v1/contratos/by-number/cuotas?${q}`, { method: "POST" })
+  return request(`/api/v1/contratos/${numero}/cuotas?${q}`, { method: "POST" })
 }
 
 export const registrarCuotaById = (id: number, accion: string, valor?: number) => {

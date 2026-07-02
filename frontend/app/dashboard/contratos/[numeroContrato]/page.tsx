@@ -4,7 +4,9 @@ import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import {
   getContrato, getPagos, createPago, descargarDocx,
-  descargarPdfSupervision, registrarCuota, anularContrato,
+  descargarDocxById, descargarPdfSupervision,
+  registrarCuota, registrarCuotaById,
+  anularContrato, anularContratoById,
   type Contrato, type Pago,
 } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -89,10 +91,8 @@ export default function ContratoDetailPage() {
 
   const loadData = async () => {
     try {
-      const [c, p] = await Promise.all([
-        getContrato(numero),
-        getPagos(numero),
-      ])
+      const c = await getContrato(numero)
+      const p = await getPagos(numero)
       setContrato(c)
       setPagos(p)
     } catch (e) {
@@ -153,7 +153,7 @@ export default function ContratoDetailPage() {
       return
     }
     try {
-      await anularContrato(numero, motivo)
+      await (contrato ? anularContratoById(contrato.id, motivo) : anularContrato(numero, motivo))
       setShowAnular(false)
       toast.success("Contrato anulado")
       loadData()
@@ -211,7 +211,7 @@ export default function ContratoDetailPage() {
             variant="outline"
             size="sm"
             className="gap-1.5"
-            onClick={() => descargarDocx(numero)}
+            onClick={() => contrato ? descargarDocxById(contrato.id) : descargarDocx(numero)}
           >
             <FileDown className="w-4 h-4" />
             DOCX
@@ -292,7 +292,7 @@ export default function ContratoDetailPage() {
                   size="sm"
                   className="h-7 w-7 p-0"
                   disabled={contrato.cuotas_pagadas >= contrato.cuotas_total}
-                  onClick={() => registrarCuota(numero, "sumar").then(() => loadData())}
+                  onClick={() => (contrato ? registrarCuotaById(contrato.id, "sumar") : registrarCuota(numero, "sumar")).then(() => loadData())}
                 >
                   <Plus className="w-3 h-3" />
                 </Button>
@@ -301,7 +301,7 @@ export default function ContratoDetailPage() {
                   size="sm"
                   className="h-7 w-7 p-0"
                   disabled={contrato.cuotas_pagadas <= 0}
-                  onClick={() => registrarCuota(numero, "restar").then(() => loadData())}
+                  onClick={() => (contrato ? registrarCuotaById(contrato.id, "restar") : registrarCuota(numero, "restar")).then(() => loadData())}
                 >
                   <Minus className="w-3 h-3" />
                 </Button>
