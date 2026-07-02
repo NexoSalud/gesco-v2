@@ -27,12 +27,11 @@ import os
 templates_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
 templates = Jinja2Templates(directory=templates_dir)
 
-# Perfiles predefinidos (migrados de GESCO)
+# Perfiles predefinidos (tomados de gestionContractos)
 PERFILES_PREDEFINIDOS = [
-    "AUXILIAR DE ENFERMERÍA", "AUXILIAR DE ENFERMERÍA S7",
-    "BACTERIÓLOGO", "CONDUCTOR", "ENFERMERO(A)", "MÉDICO GENERAL",
-    "MÉDICO RURAL", "ODONTÓLOGO", "PSICÓLOGO", "TÉCNICO AMBIENTAL",
-    "TECNÓLOGO EN SISTEMAS", "OTRO",
+    "MEDICINA", "ENFERMERIA", "PSICOLOGIA", "SALUD ORAL",
+    "AUXILIAR ENFERMERIA", "AUXILIAR VACUNACION", "GESTOR COMUNITARIO",
+    "SINDICATO", "OTRO",
 ]
 
 

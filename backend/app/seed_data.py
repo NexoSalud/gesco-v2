@@ -1,4 +1,5 @@
-"""Seed data — perfiles predefinidos con objeto y obligaciones específicas."""
+"""Seed data — perfiles predefinidos con objeto y obligaciones específicas.
+Perfiles tomados del proyecto gestionContractos (EBS ESE Norte 3)."""
 
 import json
 import logging
@@ -6,7 +7,7 @@ import logging
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import async_session_factory, engine
+from app.database import async_session_factory
 from app.models.perfil import Perfil, ActividadPerfil
 from app.models.plantilla import PlantillaObservacion
 from app.models.resolucion import Resolucion
@@ -17,81 +18,45 @@ from app.models.planilla import Planilla
 
 logger = logging.getLogger(__name__)
 
-# ─── PERFILES Y SUS DATOS (migrados de GESCO) ────────────────────────────────
-
 PERFILES_DATA = [
     {
-        "nombre": "AUXILIAR DE ENFERMERÍA",
-        "objeto": "Prestar servicios de apoyo en el área asistencial como auxiliar de enfermería en los diferentes puntos de la ESE Norte 3, desarrollando actividades de promoción de la salud, prevención de la enfermedad y atención básica, de conformidad con los lineamientos del Plan de Intervenciones Colectivas (PIC) y demás programas institucionales.",
+        "nombre": "MEDICINA",
+        "objeto": "Prestar servicios profesionales como Médico en los Equipos Básicos en Salud (EBS) para el fortalecimiento de la Atención Primaria en Salud, desarrollando actividades de promoción, prevención, diagnóstico, tratamiento y seguimiento de la población asignada en el marco de la Resolución 1010 de 2025.",
         "obligaciones": [
-            "Apoyar la ejecución de las actividades del PIC en los municipios asignados por la ESE.",
-            "Realizar la toma de medidas antropométricas y signos vitales a la población objeto.",
-            "Aplicar encuestas de caracterización y tamizaje según lineamientos del programa.",
-            "Promover estilos de vida saludable en la comunidad mediante actividades educativas.",
-            "Mantener el orden y asepsia del material e instrumentos de trabajo.",
-            "Elaborar y presentar informes mensuales de actividades realizadas.",
-            "Asistir puntualmente a las capacitaciones programadas por la institución.",
-            "Cumplir con los protocolos de bioseguridad establecidos por la ESE.",
+            "Realizar la identificación integral del riesgo individual, familiar y comunitario de la población adscrita al microterritorio asignado.",
+            "Ejecutar las atenciones individuales de promoción y mantenimiento de la salud, conforme a la Resolución 3280 de 2018.",
+            "Aplicar las guías de práctica clínica, protocolos institucionales y lineamientos técnicos definidos por la E.S.E. NORTE 3.",
+            "Realizar acciones de inducción a la demanda de servicios de salud, priorizando eventos de salud pública.",
+            "Identificar, notificar y gestionar oportunamente los eventos de interés en salud pública.",
+            "Realizar la canalización oportuna de las personas a los servicios de salud.",
+            "Hacer seguimiento efectivo al acceso y continuidad de las atenciones en salud dentro de la red.",
+            "Promover la articulación intersectorial y transectorial de los servicios de salud.",
+            "Diligenciar diaria, completa y oportunamente los RIPS con códigos CIE-10.",
+            "Cumplir con las metas del programa con referencia al 100% de la población caracterizada.",
         ],
         "actividades": [
-            "Toma de signos vitales y medidas antropométricas",
-            "Aplicación de encuestas de caracterización",
-            "Educación en salud individual y grupal",
-            "Apoyo en jornadas de vacunación",
-            "Organización de material e insumos",
+            "Atención en salud por medicina general",
+            "Tamizaje para cáncer de próstata (PSA)",
+            "Tamizaje para cáncer de mama (valoración clínica)",
+            "Tamizaje para cáncer de colon (sangre oculta)",
+            "Control por medicina general y educación",
+            "Atención Preconcepcional",
+            "Asesoría en anticoncepción",
         ],
     },
     {
-        "nombre": "AUXILIAR DE ENFERMERÍA S7",
-        "objeto": "Prestar servicios de apoyo asistencial como auxiliar de enfermería en el marco del Programa de Atención Domiciliaria, realizando visitas domiciliarias para la promoción de la salud, prevención de la enfermedad y seguimiento a la población focalizada.",
+        "nombre": "ENFERMERIA",
+        "objeto": "Prestar servicios profesionales como Enfermero(a) en los Equipos Básicos en Salud (EBS), desarrollando actividades de cuidado integral, promoción de la salud, prevención de la enfermedad.",
         "obligaciones": [
-            "Realizar visitas domiciliarias a la población asignada según la ruta de atención integral.",
-            "Aplicar instrumentos de valoración familiar y social en cada visita.",
-            "Desarrollar actividades educativas en el hogar sobre hábitos saludables.",
-            "Identificar factores de riesgo en el entorno familiar y reportarlos al supervisor.",
-            "Realizar tamizajes de salud mental y nutrición.",
-            "Participar en las reuniones de equipo y actividades de capacitación.",
-            "Diligenciar correctamente los registros y formatos establecidos.",
-        ],
-        "actividades": [
-            "Visitas domiciliarias de seguimiento",
-            "Valoración del entorno familiar",
-            "Educación en salud en hogar",
-            "Tamizaje nutricional y de salud mental",
-        ],
-    },
-    {
-        "nombre": "MÉDICO GENERAL",
-        "objeto": "Prestar servicios profesionales como Médico General en los diferentes puntos de atención de la ESE Norte 3, realizando consulta médica general, actividades de promoción de la salud, prevención de la enfermedad, diagnóstico, tratamiento y seguimiento de patologías, en el marco de la Ruta Integral de Atención en Salud.",
-        "obligaciones": [
-            "Realizar consulta médica general ambulatoria a la población asignada.",
-            "Prescribir tratamientos farmacológicos y no farmacológicos de acuerdo con el diagnóstico.",
-            "Remitir oportunamente los pacientes a los niveles de mayor complejidad cuando sea necesario.",
-            "Registrar completa y oportunamente las historias clínicas y demás documentación.",
-            "Participar en las actividades de promoción y prevención programadas.",
-            "Cumplir con las metas y estándares establecidos por la ESE.",
-            "Asistir a las reuniones clínicas y administrativas programadas.",
-            "Reportar eventos de interés en salud pública al sistema de vigilancia.",
-        ],
-        "actividades": [
-            "Consulta médica general",
-            "Prescripción farmacológica",
-            "Remisión a especialistas",
-            "Registro en historias clínicas",
-            "Promoción y prevención",
-        ],
-    },
-    {
-        "nombre": "ENFERMERO(A)",
-        "objeto": "Prestar servicios profesionales como Enfermero(a) en los puntos de atención de la ESE Norte 3, desarrollando actividades de cuidado integral al individuo, familia y comunidad, con énfasis en promoción de la salud, prevención de la enfermedad, vigilancia epidemiológica y ejecución del Plan de Intervenciones Colectivas.",
-        "obligaciones": [
-            "Brindar atención de enfermería integral a la población asignada.",
-            "Realizar visita domiciliaria a la población con enfermedades crónicas no transmisibles.",
-            "Participar en la ejecución del Plan de Intervenciones Colectivas.",
-            "Realizar acciones de vigilancia epidemiológica y notificar eventos de interés.",
-            "Liderar procesos de educación en salud a la comunidad.",
-            "Ejecutar actividades de promoción de la salud y prevención de la enfermedad.",
-            "Elaborar y presentar informes periódicos de gestión.",
+            "Formular, implementar y realizar seguimiento al Plan Integral de Cuidado Primario (PICP).",
+            "Identificar y analizar los riesgos individuales, familiares y comunitarios.",
+            "Brindar orientación e información clara sobre la oferta de servicios de salud.",
+            "Inducir a la demanda de servicios de salud y notificar eventos de interés en salud pública.",
+            "Realizar canalización oportuna a servicios de nivel primario y red de prestación.",
+            "Sistematizar, registrar y reportar la información en sistemas definidos por Minsalud.",
+            "Aplicar guías de promoción, Resolución 3280, RIAS y guías de eventos de interés.",
+            "Diligenciar los RIPS utilizando los códigos CIE-10.",
+            "Cumplir con las normas de bioseguridad y seguridad del paciente.",
         ],
         "actividades": [
             "Atención integral de enfermería",
@@ -99,31 +64,12 @@ PERFILES_DATA = [
             "Vigilancia epidemiológica",
             "Educación en salud comunitaria",
             "Promoción y prevención",
+            "Tamizaje nutricional",
         ],
     },
     {
-        "nombre": "ODONTÓLOGO",
-        "objeto": "Prestar servicios profesionales como Odontólogo en los puntos de atención de la ESE Norte 3, desarrollando actividades de promoción de la salud oral, prevención, diagnóstico y tratamiento de patologías bucodentales, y participación en los programas institucionales de salud bucal.",
-        "obligaciones": [
-            "Realizar consulta odontológica general a la población asignada.",
-            "Ejecutar actividades de promoción de la salud oral y prevención de enfermedades bucodentales.",
-            "Aplicar sellantes, flúor y demás medidas preventivas según lineamientos.",
-            "Realizar tratamientos odontológicos básicos de acuerdo con su perfil.",
-            "Remitir a especialistas los casos de mayor complejidad.",
-            "Registrar adecuadamente la información clínica en los sistemas.",
-            "Participar en jornadas de salud extramurales programadas.",
-        ],
-        "actividades": [
-            "Consulta odontológica general",
-            "Aplicación de sellantes y flúor",
-            "Tratamientos odontológicos básicos",
-            "Promoción de salud oral",
-            "Jornadas extramurales",
-        ],
-    },
-    {
-        "nombre": "PSICÓLOGO",
-        "objeto": "Prestar servicios profesionales como Psicólogo en los programas de salud mental de la ESE Norte 3, realizando atención psicológica individual y grupal, intervención en crisis, promoción de la salud mental y prevención de trastornos mentales en la población asignada.",
+        "nombre": "PSICOLOGIA",
+        "objeto": "Prestar servicios profesionales como Psicólogo en los programas de salud mental de la ESE Norte 3.",
         "obligaciones": [
             "Realizar valoración psicológica integral a los usuarios asignados.",
             "Brindar atención psicológica individual y grupal.",
@@ -142,113 +88,104 @@ PERFILES_DATA = [
         ],
     },
     {
-        "nombre": "BACTERIÓLOGO",
-        "objeto": "Prestar servicios profesionales como Bacteriólogo en el laboratorio clínico de la ESE Norte 3, realizando análisis bacteriológicos, hematológicos, parasitológicos y de química sanguínea, garantizando la calidad y oportunidad de los resultados.",
+        "nombre": "SALUD ORAL",
+        "objeto": "Prestar servicios profesionales como Odontólogo en los puntos de atención de la ESE Norte 3.",
         "obligaciones": [
-            "Realizar análisis de laboratorio clínico según solicitud médica.",
-            "Procesar muestras biológicas garantizando la cadena de custodia.",
-            "Mantener y calibrar los equipos de laboratorio.",
-            "Implementar y mantener el programa de control de calidad.",
-            "Reportar oportunamente los resultados al sistema de información.",
-            "Gestionar el inventario de insumos y reactivos.",
-            "Cumplir con los protocolos de bioseguridad del laboratorio.",
+            "Realizar consulta odontológica general a la población asignada.",
+            "Ejecutar actividades de promoción de la salud oral y prevención de enfermedades bucodentales.",
+            "Aplicar sellantes, flúor y demás medidas preventivas según lineamientos.",
+            "Realizar tratamientos odontológicos básicos de acuerdo con su perfil.",
+            "Remitir a especialistas los casos de mayor complejidad.",
+            "Registrar adecuadamente la información clínica en los sistemas.",
+            "Participar en jornadas de salud extramurales programadas.",
         ],
         "actividades": [
-            "Análisis de laboratorio clínico",
-            "Procesamiento de muestras biológicas",
-            "Control de calidad de equipos",
-            "Reporte de resultados",
-            "Gestión de inventario de insumos",
+            "Consulta odontológica general",
+            "Aplicación de sellantes y flúor",
+            "Tratamientos odontológicos básicos",
+            "Promoción de salud oral",
+            "Jornadas extramurales",
         ],
     },
     {
-        "nombre": "CONDUCTOR",
-        "objeto": "Prestar servicios de conducción de vehículos automotores al servicio de la ESE Norte 3, para el transporte del talento humano, insumos y usuarios, garantizando la movilidad segura y oportuna en cumplimiento de las actividades misionales de la entidad.",
+        "nombre": "AUXILIAR ENFERMERIA",
+        "objeto": "Prestar servicios de apoyo como Auxiliar de Enfermería en los Equipos Básicos en Salud.",
         "obligaciones": [
-            "Conducir los vehículos asignados por la ESE para el transporte de personal e insumos.",
-            "Mantener el vehículo en óptimas condiciones de aseo y funcionamiento.",
-            "Realizar el mantenimiento preventivo básico del vehículo.",
-            "Reportar cualquier novedad o daño del vehículo al superior inmediato.",
-            "Cumplir con las normas de tránsito y seguridad vial.",
-            "Apoyar la logística de las jornadas extramurales.",
-            "Llevar el control de kilometraje y combustible.",
+            "Apoyar la ejecución de las actividades del PIC en los municipios asignados.",
+            "Realizar la toma de medidas antropométricas y signos vitales a la población objeto.",
+            "Aplicar encuestas de caracterización y tamizaje según lineamientos del programa.",
+            "Promover estilos de vida saludable en la comunidad mediante actividades educativas.",
+            "Mantener el orden y asepsia del material e instrumentos de trabajo.",
+            "Elaborar y presentar informes mensuales de actividades realizadas.",
+            "Cumplir con los protocolos de bioseguridad establecidos por la ESE.",
         ],
         "actividades": [
-            "Conducción de vehículos institucionales",
-            "Transporte de personal e insumos",
-            "Mantenimiento preventivo de vehículos",
-            "Apoyo logístico en jornadas extramurales",
+            "Toma de signos vitales y medidas antropométricas",
+            "Aplicación de encuestas de caracterización",
+            "Educación en salud individual y grupal",
+            "Apoyo en jornadas de vacunación",
+            "Organización de material e insumos",
         ],
     },
     {
-        "nombre": "TÉCNICO AMBIENTAL",
-        "objeto": "Prestar servicios como Técnico Ambiental en la ESE Norte 3, desarrollando actividades de gestión ambiental, manejo de residuos hospitalarios, educación ambiental y cumplimiento de la normatividad ambiental vigente en la entidad.",
+        "nombre": "AUXILIAR VACUNACION",
+        "objeto": "Prestar servicios de apoyo como Auxiliar de Vacunación en los Equipos Básicos en Salud.",
         "obligaciones": [
-            "Implementar el plan de gestión integral de residuos hospitalarios (PGIRH).",
-            "Realizar capacitaciones al personal sobre manejo de residuos.",
-            "Supervisar el correcto almacenamiento, transporte y disposición de residuos.",
-            "Elaborar informes ambientales requeridos por las autoridades.",
-            "Realizar seguimiento a los indicadores ambientales de la ESE.",
-            "Participar en la elaboración de planes de contingencia ambiental.",
-            "Asesorar en la implementación de prácticas sostenibles.",
+            "Apoyar las jornadas de vacunación programadas por la ESE.",
+            "Realizar registro y seguimiento del esquema de vacunación.",
+            "Promover la vacunación como medida de prevención de enfermedades.",
+            "Mantener la cadena de frío de los biológicos.",
+            "Diligenciar los registros de vacunación.",
+            "Cumplir con los protocolos de bioseguridad.",
         ],
         "actividades": [
-            "Gestión de residuos hospitalarios",
-            "Educación ambiental al personal",
-            "Supervisión de disposición de residuos",
-            "Elaboración de informes ambientales",
+            "Jornadas de vacunación",
+            "Registro de esquemas de vacunación",
+            "Promoción de vacunación",
+            "Mantenimiento de cadena de frío",
         ],
     },
     {
-        "nombre": "TECNÓLOGO EN SISTEMAS",
-        "objeto": "Prestar servicios de soporte técnico y mantenimiento de los sistemas de información y equipos de cómputo de la ESE Norte 3, garantizando la operatividad de la infraestructura tecnológica y la seguridad de la información.",
+        "nombre": "GESTOR COMUNITARIO",
+        "objeto": "Prestar servicios como Gestor Comunitario en los Equipos Básicos en Salud, promoviendo la participación comunitaria.",
         "obligaciones": [
-            "Realizar mantenimiento preventivo y correctivo de equipos de cómputo.",
-            "Brindar soporte técnico a los usuarios de los sistemas de información.",
-            "Administrar las cuentas de usuario y perfiles de acceso.",
-            "Realizar copias de seguridad de la información institucional.",
-            "Mantener actualizado el inventario de equipos y licencias.",
-            "Apoyar la implementación de nuevos sistemas y actualizaciones.",
-            "Garantizar la conectividad de red en los puntos de atención.",
+            "Promover la participación de la comunidad en las actividades de salud.",
+            "Realizar visitas domiciliarias para identificación de riesgos.",
+            "Articular con líderes comunitarios y organizaciones sociales.",
+            "Apoyar la ejecución del Plan de Intervenciones Colectivas.",
+            "Promover estilos de vida saludable en la comunidad.",
         ],
         "actividades": [
-            "Mantenimiento de equipos de cómputo",
-            "Soporte técnico a usuarios",
-            "Administración de sistemas",
-            "Copias de seguridad",
-            "Gestión de inventario tecnológico",
+            "Visitas domiciliarias comunitarias",
+            "Articulación con líderes comunitarios",
+            "Promoción de salud comunitaria",
+            "Apoyo a jornadas de salud",
         ],
     },
     {
-        "nombre": "MÉDICO RURAL",
-        "objeto": "Prestar servicios profesionales como Médico Rural en los puntos de atención de la ESE Norte 3 ubicados en zonas rurales, garantizando el acceso a servicios de salud de la población dispersa mediante consulta médica, actividades comunitarias y articulación con la red de prestación de servicios.",
+        "nombre": "SINDICATO",
+        "objeto": "Prestar servicios de apoyo administrativo y operativo para el fortalecimiento de la Atención Primaria en Salud.",
         "obligaciones": [
-            "Realizar consulta médica en los centros de salud rurales asignados.",
-            "Participar en brigadas de salud extramurales en zonas rurales.",
-            "Realizar seguimiento a pacientes crónicos en áreas dispersas.",
-            "Remitir oportunamente pacientes que requieran atención de mayor complejidad.",
-            "Registrar y reportar la información de atención en salud.",
-            "Participar en actividades de promoción y prevención comunitarias.",
-            "Colaborar con el equipo extramural en la ejecución del PIC.",
+            "Apoyar las actividades administrativas y operativas de la ESE.",
+            "Cumplir con los cronogramas y programaciones establecidas.",
+            "Presentar informes de actividades realizadas.",
+            "Cumplir con los protocolos institucionales.",
         ],
         "actividades": [
-            "Consulta médica rural",
-            "Brigadas de salud extramurales",
-            "Seguimiento a pacientes crónicos",
-            "Articulación con red de servicios",
+            "Apoyo administrativo",
+            "Gestión documental",
+            "Coordinación operativa",
         ],
     },
     {
         "nombre": "OTRO",
-        "objeto": "Prestar servicios profesionales o de apoyo a la gestión en la ESE Norte 3, según las necesidades del servicio y las funciones asignadas por el supervisor inmediato, en el marco de los planes, programas y proyectos institucionales.",
+        "objeto": "Prestar servicios profesionales o de apoyo a la gestión según las necesidades del servicio.",
         "obligaciones": [
             "Desarrollar las actividades y funciones asignadas por el supervisor.",
             "Cumplir con los horarios y cronogramas establecidos.",
             "Presentar informes periódicos de las actividades realizadas.",
             "Participar en las reuniones y capacitaciones programadas.",
             "Cumplir con los protocolos y procedimientos institucionales.",
-            "Reportar oportunamente novedades e incidencias.",
-            "Mantener la confidencialidad de la información institucional.",
         ],
         "actividades": [
             "Desarrollo de funciones asignadas",
@@ -259,44 +196,77 @@ PERFILES_DATA = [
     },
 ]
 
-# ─── PLANTILLAS DE OBSERVACIÓN ────────────────────────────────────────────────
-
 PLANTILLAS_OBSERVACION = [
-    {
-        "titulo": "Cumplimiento total",
-        "contenido": "El contratista cumplió a cabalidad con las actividades programadas durante el período, presentó oportunamente la documentación requerida y no se evidencian novedades que afecten el desarrollo del contrato."
-    },
-    {
-        "titulo": "Cumplimiento parcial",
-        "contenido": "El contratista cumplió parcialmente con las actividades programadas. Se presentaron algunas novedades que fueron subsanadas durante el período. Se recomienda realizar seguimiento más frecuente."
-    },
-    {
-        "titulo": "Incumplimiento",
-        "contenido": "El contratista no cumplió con las actividades programadas ni presentó la documentación requerida. Se inicia proceso de verificación de causales de incumplimiento contractual."
-    },
-    {
-        "titulo": "Documentación incompleta",
-        "contenido": "El contratista presentó la documentación de manera incompleta. Se requiere la presentación de planillas de seguridad social y/o cuentas de cobro completas para proceder con el pago."
-    },
-    {
-        "titulo": "Novedades en seguridad social",
-        "contenido": "Se presentan novedades en los aportes a seguridad social del contratista. No se evidencia el pago completo de EPS, ARL y AFP para el período reportado."
-    },
+    {"titulo": "Cumplimiento total", "contenido": "El contratista cumplió a cabalidad con las actividades programadas durante el período."},
+    {"titulo": "Cumplimiento parcial", "contenido": "El contratista cumplió parcialmente con las actividades programadas."},
+    {"titulo": "Incumplimiento", "contenido": "El contratista no cumplió con las actividades programadas."},
+    {"titulo": "Documentación incompleta", "contenido": "El contratista presentó la documentación de manera incompleta."},
+    {"titulo": "Novedades en seguridad social", "contenido": "Se presentan novedades en los aportes a seguridad social del contratista."},
 ]
+
+PERFIL_NORMALIZATION = {
+    "MEDICO": "MEDICINA",
+    "MEDICINA": "MEDICINA",
+    "MEDICO GENERAL": "MEDICINA",
+    "MEDICO RURAL": "MEDICINA",
+    "MEDICINA GENERAL": "MEDICINA",
+    "ENFERMERO": "ENFERMERIA",
+    "ENFERMERA": "ENFERMERIA",
+    "ENFERMERIA": "ENFERMERIA",
+    "ENFERMERO(A)": "ENFERMERIA",
+    "ENF": "ENFERMERIA",
+    "PSICOLOGO": "PSICOLOGIA",
+    "PSICÓLOGO": "PSICOLOGIA",
+    "PSICOLOGIA": "PSICOLOGIA",
+    "PSIC": "PSICOLOGIA",
+    "ODONTOLOGO": "SALUD ORAL",
+    "ODONTÓLOGO": "SALUD ORAL",
+    "SALUD ORAL": "SALUD ORAL",
+    "DENTISTA": "SALUD ORAL",
+    "AUXILIAR ENFERMERIA": "AUXILIAR ENFERMERIA",
+    "AUXILIAR DE ENFERMERÍA": "AUXILIAR ENFERMERIA",
+    "AUX ENFERMERIA": "AUXILIAR ENFERMERIA",
+    "AUX ENF": "AUXILIAR ENFERMERIA",
+    "AUXILIAR DE ENFERMERIA": "AUXILIAR ENFERMERIA",
+    "AUXILIAR VACUNACION": "AUXILIAR VACUNACION",
+    "AUX VACUNACION": "AUXILIAR VACUNACION",
+    "VACUNADOR": "AUXILIAR VACUNACION",
+    "GESTOR COMUNITARIO": "GESTOR COMUNITARIO",
+    "GESTOR": "GESTOR COMUNITARIO",
+    "SINDICATO": "SINDICATO",
+    "SINDICATO_103": "SINDICATO",
+    "SINDICATO_106": "SINDICATO",
+    "APOYO ADMINISTRATIVO": "SINDICATO",
+    "CONDUCTOR": "OTRO",
+    "BACTERIÓLOGO": "OTRO",
+    "BACTERIOLOGO": "OTRO",
+    "TÉCNICO AMBIENTAL": "OTRO",
+    "TECNICO AMBIENTAL": "OTRO",
+    "TECNÓLOGO EN SISTEMAS": "OTRO",
+    "TECNOLOGO SISTEMAS": "OTRO",
+}
 
 
 async def seed_database():
-    """Poblar datos iniciales si la base está vacía."""
     async with async_session_factory() as db:
         try:
             existing = await db.execute(select(Perfil).limit(1))
             if existing.scalar_one_or_none():
-                logger.info("Seed data ya existe, saltando...")
-                return
+                # Verificar si los perfiles actuales son los viejos (migrados de GESCO)
+                # Si es así, reemplazarlos con los nuevos de gestionContractos
+                first = existing.scalar_one()
+                if first.nombre in ("AUXILIAR DE ENFERMERÍA", "MÉDICO GENERAL"):
+                    logger.info("Migrando perfiles viejos a nueva version gestionContractos...")
+                    # Eliminar actividades y perfiles existentes
+                    await db.execute(text("DELETE FROM actividades_perfil"))
+                    await db.execute(text("DELETE FROM perfiles"))
+                    await db.commit()
+                else:
+                    logger.info("Seed data ya existe, saltando...")
+                    return
 
             logger.info("Insertando datos iniciales...")
 
-            # Perfiles
             for pdata in PERFILES_DATA:
                 obligaciones_json = json.dumps(pdata["obligaciones"], ensure_ascii=False)
                 perfil = Perfil(
@@ -315,7 +285,6 @@ async def seed_database():
                     )
                     db.add(actividad)
 
-            # Plantillas de observación
             for pt in PLANTILLAS_OBSERVACION:
                 plantilla = PlantillaObservacion(
                     titulo=pt["titulo"],
@@ -326,24 +295,19 @@ async def seed_database():
             await db.commit()
             logger.info(f"Seed completado: {len(PERFILES_DATA)} perfiles creados")
 
-            # ─── DEMO DATA ────────────────────────────────────────────────────────
+            # Demo data
             try:
                 existing_res = await db.execute(select(Resolucion).limit(1))
                 if not existing_res.scalar_one_or_none():
                     logger.info("Insertando data demo...")
-
-                    # 1. Resolución demo
                     resolucion = Resolucion(
                         codigo="RES-DEMO-2026",
                         titulo="CONTRATACIÓN TALENTO HUMANO ESE NORTE 3",
-                        vigencia=2026,
-                        presupuesto=500_000_000,
-                        indirect_percentage=15,
+                        vigencia=2026, presupuesto=500_000_000, indirect_percentage=15,
                     )
                     db.add(resolucion)
                     await db.flush()
 
-                    # 2. Contratistas
                     contratistas_data = [
                         ("1143987654", "MARÍA ALEJANDRA VALENCIA"),
                         ("76345218", "LUIS ALBERTO MOSQUERA"),
@@ -356,83 +320,40 @@ async def seed_database():
                         contratistas.append(cnt)
                     await db.flush()
 
-                    # 3. Contratos
                     contratos_data = [
-                        {
-                            "numero": "CT-DEMO-001",
-                            "perfil": "MÉDICO GENERAL",
-                            "contratista": contratistas[0],
-                            "monto": 48_000_000,
-                            "supervisor": "Dr. Carlos Méndez",
-                            "cuotas": 12,
-                        },
-                        {
-                            "numero": "CT-DEMO-002",
-                            "perfil": "AUXILIAR DE ENFERMERÍA",
-                            "contratista": contratistas[1],
-                            "monto": 28_800_000,
-                            "supervisor": "Dr. Carlos Méndez",
-                            "cuotas": 12,
-                        },
-                        {
-                            "numero": "CT-DEMO-003",
-                            "perfil": "PSICÓLOGO",
-                            "contratista": contratistas[2],
-                            "monto": 36_000_000,
-                            "supervisor": "Mg. Andrea Gómez",
-                            "cuotas": 12,
-                        },
+                        {"numero": "CT-DEMO-001", "perfil": "MEDICINA", "contratista": contratistas[0], "monto": 48_000_000, "cuotas": 12},
+                        {"numero": "CT-DEMO-002", "perfil": "ENFERMERIA", "contratista": contratistas[1], "monto": 28_800_000, "cuotas": 12},
+                        {"numero": "CT-DEMO-003", "perfil": "PSICOLOGIA", "contratista": contratistas[2], "monto": 36_000_000, "cuotas": 12},
                     ]
                     for cd in contratos_data:
                         ct = Contrato(
-                            resolucion_id=resolucion.id,
-                            contratista_id=cd["contratista"].id,
-                            numero_contrato=cd["numero"],
-                            perfil=cd["perfil"],
-                            estado="ACTIVO",
-                            monto_total=cd["monto"],
-                            supervisor=cd["supervisor"],
-                            cuotas_total=cd["cuotas"],
-                            cuotas_pagadas=0,
+                            resolucion_id=resolucion.id, contratista_id=cd["contratista"].id,
+                            numero_contrato=cd["numero"], perfil=cd["perfil"],
+                            estado="ACTIVO", monto_total=cd["monto"],
+                            supervisor="Dr. Carlos Méndez", cuotas_total=cd["cuotas"], cuotas_pagadas=0,
                         )
                         db.add(ct)
                     await db.flush()
 
-                    # 4. Pago demo para CT-DEMO-001
                     pago = Pago(
-                        contrato_id="CT-DEMO-001",
-                        numero_pago=1,
-                        valor_a_pagar=4_000_000,
-                        valor_pagado=4_000_000,
-                        tipo_informe="SUPERVISION",
+                        contrato_id="CT-DEMO-001", numero_pago=1, valor_a_pagar=4_000_000,
+                        valor_pagado=4_000_000, tipo_informe="SUPERVISION",
                     )
                     db.add(pago)
                     await db.flush()
 
-                    # 5. Planilla de seguridad social
-                    eps_valor = 380_000
-                    arl_valor = 52_000
-                    afp_valor = 345_000
-                    ccf_valor = 28_000
                     planilla = Planilla(
-                        pago_id=pago.id,
-                        eps_nombre="NUEVA EPS",
-                        eps_valor=eps_valor,
-                        arl_nombre="POSITIVA",
-                        arl_valor=arl_valor,
-                        afp_nombre="PORVENIR",
-                        afp_valor=afp_valor,
-                        ccf_nombre="COMFACAUCA",
-                        ccf_valor=ccf_valor,
-                        valor_total=eps_valor + arl_valor + afp_valor + ccf_valor,
+                        pago_id=pago.id, eps_nombre="NUEVA EPS", eps_valor=380_000,
+                        arl_nombre="POSITIVA", arl_valor=52_000, afp_nombre="PORVENIR", afp_valor=345_000,
+                        ccf_nombre="COMFACAUCA", ccf_valor=28_000,
+                        valor_total=380_000 + 52_000 + 345_000 + 28_000,
                     )
                     db.add(planilla)
-
                     await db.commit()
-                    logger.info("Demo data insertada correctamente")
+                    logger.info("Demo data insertada")
             except Exception as e:
                 await db.rollback()
-                logger.warning(f"Error insertando demo data: {e}")
+                logger.warning(f"Error demo data: {e}")
 
         except Exception as e:
             await db.rollback()

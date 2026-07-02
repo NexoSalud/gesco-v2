@@ -15,6 +15,46 @@ from app.models.contrato import Contrato
 from app.models.contratista import Contratista
 from app.models.pago import Pago
 from app.models.perfil import Perfil
+
+
+# Mapa de normalización de perfiles (variantes → nombre oficial)
+PERFIL_NORMALIZATION = {
+    "MEDICO": "MEDICINA",
+    "MEDICINA": "MEDICINA",
+    "MEDICO GENERAL": "MEDICINA",
+    "MEDICO RURAL": "MEDICINA",
+    "MEDICINA GENERAL": "MEDICINA",
+    "ENFERMERO": "ENFERMERIA",
+    "ENFERMERA": "ENFERMERIA",
+    "ENFERMERIA": "ENFERMERIA",
+    "ENFERMERO(A)": "ENFERMERIA",
+    "ENF": "ENFERMERIA",
+    "PSICOLOGO": "PSICOLOGIA",
+    "PSICÓLOGO": "PSICOLOGIA",
+    "PSICOLOGIA": "PSICOLOGIA",
+    "ODONTOLOGO": "SALUD ORAL",
+    "ODONTÓLOGO": "SALUD ORAL",
+    "SALUD ORAL": "SALUD ORAL",
+    "AUXILIAR ENFERMERIA": "AUXILIAR ENFERMERIA",
+    "AUXILIAR DE ENFERMERÍA": "AUXILIAR ENFERMERIA",
+    "AUX ENFERMERIA": "AUXILIAR ENFERMERIA",
+    "AUXILIAR DE ENFERMERIA": "AUXILIAR ENFERMERIA",
+    "AUXILIAR VACUNACION": "AUXILIAR VACUNACION",
+    "AUX VACUNACION": "AUXILIAR VACUNACION",
+    "VACUNADOR": "AUXILIAR VACUNACION",
+    "GESTOR COMUNITARIO": "GESTOR COMUNITARIO",
+    "SINDICATO": "SINDICATO",
+    "SINDICATO_103": "SINDICATO",
+    "SINDICATO_106": "SINDICATO",
+    "APOYO ADMINISTRATIVO": "SINDICATO",
+    "CONDUCTOR": "OTRO",
+    "BACTERIÓLOGO": "OTRO",
+    "BACTERIOLOGO": "OTRO",
+    "TÉCNICO AMBIENTAL": "OTRO",
+    "TECNICO AMBIENTAL": "OTRO",
+    "TECNÓLOGO EN SISTEMAS": "OTRO",
+    "TECNOLOGO SISTEMAS": "OTRO",
+}
 from app.schemas.import_schema import ImportResult
 from app.services.numero_letras import numero_a_letras
 
@@ -243,14 +283,20 @@ async def importar_contratos_excel(
                 perfil_raw = _clean_str(_get_col(col_indices, row, "PERFIL", "TÍTULO"))
                 perfil_normalized = None
                 if perfil_raw:
-                    perfil_upper = perfil_raw.upper()
-                    if perfil_upper in perfiles_existentes:
+                    perfil_upper = perfil_raw.upper().strip()
+                    # 1. Intentar normalización exacta por mapa
+                    if perfil_upper in PERFIL_NORMALIZATION:
+                        perfil_normalized = PERFIL_NORMALIZATION[perfil_upper]
+                    # 2. Buscar en perfiles existentes en BD
+                    elif perfil_upper in perfiles_existentes:
                         perfil_normalized = perfiles_existentes[perfil_upper]
                     else:
+                        # 3. Búsqueda parcial contra nombres existentes
                         for p_name in perfiles_existentes.values():
                             if perfil_upper in p_name.upper() or p_name.upper() in perfil_upper:
                                 perfil_normalized = p_name
                                 break
+                        # 4. Último recurso: usar raw
                         if not perfil_normalized:
                             perfil_normalized = perfil_raw.upper()
 
