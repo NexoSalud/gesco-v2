@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.contrato import Contrato
 from app.models.contratista import Contratista
+from app.models.pago import Pago
 from app.models.perfil import Perfil
 from app.schemas.import_schema import ImportResult
 from app.services.numero_letras import numero_a_letras
@@ -60,6 +61,16 @@ COLUMN_MAP = {
     "ESTADO": "estado_contrato",
     "TIPO DE PERSONA": "tipo_persona",
     "RESOLUCION": "resolucion_codigo",
+
+    # Columnas de pagos
+    "TIPO DE INFORME": "tipo_informe",
+    "PERIODO INFORME DESDE": "periodo_desde",
+    "PERIODO INFORME HASTA": "periodo_hasta",
+    "VALOR A PAGAR": "valor_a_pagar",
+    "N° FOLIOS": "folios",
+    "OBSERVACIONES": "observaciones",
+    "ACTIVIDADES": "actividades",
+    "PAGO No": "pago_numero",
 }
 
 _TITLE_NORMALIZE_RE = re.compile(r"[^A-Z0-9ÁÉÍÓÚÑ ]")
@@ -205,150 +216,195 @@ async def importar_contratos_excel(
             continue
 
         try:
-            # ─── Número de contrato (soporta ambos formatos) ──
+            # ─── Número de contrato ──
             numero_contrato = _clean_str(_get_col(col_indices, row, "N° DE CONTRATO", "NO. CONTRATO"))
             if not numero_contrato:
                 continue
 
-            # Skip if already created from a previous row (same contrato, different cuota)
-            if numero_contrato in contratos_creados:
-                continue
-
             result_summary.total += 1
+            es_nuevo_contrato = numero_contrato not in contratos_creados
 
-            # ─── Contratista (soporta ambos formatos) ──
-            beneficiario_nombre = _clean_str(_get_col(col_indices, row, "NOMBRE CONTRATISTA", "CONTRATISTA"))
-            cedula_contratista = _clean_str(_get_col(col_indices, row, "No. DE IDENTIFICACIÓN", "CEDULA DE CONTRATISTA"))
-            lugar_expedicion = _clean_str(_get_col(col_indices, row, "EXPEDIDA EN", "LUGAR DE EXPEDICIÓN"))
-            telefono = _clean_str(_get_col(col_indices, row, "No. TELÉFONO y/o CELULAR", "TELEFONO"))
-            direccion = _clean_str(_get_col(col_indices, row, "DIRECCION"))
-            correo = _clean_str(_get_col(col_indices, row, "CORREO"))
-            tipo_persona = _clean_str(_get_col(col_indices, row, "TIPO DE PERSONA"))
+            # ─── Si es nuevo contrato, crear contratista y contrato ──
+            if es_nuevo_contrato:
+                beneficiario_nombre = _clean_str(_get_col(col_indices, row, "NOMBRE CONTRATISTA", "CONTRATISTA"))
+                cedula_contratista = _clean_str(_get_col(col_indices, row, "No. DE IDENTIFICACIÓN", "CEDULA DE CONTRATISTA"))
+                lugar_expedicion = _clean_str(_get_col(col_indices, row, "EXPEDIDA EN", "LUGAR DE EXPEDICIÓN"))
+                telefono = _clean_str(_get_col(col_indices, row, "No. TELÉFONO y/o CELULAR", "TELEFONO"))
+                direccion = _clean_str(_get_col(col_indices, row, "DIRECCION"))
+                correo = _clean_str(_get_col(col_indices, row, "CORREO"))
+                tipo_persona = _clean_str(_get_col(col_indices, row, "TIPO DE PERSONA"))
 
-            # ─── Si no hay cédula de contratista, no podemos crear el contrato ──
-            if not cedula_contratista:
-                result_summary.errors.append({"fila": fila_idx, "numero_contrato": numero_contrato, "error": "Cédula del contratista vacía"})
-                result_summary.skipped += 1
-                continue
+                if not cedula_contratista:
+                    result_summary.errors.append({"fila": fila_idx, "numero_contrato": numero_contrato, "error": "Cédula del contratista vacía"})
+                    result_summary.skipped += 1
+                    continue
 
-            # ─── Perfil ──
-            perfil_raw = _clean_str(_get_col(col_indices, row, "PERFIL", "TÍTULO"))
-            perfil_normalized = None
-            if perfil_raw:
-                perfil_upper = perfil_raw.upper()
-                if perfil_upper in perfiles_existentes:
-                    perfil_normalized = perfiles_existentes[perfil_upper]
+                # ─── Perfil ──
+                perfil_raw = _clean_str(_get_col(col_indices, row, "PERFIL", "TÍTULO"))
+                perfil_normalized = None
+                if perfil_raw:
+                    perfil_upper = perfil_raw.upper()
+                    if perfil_upper in perfiles_existentes:
+                        perfil_normalized = perfiles_existentes[perfil_upper]
+                    else:
+                        for p_name in perfiles_existentes.values():
+                            if perfil_upper in p_name.upper() or p_name.upper() in perfil_upper:
+                                perfil_normalized = p_name
+                                break
+                        if not perfil_normalized:
+                            perfil_normalized = perfil_raw.upper()
+
+                monto_total = _parse_number(_get_col(col_indices, row, "VALOR FINAL DEL CONTRATO", "VALOR TOTAL DEL CONTRATO", "VALOR DEL CONTRATO"))
+                fecha_inicio = _parse_date(_get_col(col_indices, row, "FECHA DE INICIO DEL CONTRATO"))
+                fecha_fin = _parse_date(_get_col(col_indices, row, "FECHA TERMINACION DEL CONTRATO"))
+                objeto = _clean_str(_get_col(col_indices, row, "OBJETO DEL CONTRATO"))
+                supervisor = _clean_str(_get_col(col_indices, row, "SUPERVISOR"))
+                cedula_supervisor = _clean_str(_get_col(col_indices, row, "CEDULA SUPERVISOR"))
+                no_cdp = _clean_str(_get_col(col_indices, row, "CDP  No.", "No. CDP"))
+                rp = _clean_str(_get_col(col_indices, row, "CRP No."))
+                rubro = _clean_str(_get_col(col_indices, row, "IMPUTACIÓN PRESUPUESTAL"))
+                unidad_atencion = _clean_str(_get_col(col_indices, row, "UNIDAD DE ATENCION"))
+
+                cuotas_raw = _clean_str(_get_col(col_indices, row, "CUOTAS"))
+                cuotas_total = 0
+                cuotas_txt = None
+                if cuotas_raw:
+                    cuotas_txt = cuotas_raw
+                    nums = re.findall(r"\d+", cuotas_raw)
+                    cuotas_total = int(nums[0]) if nums else 1
                 else:
-                    for p_name in perfiles_existentes.values():
-                        if perfil_upper in p_name.upper() or p_name.upper() in perfil_upper:
-                            perfil_normalized = p_name
-                            break
-                    if not perfil_normalized:
-                        perfil_normalized = perfil_raw.upper()
+                    cuotas_txt = "1"
+                    cuotas_total = 1
 
-            # ─── Monto: prefiere VALOR FINAL DEL CONTRATO (con adiciones), luego VALOR TOTAL / VALOR DEL ──
-            monto_total = _parse_number(_get_col(col_indices, row, "VALOR FINAL DEL CONTRATO", "VALOR TOTAL DEL CONTRATO", "VALOR DEL CONTRATO"))
+                estado_raw = _get_col(col_indices, row, "ESTADO", "estado_contrato")
+                estado = _map_estado(estado_raw)
 
-            # ─── Fechas ──
-            fecha_inicio = _parse_date(_get_col(col_indices, row, "FECHA DE INICIO DEL CONTRATO"))
-            fecha_fin = _parse_date(_get_col(col_indices, row, "FECHA TERMINACION DEL CONTRATO"))
+                # ─── Contratista ──
+                result_db2 = await db.execute(select(Contratista).where(Contratista.identificacion == cedula_contratista))
+                contratista_obj = result_db2.scalar_one_or_none()
 
-            # ─── Objeto ──
-            objeto = _clean_str(_get_col(col_indices, row, "OBJETO DEL CONTRATO"))
+                if contratista_obj:
+                    contratista_id = contratista_obj.id
+                    if beneficiario_nombre:
+                        contratista_obj.nombre = beneficiario_nombre.upper().strip('"')
+                    if lugar_expedicion:
+                        contratista_obj.expedida_en = lugar_expedicion.upper()
+                    if telefono:
+                        contratista_obj.telefono = telefono
+                    if direccion:
+                        contratista_obj.direccion = direccion.upper()
+                    if correo:
+                        contratista_obj.correo = correo.lower()
+                    if tipo_persona:
+                        contratista_obj.tipo_persona = tipo_persona.upper()
+                else:
+                    contratista_obj = Contratista(
+                        identificacion=cedula_contratista,
+                        nombre=(beneficiario_nombre or "").upper().strip('"'),
+                        expedida_en=(lugar_expedicion or "").upper(),
+                        telefono=telefono or "",
+                        direccion=(direccion or "").upper(),
+                        correo=(correo or "").lower(),
+                        tipo_persona=(tipo_persona or "").upper(),
+                    )
+                    db.add(contratista_obj)
+                    await db.flush()
+                    contratista_id = contratista_obj.id
 
-            # ─── Supervisor ──
-            supervisor = _clean_str(_get_col(col_indices, row, "SUPERVISOR"))
-            cedula_supervisor = _clean_str(_get_col(col_indices, row, "CEDULA SUPERVISOR"))
+                # ─── Verificar duplicado en BD ──
+                existing = await db.execute(select(Contrato).where(Contrato.numero_contrato == numero_contrato))
+                if existing.scalar_one_or_none():
+                    result_summary.errors.append({"fila": fila_idx, "numero_contrato": numero_contrato, "error": "El contrato ya existe en BD"})
+                    result_summary.skipped += 1
+                    continue
 
-            # ─── CDP / RP / Rubro ──
-            no_cdp = _clean_str(_get_col(col_indices, row, "CDP  No.", "No. CDP"))
-            rp = _clean_str(_get_col(col_indices, row, "CRP No."))
-            rubro = _clean_str(_get_col(col_indices, row, "IMPUTACIÓN PRESUPUESTAL"))
-
-            # ─── Unidad de atención ──
-            unidad_atencion = _clean_str(_get_col(col_indices, row, "UNIDAD DE ATENCION"))
-
-            # ─── Cuotas ──
-            cuotas_raw = _clean_str(_get_col(col_indices, row, "CUOTAS"))
-            cuotas_total = 0
-            cuotas_txt = None
-            if cuotas_raw:
-                cuotas_txt = cuotas_raw
-                nums = re.findall(r"\d+", cuotas_raw)
-                cuotas_total = int(nums[0]) if nums else 1
-            else:
-                cuotas_txt = "1"
-                cuotas_total = 1
-
-            # ─── Estado ──
-            estado_raw = _get_col(col_indices, row, "ESTADO", "estado_contrato")
-            estado = _map_estado(estado_raw)
-
-            # ─── Contratista (crear o actualizar) ──
-            result_db2 = await db.execute(select(Contratista).where(Contratista.identificacion == cedula_contratista))
-            contratista = result_db2.scalar_one_or_none()
-
-            if contratista:
-                contratista_id = contratista.id
-                if beneficiario_nombre:
-                    contratista.nombre = beneficiario_nombre.upper().strip('"')
-                if lugar_expedicion:
-                    contratista.expedida_en = lugar_expedicion.upper()
-                if telefono:
-                    contratista.telefono = telefono
-                if direccion:
-                    contratista.direccion = direccion.upper()
-                if correo:
-                    contratista.correo = correo.lower()
-                if tipo_persona:
-                    contratista.tipo_persona = tipo_persona.upper()
-            else:
-                contratista = Contratista(
-                    identificacion=cedula_contratista,
-                    nombre=(beneficiario_nombre or "").upper().strip('"'),
-                    expedida_en=(lugar_expedicion or "").upper(),
-                    telefono=telefono or "",
-                    direccion=(direccion or "").upper(),
-                    correo=(correo or "").lower(),
-                    tipo_persona=(tipo_persona or "").upper(),
+                # ─── Crear contrato ──
+                valor_letras = numero_a_letras(monto_total)
+                contrato_obj = Contrato(
+                    resolucion_id=resolucion_id,
+                    contratista_id=contratista_id,
+                    numero_contrato=numero_contrato,
+                    perfil=perfil_normalized,
+                    estado=estado,
+                    objeto=objeto or "",
+                    monto_total=monto_total,
+                    valor_letras=valor_letras,
+                    cuotas=cuotas_txt,
+                    cuotas_total=cuotas_total,
+                    supervisor=supervisor or "",
+                    cedula_supervisor=cedula_supervisor or "",
+                    no_cdp=no_cdp or "",
+                    rp=rp or "",
+                    rubro=rubro or "",
+                    unidad_atencion=unidad_atencion or "",
+                    fecha_inicio=fecha_inicio,
+                    fecha_fin=fecha_fin,
                 )
-                db.add(contratista)
+                db.add(contrato_obj)
                 await db.flush()
-                contratista_id = contratista.id
+                contratos_creados.add(numero_contrato)
+                result_summary.created += 1
 
-            # ─── Verificar duplicado en DB ──
-            existing = await db.execute(select(Contrato).where(Contrato.numero_contrato == numero_contrato))
-            if existing.scalar_one_or_none():
-                result_summary.errors.append({"fila": fila_idx, "numero_contrato": numero_contrato, "error": "El contrato ya existe en BD"})
-                result_summary.skipped += 1
-                continue
+                # Calcular cuotas totales para el contrato
+                cuotas_total_contrato = cuotas_total
+            else:
+                # Contrato ya existe en este batch — obtenerlo
+                existing = await db.execute(select(Contrato).where(Contrato.numero_contrato == numero_contrato))
+                contrato_obj = existing.scalar_one_or_none()
+                if not contrato_obj:
+                    # No debería pasar, pero por si acaso
+                    result_summary.errors.append({"fila": fila_idx, "numero_contrato": numero_contrato, "error": "Contrato no encontrado para crear pago"})
+                    result_summary.skipped += 1
+                    continue
+                cuotas_total_contrato = contrato_obj.cuotas_total
 
-            # ─── Crear contrato ──
-            valor_letras = numero_a_letras(monto_total)
-            contrato = Contrato(
-                resolucion_id=resolucion_id,
-                contratista_id=contratista_id,
-                numero_contrato=numero_contrato,
-                perfil=perfil_normalized,
-                estado=estado,
-                objeto=objeto or "",
-                monto_total=monto_total,
-                valor_letras=valor_letras,
-                cuotas=cuotas_txt,
-                cuotas_total=cuotas_total,
-                supervisor=supervisor or "",
-                cedula_supervisor=cedula_supervisor or "",
-                no_cdp=no_cdp or "",
-                rp=rp or "",
-                rubro=rubro or "",
-                unidad_atencion=unidad_atencion or "",
-                fecha_inicio=fecha_inicio,
-                fecha_fin=fecha_fin,
+            # ─── DATOS DEL PAGO ──
+            tipo_informe = _clean_str(_get_col(col_indices, row, "TIPO DE INFORME")) or "SUPERVISION"
+            periodo_desde = _parse_date(_get_col(col_indices, row, "PERIODO INFORME DESDE"))
+            periodo_hasta = _parse_date(_get_col(col_indices, row, "PERIODO INFORME HASTA"))
+            valor_a_pagar = _parse_number(_get_col(col_indices, row, "VALOR A PAGAR"))
+            folios = _clean_str(_get_col(col_indices, row, "N° FOLIOS"))
+            observaciones = _clean_str(_get_col(col_indices, row, "OBSERVACIONES"))
+            actividades = _clean_str(_get_col(col_indices, row, "ACTIVIDADES"))
+
+            # Obtener número de pago: usar PAGO No del Excel o auto-incrementar
+            pago_numero_raw = _get_col(col_indices, row, "PAGO No")
+            if pago_numero_raw is not None and str(pago_numero_raw).strip():
+                nums = re.findall(r"\d+", str(pago_numero_raw))
+                numero_pago = int(nums[0]) if nums else 1
+            else:
+                # Auto-incrementar basado en pagos existentes
+                result_p = await db.execute(
+                    select(Pago).where(Pago.contrato_id == numero_contrato).order_by(Pago.numero_pago.desc()).limit(1)
+                )
+                ultimo = result_p.scalar_one_or_none()
+                numero_pago = (ultimo.numero_pago + 1) if ultimo else 1
+
+            # ─── Crear pago ──
+            pago = Pago(
+                contrato_id=numero_contrato,
+                numero_pago=numero_pago,
+                tipo_informe=tipo_informe,
+                periodo_desde=periodo_desde,
+                periodo_hasta=periodo_hasta,
+                valor_a_pagar=valor_a_pagar,
+                folios=folios or "",
+                observaciones=observaciones or "",
+                actividades=actividades or "",
             )
-            db.add(contrato)
+            db.add(pago)
             await db.flush()
-            contratos_creados.add(numero_contrato)
-            result_summary.created += 1
+
+            # Actualizar cuotas_pagadas del contrato
+            await db.execute(
+                select(Contrato).where(Contrato.numero_contrato == numero_contrato)
+            )
+            contrato_obj.cuotas_pagadas = min(
+                contrato_obj.cuotas_pagadas + 1,
+                cuotas_total_contrato
+            )
+            if contrato_obj.cuotas_pagadas >= cuotas_total_contrato and cuotas_total_contrato > 0:
+                contrato_obj.estado = "FINALIZADO"
 
         except Exception as e:
             logger.exception(f"Error procesando fila {fila_idx}")
