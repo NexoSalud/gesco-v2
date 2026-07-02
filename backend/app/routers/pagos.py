@@ -63,7 +63,6 @@ async def crear_pago(data: PagoCreate, db: AsyncSession = Depends(get_db)):
         fecha_firma=data.fecha_firma,
         valor_a_pagar=data.valor_a_pagar,
         otro_si=data.otro_si,
-        cuentas_cobro=data.cuentas_cobro,
         folios=data.folios,
         actividades=data.actividades,
         observaciones=data.observaciones,
@@ -142,7 +141,6 @@ async def descargar_pdf_supervision(pago_id: int, db: AsyncSession = Depends(get
         "periodo_desde": str(pago.periodo_desde) if pago.periodo_desde else "",
         "periodo_hasta": str(pago.periodo_hasta) if pago.periodo_hasta else "",
         "valor_a_pagar": pago.valor_a_pagar,
-        "cuentas_cobro": pago.cuentas_cobro or "",
         "actividades": pago.actividades or "",
         "observaciones": pago.observaciones or "",
     }

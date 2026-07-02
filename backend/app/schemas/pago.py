@@ -36,7 +36,6 @@ class PagoCreate(BaseModel):
     fecha_firma: date | None = None
     valor_a_pagar: float = 0
     otro_si: str | None = None
-    cuentas_cobro: str | None = None
     folios: str | None = None
     actividades: str | None = None
     observaciones: str | None = None
@@ -55,7 +54,6 @@ class PagoOut(BaseModel):
     valor_a_pagar: float
     valor_pagado: float | None
     otro_si: str | None
-    cuentas_cobro: str | None
     folios: str | None
     actividades: str | None
     observaciones: str | None

@@ -28,7 +28,6 @@ class Pago(Base):
     otro_si: Mapped[str | None] = mapped_column(String(50))
 
     # Documentos
-    cuentas_cobro: Mapped[str | None] = mapped_column(String(50))
     folios: Mapped[str | None] = mapped_column(String(20))
 
     # Actividades

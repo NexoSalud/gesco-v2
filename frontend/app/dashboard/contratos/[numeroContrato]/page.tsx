@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation"
 import {
   getContrato, getPagos, createPago, descargarDocx,
   descargarDocxById, descargarPdfSupervision,
-  registrarCuota, registrarCuotaById,
   anularContrato, anularContratoById,
   type Contrato, type Pago,
 } from "@/lib/api"
@@ -30,7 +29,7 @@ import {
   AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
 import {
-  ChevronLeft, FileText, Plus, Minus, AlertTriangle,
+  ChevronLeft, FileText, Plus, AlertTriangle,
   User, DollarSign, Calendar, Hash, MapPin,
   FileDown, X, Printer,
 } from "lucide-react"
@@ -279,34 +278,30 @@ export default function ContratoDetailPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Hash className="w-4 h-4 text-gray-400" />
-              <p className="text-xs font-medium text-gray-500 uppercase">Cuotas</p>
+              <DollarSign className="w-4 h-4 text-gray-400" />
+              <p className="text-xs font-medium text-gray-500 uppercase">Progreso de Pago</p>
             </div>
-            <p className="text-lg font-bold">
-              {contrato.cuotas_pagadas} <span className="text-gray-400 text-sm">/ {contrato.cuotas_total}</span>
-            </p>
-            {contrato.estado !== "ANULADO" && contrato.cuotas_total > 0 && (
-              <div className="flex gap-1 mt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  disabled={contrato.cuotas_pagadas >= contrato.cuotas_total}
-                  onClick={() => (contrato ? registrarCuotaById(contrato.id, "sumar") : registrarCuota(numero, "sumar")).then(() => loadData())}
-                >
-                  <Plus className="w-3 h-3" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  disabled={contrato.cuotas_pagadas <= 0}
-                  onClick={() => (contrato ? registrarCuotaById(contrato.id, "restar") : registrarCuota(numero, "restar")).then(() => loadData())}
-                >
-                  <Minus className="w-3 h-3" />
-                </Button>
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500">Pagado:</span>
+                <span className="font-semibold text-emerald-600">{fmt.format(pagos.reduce((s, p) => s + p.valor_a_pagar, 0))}</span>
               </div>
-            )}
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500">Saldo:</span>
+                <span className="font-semibold text-amber-600">{fmt.format(Math.max(0, contrato.monto_total - pagos.reduce((s, p) => s + p.valor_a_pagar, 0)))}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1">
+                <div
+                  className="bg-emerald-500 h-2.5 rounded-full transition-all duration-500"
+                  style={{ width: `${contrato.monto_total > 0 ? Math.min(100, Math.round((pagos.reduce((s, p) => s + p.valor_a_pagar, 0) / contrato.monto_total) * 100)) : 0}%` }}
+                />
+              </div>
+              <p className="text-xs text-center text-gray-400">
+                {contrato.monto_total > 0
+                  ? `${Math.min(100, Math.round((pagos.reduce((s, p) => s + p.valor_a_pagar, 0) / contrato.monto_total) * 100))}% completado`
+                  : "Sin datos"}
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -441,11 +436,6 @@ export default function ContratoDetailPage() {
                 <label className="text-sm font-medium">Fecha Firma</label>
                 <Input type="date" value={pagoForm.fecha_firma}
                   onChange={e => setPagoForm({ ...pagoForm, fecha_firma: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Cuentas de Cobro</label>
-                <Input value={pagoForm.cuentas_cobro}
-                  onChange={e => setPagoForm({ ...pagoForm, cuentas_cobro: e.target.value })} />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Folios</label>
