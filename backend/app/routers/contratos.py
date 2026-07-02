@@ -15,7 +15,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models.contrato import Contrato
 from app.models.contratista import Contratista
-from app.models.perfil import Perfil
+from app.models.perfil import Perfil, ActividadPerfil
 from app.schemas.contrato import ContratoCreate, ContratoUpdate, ContratoOut
 from app.schemas.contratista import ContratistaCreate
 from app.services.docx_generator import generar_contrato_docx
@@ -323,18 +323,34 @@ async def descargar_docx(numero_contrato: str, db: AsyncSession = Depends(get_db
     if not contrato:
         raise HTTPException(404, "Contrato no encontrado")
 
-    # Obtener obligaciones del perfil
-    obligaciones = []
+    # Obtener actividades del perfil (GENERALES y ESPECÍFICAS)
+    actividades_generales = []
+    actividades_especificas = []
     if contrato.perfil:
-        result = await db.execute(
-            select(Perfil).where(Perfil.nombre == contrato.perfil)
-        )
-        perfil = result.scalar_one_or_none()
-        if perfil and perfil.obligaciones_json:
-            try:
-                obligaciones = json.loads(perfil.obligaciones_json)
-            except Exception:
-                pass
+        result_p = await db.execute(select(Perfil).where(Perfil.nombre == contrato.perfil))
+        perfil_obj = result_p.scalar_one_or_none()
+        if perfil_obj:
+            result_acts = await db.execute(
+                select(ActividadPerfil)
+                .where(ActividadPerfil.perfil_id == perfil_obj.id)
+                .order_by(ActividadPerfil.orden)
+            )
+            for act in result_acts.scalars().all():
+                if act.tipo == "ESPECIFICA":
+                    actividades_especificas.append(act.descripcion)
+                else:
+                    actividades_generales.append(act.descripcion)
+
+    # Combinar todas como obligaciones
+    todas_obligaciones = []
+    todas_obligaciones.append("OBLIGACIONES GENERALES:")
+    for g in actividades_generales:
+        todas_obligaciones.append(g)
+    if actividades_especificas:
+        todas_obligaciones.append("")
+        todas_obligaciones.append("OBLIGACIONES ESPECÍFICAS:")
+        for e in actividades_especificas:
+            todas_obligaciones.append(e)
 
     contratista = contrato.contratista_rel
     docx_bytes = generar_contrato_docx(
@@ -361,7 +377,7 @@ async def descargar_docx(numero_contrato: str, db: AsyncSession = Depends(get_db
             "objeto": contrato.objeto or "",
             "unidad_atencion": contrato.unidad_atencion or "N/A",
         },
-        obligaciones_esp=obligaciones,
+        obligaciones_esp=todas_obligaciones,
     )
 
     filename = f"Contrato_{numero_contrato}.docx".replace("/", "_")
@@ -459,17 +475,30 @@ async def descargar_docx_por_id(contrato_id: int, db: AsyncSession = Depends(get
     if not contrato:
         raise HTTPException(404, "Contrato no encontrado")
 
-    obligaciones = []
+    actividades_generales = []
+    actividades_especificas = []
     if contrato.perfil:
-        result = await db.execute(
-            select(Perfil).where(Perfil.nombre == contrato.perfil)
-        )
-        perfil = result.scalar_one_or_none()
-        if perfil and perfil.obligaciones_json:
-            try:
-                obligaciones = json.loads(perfil.obligaciones_json)
-            except Exception:
-                pass
+        result_p = await db.execute(select(Perfil).where(Perfil.nombre == contrato.perfil))
+        perfil_obj = result_p.scalar_one_or_none()
+        if perfil_obj:
+            result_acts = await db.execute(
+                select(ActividadPerfil)
+                .where(ActividadPerfil.perfil_id == perfil_obj.id)
+                .order_by(ActividadPerfil.orden)
+            )
+            for act in result_acts.scalars().all():
+                if act.tipo == "ESPECIFICA":
+                    actividades_especificas.append(act.descripcion)
+                else:
+                    actividades_generales.append(act.descripcion)
+    todas_obligaciones = ["OBLIGACIONES GENERALES:"]
+    for g in actividades_generales:
+        todas_obligaciones.append(g)
+    if actividades_especificas:
+        todas_obligaciones.append("")
+        todas_obligaciones.append("OBLIGACIONES ESPECÍFICAS:")
+        for e in actividades_especificas:
+            todas_obligaciones.append(e)
 
     contratista = contrato.contratista_rel
     docx_bytes = generar_contrato_docx(
@@ -496,7 +525,7 @@ async def descargar_docx_por_id(contrato_id: int, db: AsyncSession = Depends(get
             "objeto": contrato.objeto or "",
             "unidad_atencion": contrato.unidad_atencion or "N/A",
         },
-        obligaciones_esp=obligaciones,
+        obligaciones_esp=todas_obligaciones,
     )
 
     filename = f"Contrato_{contrato_id}.docx"
