@@ -10,7 +10,7 @@ from openpyxl import load_workbook
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import get_db, async_session_factory
 from app.models.contrato import Contrato
 from app.models.contratista import Contratista
 from app.models.pago import Pago
@@ -461,11 +461,15 @@ async def importar_contratos_excel(
 @router.post("/limpiar")
 async def limpiar_base_datos(db: AsyncSession = Depends(get_db)):
     """Limpia contratos, pagos y perfiles para re-importar.
-    Mantiene resoluciones para no perder las configuraciones."""
+    Mantiene resoluciones y contratistas.
+    Luego ejecuta el seed para recrear los perfiles con actividades completas."""
     await db.execute(text("DELETE FROM planillas"))
     await db.execute(text("DELETE FROM pagos"))
     await db.execute(text("DELETE FROM contratos"))
     await db.execute(text("DELETE FROM actividades_perfil"))
     await db.execute(text("DELETE FROM perfiles"))
     await db.commit()
-    return {"message": "Base de datos limpiada. Perfiles, contratos y pagos eliminados."}
+    # Re-seedear perfiles
+    from app.seed_data import seed_database
+    await seed_database()
+    return {"message": "Base de datos limpiada y perfiles recreados con actividades completas."}
