@@ -136,7 +136,7 @@ async def alertas_vencimiento(
               AND fecha_fin BETWEEN :hoy AND :limite
             ORDER BY fecha_fin
         """),
-        {"hoy": hoy.isoformat(), "limite": limite.isoformat()},
+        {"hoy": hoy, "limite": limite},
     )
     return [dict(r._mapping) for r in result.fetchall()]
 

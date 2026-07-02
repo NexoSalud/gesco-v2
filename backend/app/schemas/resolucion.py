@@ -1,7 +1,8 @@
 """Pydantic schemas para Resolución."""
 
 from datetime import date, datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+from typing import Any
 
 
 class ResolucionBase(BaseModel):
@@ -42,6 +43,17 @@ class ContratoResumen(BaseModel):
     cuotas_pagadas: int
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_beneficiario(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return data
+        if hasattr(data, 'contratista_rel') and data.contratista_rel:
+            setattr(data, 'beneficiario', data.contratista_rel.nombre)
+        elif not hasattr(data, 'beneficiario'):
+            setattr(data, 'beneficiario', None)
+        return data
 
 
 class ResolucionOut(ResolucionBase):
