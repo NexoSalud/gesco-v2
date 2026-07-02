@@ -1,4 +1,5 @@
-"""Generador de .docx de contratos a partir de plantilla oficial ESE Norte 3."""
+"""Generador de .docx de contratos. Carga plantilla, reemplaza placeholders e inserta
+obligaciones con soporte de tablas HTML renderizadas como tablas DOCX reales."""
 import io, os, re
 from datetime import date
 from docx import Document
@@ -35,80 +36,130 @@ def _replace_all(doc, placeholders):
                             _merge_runs_and_replace(p, ph, val)
 
 
-def _html_to_plain(html_text):
-    """Convierte HTML simple a texto plano con formato DOCX.
-    - <br> → salto de línea
-    - <table>, <th>, <td> → extrae texto tabular
-    - <b>, <strong> → indica con mayúsculas
-    """
-    # Reemplazar <br>, <br/>, </br> con \n
-    text = re.sub(r'<br\s*/?>', '\n', html_text, flags=re.IGNORECASE)
-    
-    # Extraer tablas HTML: por simplicidad, extraer texto de celdas
-    # Buscar <table>...</table>
-    def _extract_table(m):
-        table_html = m.group(0)
-        rows = re.findall(r'<tr[^>]*>(.*?)</tr>', table_html, re.DOTALL | re.IGNORECASE)
-        lines = []
-        for row in rows:
-            cells = re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', row, re.DOTALL | re.IGNORECASE)
-            # Limpiar HTML interno de cada celda
-            cell_texts = []
-            for c in cells:
-                ct = re.sub(r'<[^>]+>', '', c).strip()
-                cell_texts.append(ct)
-            lines.append(' | '.join(cell_texts))
-        return '\n'.join(lines)
-    
-    text = re.sub(r'<table[^>]*>.*?</table>', _extract_table, text, flags=re.DOTALL | re.IGNORECASE)
-    
-    # Limpiar otros tags HTML
-    text = re.sub(r'<[^>]+>', '', text)
-    # Decodificar entidades HTML básicas
-    text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
-    # Limpiar múltiples espacios y líneas
-    text = re.sub(r' +\n', '\n', text)
-    text = re.sub(r'\n{3,}', '\n\n', text)
-    
-    return text.strip()
+def _parse_html_blocks(html_text):
+    """Retorna [(tipo, contenido)] donde tipo='text'|'table'."""
+    blocks, pos = [], 0
+    while pos < len(html_text):
+        m = re.search(r'<table[^>]*>', html_text[pos:], re.IGNORECASE)
+        if not m:
+            rest = html_text[pos:].strip()
+            if rest:
+                blocks.append(('text', rest))
+            break
+        tbl_start = pos + m.start()
+        if tbl_start > pos and html_text[pos:tbl_start].strip():
+            blocks.append(('text', html_text[pos:tbl_start].strip()))
+        remaining = html_text[tbl_start:]
+        depth, end = 0, 0
+        for i, ch in enumerate(remaining):
+            if ch == '<':
+                tag = remaining[i:i+7].lower()
+                if tag == '<table' or tag.startswith('<table '):
+                    depth += 1
+                elif remaining[i:i+8].lower() == '</table>':
+                    depth -= 1
+                    if depth == 0:
+                        end = i + 8
+                        break
+        if end > 0:
+            blocks.append(('table', remaining[:end]))
+            pos = tbl_start + end
+        else:
+            pos += 1
+    return blocks
 
 
-def _create_paragraph_element(text, size=12, bold=False, align='both'):
-    """Crea un elemento <w:p> con un run."""
-    new_p = OxmlElement('w:p')
+def _extract_table_data(table_html):
+    """Extrae (headers, rows) de un HTML <table>."""
+    rows_html = re.findall(r'<tr[^>]*>(.*?)</tr>', table_html, re.DOTALL | re.IGNORECASE)
+    headers, rows = [], []
+    for rh in rows_html:
+        cells = re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', rh, re.DOTALL | re.IGNORECASE)
+        texts = [re.sub(r'<[^>]+>', '', c).strip() for c in cells]
+        if '<th' in rh.lower():
+            headers = texts
+        else:
+            rows.append(texts)
+    return headers, rows
+
+
+def _make_table_xml(headers, rows_data):
+    """Crea elemento <w:tbl> con bordes."""
+    ns = 'w'
+    tbl = OxmlElement(f'{ns}:tbl')
+    tblPr = OxmlElement(f'{ns}:tblPr')
+    tw = OxmlElement(f'{ns}:tblW'); tw.set(qn('w:w'), '5000'); tw.set(qn('w:type'), 'pct')
+    tblPr.append(tw)
+    tb = OxmlElement(f'{ns}:tblBorders')
+    for side in ['top','left','bottom','right','insideH','insideV']:
+        b = OxmlElement(f'{ns}:{side}'); b.set(qn('w:val'),'single')
+        b.set(qn('w:sz'),'4'); b.set(qn('w:space'),'0'); b.set(qn('w:color'),'000000')
+        tb.append(b)
+    tblPr.append(tb)
+    tbl.append(tblPr)
+    cols = max(len(headers) if headers else 1, *(len(r) for r in rows_data), 1)
+    tg = OxmlElement(f'{ns}:tblGrid')
+    for _ in range(cols):
+        gc = OxmlElement(f'{ns}:gridCol'); gc.set(qn('w:w'), str(int(5000/cols)))
+        tg.append(gc)
+    tbl.append(tg)
+
+    def _cell(text, bold=False):
+        tc = OxmlElement(f'{ns}:tc')
+        tcW = OxmlElement(f'{ns}:tcW'); tcW.set(qn('w:w'),str(int(5000/cols))); tcW.set(qn('w:type'),'pct')
+        tc.append(tcW)
+        if bold:
+            shd = OxmlElement(f'{ns}:shd'); shd.set(qn('w:val'),'clear')
+            shd.set(qn('w:color'),'auto'); shd.set(qn('w:fill'),'F2F2F2')
+            tc.append(shd)
+        p = OxmlElement(f'{ns}:p')
+        r = OxmlElement(f'{ns}:r')
+        rPr = OxmlElement(f'{ns}:rPr')
+        rf = OxmlElement(f'{ns}:rFonts'); rf.set(qn('w:ascii'),'Aptos Display'); rf.set(qn('w:hAnsi'),'Aptos Display')
+        rPr.append(rf)
+        sz = OxmlElement(f'{ns}:sz'); sz.set(qn('w:val'),'18')
+        rPr.append(sz)
+        if bold:
+            b = OxmlElement(f'{ns}:b'); rPr.append(b)
+        r.append(rPr)
+        t = OxmlElement(f'{ns}:t'); t.text=str(text).strip(); t.set(qn('xml:space'),'preserve')
+        r.append(t); p.append(r); tc.append(p)
+        return tc
+
+    if headers:
+        tr = OxmlElement(f'{ns}:tr')
+        for h in headers: tr.append(_cell(h, bold=True))
+        tbl.append(tr)
+    for row in rows_data:
+        tr = OxmlElement(f'{ns}:tr')
+        for cv in row: tr.append(_cell(cv))
+        while len(list(tr)) < cols: tr.append(_cell(''))
+        tbl.append(tr)
+    return tbl
+
+
+def _make_paragraph_xml(text, size=12):
+    """Crea elemento <w:p> text-only."""
+    p = OxmlElement('w:p')
     pPr = OxmlElement('w:pPr')
-    jc = OxmlElement('w:jc')
-    jc.set(qn('w:val'), align)
-    pPr.append(jc)
-    new_p.append(pPr)
-    
-    r_elem = OxmlElement('w:r')
+    jc = OxmlElement('w:jc'); jc.set(qn('w:val'),'both'); pPr.append(jc)
+    p.append(pPr)
+    r = OxmlElement('w:r')
     rPr = OxmlElement('w:rPr')
-    rFonts = OxmlElement('w:rFonts')
-    rFonts.set(qn('w:ascii'), 'Aptos Display')
-    rFonts.set(qn('w:hAnsi'), 'Aptos Display')
-    rPr.append(rFonts)
-    sz = OxmlElement('w:sz')
-    sz.set(qn('w:val'), str(size * 2))
-    rPr.append(sz)
-    if bold:
-        b = OxmlElement('w:b')
-        rPr.append(b)
-    r_elem.append(rPr)
-    
-    t = OxmlElement('w:t')
-    t.text = text
-    t.set(qn('xml:space'), 'preserve')
-    r_elem.append(t)
-    new_p.append(r_elem)
-    return new_p
+    rf = OxmlElement('w:rFonts'); rf.set(qn('w:ascii'),'Aptos Display'); rf.set(qn('w:hAnsi'),'Aptos Display')
+    rPr.append(rf)
+    sz = OxmlElement('w:sz'); sz.set(qn('w:val'),str(size*2)); rPr.append(sz)
+    r.append(rPr)
+    t = OxmlElement('w:t'); t.text=text; t.set(qn('xml:space'),'preserve')
+    r.append(t); p.append(r)
+    return p
 
 
 def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None) -> bytes:
     valor = float(data.get("valor_contrato", 0))
     valor_letras = data.get("valor_letras", "") or numero_a_letras(valor)
     fecha_inicio = str(data.get("fecha_inicio", str(date.today())))
-    
+
     placeholders = {
         "<<NO. DE CONTRATO>>": data.get("numero_contrato", "_________"),
         "<<FECHA DEL CONTRATO>>": str(data.get("fecha_contrato", data.get("fecha_inicio", "_________"))),
@@ -143,32 +194,42 @@ def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None)
         for sec in doc.sections:
             sec.top_margin = Cm(2.5); sec.bottom_margin = Cm(2.5)
             sec.left_margin = Cm(3.0); sec.right_margin = Cm(3.0)
-    
+
     _replace_all(doc, placeholders)
 
-    # Insertar obligaciones
+    # Insertar obligaciones con soporte de tablas HTML
     if obligaciones_esp:
         for pi, p in enumerate(doc.paragraphs):
             if "<<OBLIGACIONES>>" in p.text:
                 _merge_runs_and_replace(p, "<<OBLIGACIONES>>", "")
-                last_p = p._p  # referencia para addnext
+                last_element = p._p  # referencia OOXML para addnext
                 for oi, oblig in enumerate(obligaciones_esp, 1):
-                    # Convertir HTML a texto plano
-                    texto_plano = _html_to_plain(oblig)
-                    
-                    # Si el texto tiene saltos de línea (de <br> o tablas extraídas en múltiples líneas),
-                    # crear múltiples párrafos para mantener formato
-                    partes = texto_plano.split('\n')
-                    for pi2, parte in enumerate(partes):
-                        if pi2 == 0:
-                            texto_item = f"{oi}. {parte.strip()}"
+                    blocks = _parse_html_blocks(oblig)
+                    for bi, (btype, content) in enumerate(blocks):
+                        if btype == 'table':
+                            headers, rows = _extract_table_data(content)
+                            if headers or rows:
+                                tbl = _make_table_xml(headers, rows)
+                                last_element.addnext(tbl)
+                                last_element = tbl
                         else:
-                            texto_item = parte.strip()
-                        if not texto_item:
-                            continue
-                        new_p = _create_paragraph_element(texto_item, size=12)
-                        last_p.addnext(new_p)
-                        last_p = new_p
+                            # Texto plano: limpiar HTML residual y dividir por \n
+                            clean = re.sub(r'<br\s*/?>', '\n', content, flags=re.IGNORECASE)
+                            clean = re.sub(r'<[^>]+>', '', clean)
+                            clean = clean.replace('&nbsp;',' ').replace('&amp;','&')
+                            clean = re.sub(r'\n{3,}', '\n\n', clean).strip()
+                            parts = clean.split('\n')
+                            for pi2, part in enumerate(parts):
+                                part = part.strip()
+                                if not part:
+                                    continue
+                                if bi == 0 and pi2 == 0:
+                                    texto = f"{oi}. {part}"
+                                else:
+                                    texto = part
+                                new_p = _make_paragraph_xml(texto, size=12)
+                                last_element.addnext(new_p)
+                                last_element = new_p
                 break
 
     buf = io.BytesIO()
