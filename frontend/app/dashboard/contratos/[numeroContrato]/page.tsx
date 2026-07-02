@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import {
-  getContrato, getPagos, createPago, descargarDocx,
-  descargarDocxById, descargarPdfSupervision,
+  getContrato, getPagos, createPago, updatePago, deletePago,
+  descargarDocx, descargarDocxById, descargarPdfSupervision,
   anularContrato, anularContratoById,
   type Contrato, type Pago,
 } from "@/lib/api"
@@ -31,7 +31,7 @@ import {
 import {
   ChevronLeft, FileText, Plus, AlertTriangle,
   User, DollarSign, Calendar, MapPin,
-  FileDown, X, Printer,
+  FileDown, X, Printer, Pencil, Trash2,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -82,6 +82,35 @@ export default function ContratoDetailPage() {
   }])
   const [finalizarContrato, setFinalizarContrato] = useState(false)
   const [submittingPago, setSubmittingPago] = useState(false)
+  const [pagoEditando, setPagoEditando] = useState<Pago | null>(null)
+  const [showDeletePago, setShowDeletePago] = useState<number | null>(null)
+
+  const abrirNuevoPago = useCallback(() => {
+    setPagoEditando(null)
+    setPagoForm({
+      tipo_informe: "PARCIAL", periodo_desde: "", periodo_hasta: "",
+      fecha_firma: "", valor_a_pagar: 0,
+      folios: "", actividades: "", observaciones: "", act: "",
+    })
+    setFinalizarContrato(false)
+    setShowPago(true)
+  }, [])
+
+  const abrirEditarPago = useCallback((p: Pago) => {
+    setPagoEditando(p)
+    setPagoForm({
+      tipo_informe: p.tipo_informe || "PARCIAL",
+      periodo_desde: p.periodo_desde || "",
+      periodo_hasta: p.periodo_hasta || "",
+      fecha_firma: p.fecha_firma || "",
+      valor_a_pagar: p.valor_a_pagar,
+      folios: p.folios || "",
+      actividades: p.actividades || "",
+      observaciones: p.observaciones || "",
+      act: p.act || "",
+    })
+    setShowPago(true)
+  }, [])
 
   // Modal anular
   const [showAnular, setShowAnular] = useState(false)
@@ -115,19 +144,24 @@ export default function ContratoDetailPage() {
     }])
   }
 
-  const handleCreatePago = async (e: React.FormEvent) => {
+  const handleSavePago = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmittingPago(true)
     try {
-      await createPago({
-        contrato_id: numero,
-        ...pagoForm,
-        planillas: pagoPlantillas,
-        finalizar_contrato: finalizarContrato,
-      })
+      const body = { ...pagoForm, planillas: pagoPlantillas }
+      if (pagoEditando) {
+        await updatePago(pagoEditando.id, body)
+        toast.success("Pago actualizado")
+      } else {
+        await createPago({
+          contrato_id: numero,
+          ...body,
+          finalizar_contrato: finalizarContrato,
+        })
+        toast.success("Pago registrado exitosamente")
+      }
       setShowPago(false)
-      toast.success("Pago registrado exitosamente")
-      loadData()
+      setPagoEditando(null)
       setFinalizarContrato(false)
       setPagoForm({
         tipo_informe: "PARCIAL", periodo_desde: "", periodo_hasta: "",
@@ -140,10 +174,23 @@ export default function ContratoDetailPage() {
         afp_nombre: "", afp_valor: 0, ccf_nombre: "", ccf_valor: 0,
         sena_valor: 0, icbf_valor: 0,
       }])
+      loadData()
     } catch (err: any) {
       toast.error("Error: " + err.message)
     } finally {
       setSubmittingPago(false)
+    }
+  }
+
+  const handleDeletePago = async () => {
+    if (showDeletePago === null) return
+    try {
+      await deletePago(showDeletePago)
+      setShowDeletePago(null)
+      toast.success("Pago eliminado")
+      loadData()
+    } catch (err: any) {
+      toast.error("Error: " + err.message)
     }
   }
 
@@ -219,7 +266,7 @@ export default function ContratoDetailPage() {
           </Button>
           {contrato.estado !== "ANULADO" && contrato.estado !== "FINALIZADO" && (
             <>
-              <Button size="sm" className="gap-1.5" onClick={() => setShowPago(true)}>
+              <Button size="sm" className="gap-1.5" onClick={abrirNuevoPago}>
                 <Plus className="w-4 h-4" />
                 Pago
               </Button>
@@ -338,7 +385,7 @@ export default function ContratoDetailPage() {
           Pagos y Supervisiones ({pagos.length})
         </h2>
         {contrato.estado !== "ANULADO" && contrato.estado !== "FINALIZADO" && (
-          <Button size="sm" className="gap-1.5" onClick={() => setShowPago(true)}>
+          <Button size="sm" className="gap-1.5" onClick={abrirNuevoPago}>
             <Plus className="w-4 h-4" />
             Nuevo Pago
           </Button>
@@ -351,7 +398,7 @@ export default function ContratoDetailPage() {
             <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500">Sin pagos registrados</p>
             {contrato.estado !== "ANULADO" && contrato.estado !== "FINALIZADO" && (
-              <Button className="mt-3" size="sm" onClick={() => setShowPago(true)}>
+              <Button className="mt-3" size="sm" onClick={abrirNuevoPago}>
                 Registrar primer pago
               </Button>
             )}
@@ -390,14 +437,20 @@ export default function ContratoDetailPage() {
                       </p>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-blue-600"
-                        onClick={() => descargarPdfSupervision(p.id)}
-                      >
-                        <Printer className="w-4 h-4" />
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="sm" className="text-blue-600"
+                          onClick={() => descargarPdfSupervision(p.id)} title="PDF">
+                          <Printer className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-emerald-600"
+                          onClick={() => abrirEditarPago(p)} title="Editar">
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-red-500"
+                          onClick={() => setShowDeletePago(p.id)} title="Eliminar">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -407,14 +460,14 @@ export default function ContratoDetailPage() {
         </Card>
       )}
 
-      {/* ── MODAL: Nuevo Pago ── */}
+      {/* ── MODAL: Nuevo/Editar Pago ── */}
       <Dialog open={showPago} onOpenChange={setShowPago}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nuevo Pago / Supervisión</DialogTitle>
+            <DialogTitle>{pagoEditando ? "Editar Pago" : "Nuevo Pago / Supervisión"}</DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleCreatePago} className="space-y-4">
+          <form onSubmit={handleSavePago} className="space-y-4">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
               Información del Pago
             </p>
@@ -626,6 +679,22 @@ export default function ContratoDetailPage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleAnular} className="bg-red-600 hover:bg-red-700">
               Anular Contrato
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── MODAL: Eliminar Pago ── */}
+      <AlertDialog open={showDeletePago !== null} onOpenChange={() => setShowDeletePago(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar Pago</AlertDialogTitle>
+            <AlertDialogDescription>¿Estás seguro de eliminar este pago? Esta acción no se puede deshacer.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={handleDeletePago}>
+              Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

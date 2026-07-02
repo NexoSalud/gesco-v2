@@ -14,7 +14,7 @@ from app.models.pago import Pago
 from app.models.planilla import Planilla
 from app.models.actividad_contrato import ActividadContrato
 from app.models.actividad_supervision import ActividadSupervision
-from app.schemas.pago import PagoCreate, PagoOut
+from app.schemas.pago import PagoCreate, PagoUpdate, PagoOut
 from app.services.pdf_generator import generar_supervision_pdf
 
 router = APIRouter(prefix="/api/v1/pagos", tags=["Pagos"])
@@ -225,6 +225,48 @@ async def descargar_pdf_supervision(pago_id: int, db: AsyncSession = Depends(get
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.put("/{pago_id}", response_model=PagoOut)
+async def actualizar_pago(pago_id: int, data: PagoUpdate, db: AsyncSession = Depends(get_db)):
+    """Actualiza un pago existente y sus planillas."""
+    result = await db.execute(
+        select(Pago)
+        .options(selectinload(Pago.planillas), selectinload(Pago.contrato))
+        .where(Pago.id == pago_id)
+    )
+    pago = result.scalar_one_or_none()
+    if not pago:
+        raise HTTPException(404, "Pago no encontrado")
+
+    # Actualizar campos del pago
+    for field in ("tipo_informe", "periodo_desde", "periodo_hasta", "fecha_firma",
+                  "valor_a_pagar", "otro_si", "folios", "actividades", "observaciones", "act"):
+        val = getattr(data, field, None)
+        if val is not None:
+            setattr(pago, field, val)
+
+    # Actualizar planillas si se enviaron
+    if data.planillas is not None:
+        # Eliminar planillas existentes
+        for pl in pago.planillas:
+            await db.delete(pl)
+        await db.flush()
+        # Crear nuevas planillas
+        for pl_data in data.planillas:
+            from app.models.planilla import Planilla
+            planilla = Planilla(pago_id=pago.id, **pl_data.model_dump())
+            db.add(planilla)
+
+    await db.commit()
+    await db.refresh(pago)
+    # Recargar con relaciones
+    result = await db.execute(
+        select(Pago)
+        .options(selectinload(Pago.planillas), selectinload(Pago.contrato))
+        .where(Pago.id == pago.id)
+    )
+    return result.scalar_one()
 
 
 @router.delete("/{pago_id}", status_code=204)

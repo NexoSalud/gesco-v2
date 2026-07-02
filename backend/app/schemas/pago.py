@@ -44,6 +44,20 @@ class PagoCreate(BaseModel):
     finalizar_contrato: bool = False
 
 
+class PagoUpdate(BaseModel):
+    tipo_informe: str | None = None
+    periodo_desde: date | None = None
+    periodo_hasta: date | None = None
+    fecha_firma: date | None = None
+    valor_a_pagar: float | None = None
+    otro_si: str | None = None
+    folios: str | None = None
+    actividades: str | None = None
+    observaciones: str | None = None
+    act: str | None = None
+    planillas: list[PlanillaCreate] | None = None
+
+
 class PagoOut(BaseModel):
     id: int
     contrato_id: str

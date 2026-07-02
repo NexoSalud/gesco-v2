@@ -141,8 +141,12 @@ export interface Pago {
   periodo_hasta: string | null
   fecha_firma: string | null
   valor_a_pagar: number
-  observaciones: string | null
+  valor_pagado: number | null
+  otro_si: string | null
+  folios: string | null
   actividades: string | null
+  observaciones: string | null
+  act: string | null
   planillas: any[]
   created_at: string
 }
@@ -156,6 +160,12 @@ export const getPlantillas = () => request<any[]>("/api/v1/plantillas")
 
 export const createPago = (data: any) =>
   request<Pago>("/api/v1/pagos", { method: "POST", body: JSON.stringify(data) })
+
+export const updatePago = (id: number, data: any) =>
+  request<Pago>(`/api/v1/pagos/${id}`, { method: "PUT", body: JSON.stringify(data) })
+
+export const deletePago = (id: number) =>
+  request<void>(`/api/v1/pagos/${id}`, { method: "DELETE" })
 
 export const descargarPdfSupervision = (pagoId: number) => {
   window.open(`${API}/api/v1/pagos/${pagoId}/pdf`, "_blank")
