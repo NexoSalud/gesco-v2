@@ -82,7 +82,9 @@ export default function EditarContratoPage() {
           body[key] = val
         }
       }
-      const res = await fetch(`${API}/api/v1/contratos/${encodeURIComponent(numero)}`, {
+      const contratoId = contrato?.id
+      if (!contratoId) { toast.error("Error: ID del contrato no disponible"); return }
+      const res = await fetch(`${API}/api/v1/contratos/id/${contratoId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

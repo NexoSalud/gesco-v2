@@ -411,6 +411,31 @@ async def obtener_contrato_por_id(contrato_id: int, db: AsyncSession = Depends(g
     return contrato
 
 
+@router.put("/id/{contrato_id}", response_model=ContratoOut)
+async def actualizar_contrato_por_id(
+    contrato_id: int, data: ContratoUpdate, db: AsyncSession = Depends(get_db)
+):
+    """Actualiza contrato por ID (ruta alternativa sin slashes)."""
+    result = await db.execute(
+        select(Contrato)
+        .options(selectinload(Contrato.contratista_rel), selectinload(Contrato.pagos))
+        .where(Contrato.id == contrato_id)
+    )
+    contrato = result.scalar_one_or_none()
+    if not contrato:
+        raise HTTPException(404, "Contrato no encontrado")
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(contrato, field, value)
+    await db.commit()
+    await db.refresh(contrato)
+    result = await db.execute(
+        select(Contrato)
+        .options(selectinload(Contrato.contratista_rel), selectinload(Contrato.pagos))
+        .where(Contrato.id == contrato.id)
+    )
+    return result.scalar_one()
+
+
 @router.post("/id/{contrato_id}/anular")
 async def anular_contrato_por_id(
     contrato_id: int,
