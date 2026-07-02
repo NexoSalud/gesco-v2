@@ -31,7 +31,7 @@ import {
 import {
   ChevronLeft, FileText, Plus, AlertTriangle,
   User, DollarSign, Calendar, MapPin,
-  FileDown, X, Printer, Pencil, Trash2,
+  FileDown, X, Printer, Pencil, Trash2, ChevronDown,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -86,6 +86,7 @@ export default function ContratoDetailPage() {
   const [submittingPago, setSubmittingPago] = useState(false)
   const [pagoEditando, setPagoEditando] = useState<Pago | null>(null)
   const [showDeletePago, setShowDeletePago] = useState<number | null>(null)
+  const [showDocs, setShowDocs] = useState(false)
 
   const abrirNuevoPago = useCallback(() => {
     setPagoEditando(null)
@@ -265,51 +266,38 @@ export default function ContratoDetailPage() {
           <Button variant="outline" size="sm" className="gap-1.5"
             onClick={() => contrato ? descargarDocxById(contrato.id) : descargarDocx(numero)}>
             <FileDown className="w-4 h-4" />
-            DOCX
+            Contrato
           </Button>
           {contrato && (
-            <>
+            <div className="relative">
               <Button variant="outline" size="sm" className="gap-1.5"
-                onClick={() => window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/inexistencia`, "_blank")}>
+                onClick={() => setShowDocs(!showDocs)}>
                 <FileText className="w-4 h-4" />
-                Inexistencia
+                Documentos
+                <ChevronDown className="w-3 h-3" />
               </Button>
-              <Button variant="outline" size="sm" className="gap-1.5"
-                onClick={() => window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/estudios_previos`, "_blank")}>
-                <FileText className="w-4 h-4" />
-                Estudios Previos
-              </Button>
-              <Button variant="outline" size="sm" className="gap-1.5"
-                onClick={() => window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/solicitud_cdp`, "_blank")}>
-                <FileText className="w-4 h-4" />
-                Solicitud CDP
-              </Button>
-              <Button variant="outline" size="sm" className="gap-1.5"
-                onClick={() => window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/invitacion`, "_blank")}>
-                <FileText className="w-4 h-4" />
-                Invitación
-              </Button>
-              <Button variant="outline" size="sm" className="gap-1.5"
-                onClick={() => window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/idoneidad`, "_blank")}>
-                <FileText className="w-4 h-4" />
-                Idoneidad
-              </Button>
-              <Button variant="outline" size="sm" className="gap-1.5"
-                onClick={() => window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/designacion_supervision`, "_blank")}>
-                <FileText className="w-4 h-4" />
-                Designación
-              </Button>
-              <Button variant="outline" size="sm" className="gap-1.5"
-                onClick={() => window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/acta_inicio`, "_blank")}>
-                <FileText className="w-4 h-4" />
-                Acta Inicio
-              </Button>
-              <Button variant="outline" size="sm" className="gap-1.5"
-                onClick={() => window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/acta_liquidacion`, "_blank")}>
-                <FileText className="w-4 h-4" />
-                Acta Liquidación
-              </Button>
-            </>
+              {showDocs && (
+                <div className="absolute right-0 mt-1 w-56 bg-white border rounded-lg shadow-lg z-50 py-1"
+                  onMouseLeave={() => setShowDocs(false)}>
+                  <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                    onClick={() => { window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/inexistencia`, "_blank"); setShowDocs(false) }}>Inexistencia</button>
+                  <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                    onClick={() => { window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/estudios_previos`, "_blank"); setShowDocs(false) }}>Estudios Previos</button>
+                  <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                    onClick={() => { window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/solicitud_cdp`, "_blank"); setShowDocs(false) }}>Solicitud CDP</button>
+                  <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                    onClick={() => { window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/invitacion`, "_blank"); setShowDocs(false) }}>Invitación</button>
+                  <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                    onClick={() => { window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/idoneidad`, "_blank"); setShowDocs(false) }}>Idoneidad</button>
+                  <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                    onClick={() => { window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/designacion_supervision`, "_blank"); setShowDocs(false) }}>Designación</button>
+                  <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                    onClick={() => { window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/acta_inicio`, "_blank"); setShowDocs(false) }}>Acta Inicio</button>
+                  <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                    onClick={() => { window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/acta_liquidacion`, "_blank"); setShowDocs(false) }}>Acta Liquidación</button>
+                </div>
+              )}
+            </div>
           )}
           {contrato.estado !== "ANULADO" && contrato.estado !== "FINALIZADO" && (
             <>
