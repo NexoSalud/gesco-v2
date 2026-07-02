@@ -14,7 +14,9 @@ from app.database import get_db
 from app.models.contrato import Contrato
 from app.models.contratista import Contratista
 from app.models.pago import Pago
+from app.models.planilla import Planilla
 from app.models.perfil import Perfil
+from sqlalchemy import text
 
 
 # Mapa de normalización de perfiles (variantes → nombre oficial)
@@ -454,3 +456,16 @@ async def importar_contratos_excel(
 
     await db.commit()
     return result_summary
+
+
+@router.post("/limpiar")
+async def limpiar_base_datos(db: AsyncSession = Depends(get_db)):
+    """Limpia contratos, pagos y perfiles para re-importar.
+    Mantiene resoluciones para no perder las configuraciones."""
+    await db.execute(text("DELETE FROM planillas"))
+    await db.execute(text("DELETE FROM pagos"))
+    await db.execute(text("DELETE FROM contratos"))
+    await db.execute(text("DELETE FROM actividades_perfil"))
+    await db.execute(text("DELETE FROM perfiles"))
+    await db.commit()
+    return {"message": "Base de datos limpiada. Perfiles, contratos y pagos eliminados."}

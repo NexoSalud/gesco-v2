@@ -53,10 +53,14 @@ export default function ContratistaDetailPage() {
           correo: match.correo || "",
         })
       }
-      // Load contratos
-      const res = await fetch(`${API}/api/v1/contratos?buscar=${encodeURIComponent(identificacion)}`)
-      const data = await res.json()
-      setContratos(data || [])
+      // Load contratos usando contratista_id
+      if (match && match.id) {
+        const res = await fetch(`${API}/api/v1/contratos?contratista_id=${match.id}`)
+        const data = await res.json()
+        setContratos(data || [])
+      } else {
+        setContratos([])
+      }
     } catch (e) {
       toast.error("Error cargando contratista")
     } finally {

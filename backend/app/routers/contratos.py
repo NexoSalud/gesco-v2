@@ -40,6 +40,7 @@ async def listar_contratos(
     resolucion_id: Optional[int] = Query(None),
     estado: Optional[str] = Query(None),
     buscar: Optional[str] = Query(None),
+    contratista_id: Optional[int] = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
     """Lista contratos con filtros opcionales."""
@@ -52,11 +53,14 @@ async def listar_contratos(
         stmt = stmt.where(Contrato.resolucion_id == resolucion_id)
     if estado:
         stmt = stmt.where(Contrato.estado == estado)
+    if contratista_id is not None:
+        stmt = stmt.where(Contrato.contratista_id == contratista_id)
     if buscar:
         stmt = stmt.where(
             or_(
                 Contrato.numero_contrato.ilike(f"%{buscar}%"),
                 Contrato.objeto.ilike(f"%{buscar}%"),
+                Contrato.supervisor.ilike(f"%{buscar}%"),
             )
         )
 
