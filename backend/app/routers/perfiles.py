@@ -49,7 +49,9 @@ async def actualizar_perfil(
     perfil_id: int, data: PerfilCreate, db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(
-        select(Perfil).where(Perfil.id == perfil_id)
+        select(Perfil)
+        .options(selectinload(Perfil.actividades))
+        .where(Perfil.id == perfil_id)
     )
     perfil = result.scalar_one_or_none()
     if not perfil:
