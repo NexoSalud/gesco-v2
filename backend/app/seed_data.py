@@ -250,14 +250,15 @@ PERFIL_NORMALIZATION = {
 async def seed_database():
     async with async_session_factory() as db:
         try:
-            existing = await db.execute(select(Perfil).limit(1))
-            if existing.scalar_one_or_none():
+            existing = await db.execute(select(Perfil))
+            perfiles_existentes = existing.scalars().all()
+            if perfiles_existentes:
                 # Verificar si los perfiles actuales son los viejos (migrados de GESCO)
-                # Si es así, reemplazarlos con los nuevos de gestionContractos
-                first = existing.scalar_one()
-                if first.nombre in ("AUXILIAR DE ENFERMERÍA", "MÉDICO GENERAL"):
+                # Chequear si el primer perfil tiene el formato nuevo (MEDICINA, ENFERMERIA...)
+                nombres_viejos = {"AUXILIAR DE ENFERMERÍA", "MÉDICO GENERAL", "ENFERMERO(A)", "ODONTÓLOGO", "PSICÓLOGO", "BACTERIÓLOGO"}
+                nombres_actuales = {p.nombre for p in perfiles_existentes}
+                if nombres_actuales & nombres_viejos:
                     logger.info("Migrando perfiles viejos a nueva version gestionContractos...")
-                    # Eliminar actividades y perfiles existentes
                     await db.execute(text("DELETE FROM actividades_perfil"))
                     await db.execute(text("DELETE FROM perfiles"))
                     await db.commit()
