@@ -54,8 +54,10 @@ PERFIL_NORMALIZATION = {
     "TECNICO AMBIENTAL": "OTRO",
     "TECNÓLOGO EN SISTEMAS": "OTRO",
     "TECNOLOGO SISTEMAS": "OTRO",
-    "HIGIENISTA": "OTRO",
-    "TRANSPORTE": "OTRO",
+    "HIGIENISTA": "AUXILIAR ENFERMERIA",
+    "AUXILIAR ENFERMERIA HIGIENISTA": "AUXILIAR ENFERMERIA",
+    "CONDUCTOR": "TRANSPORTE",
+    "TRANSPORTE": "TRANSPORTE",
 }
 from app.schemas.import_schema import ImportResult
 from app.services.numero_letras import numero_a_letras

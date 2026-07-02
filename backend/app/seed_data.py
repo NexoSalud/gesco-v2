@@ -163,6 +163,23 @@ PERFILES_DATA = [
         ],
     },
     {
+        "nombre": "TRANSPORTE",
+        "objeto": "Prestar servicios de conducción y transporte para el desplazamiento del talento humano, insumos y usuarios de la ESE Norte 3.",
+        "obligaciones": [
+            "Conducir vehículos asignados por la ESE para el transporte de personal e insumos.",
+            "Mantener el vehículo en óptimas condiciones de aseo y funcionamiento.",
+            "Realizar el mantenimiento preventivo básico del vehículo.",
+            "Cumplir con las normas de tránsito y seguridad vial.",
+            "Apoyar la logística de las jornadas extramurales.",
+        ],
+        "actividades": [
+            "Conducción de vehículos institucionales",
+            "Transporte de personal e insumos",
+            "Mantenimiento preventivo de vehículos",
+            "Apoyo logístico en jornadas extramurales",
+        ],
+    },
+    {
         "nombre": "SINDICATO",
         "objeto": "Prestar servicios de apoyo administrativo y operativo para el fortalecimiento de la Atención Primaria en Salud.",
         "obligaciones": [
@@ -244,8 +261,10 @@ PERFIL_NORMALIZATION = {
     "TECNICO AMBIENTAL": "OTRO",
     "TECNÓLOGO EN SISTEMAS": "OTRO",
     "TECNOLOGO SISTEMAS": "OTRO",
-    "HIGIENISTA": "OTRO",
-    "TRANSPORTE": "OTRO",
+    "HIGIENISTA": "AUXILIAR ENFERMERIA",
+    "AUXILIAR ENFERMERIA HIGIENISTA": "AUXILIAR ENFERMERIA",
+    "CONDUCTOR": "TRANSPORTE",
+    "TRANSPORTE": "TRANSPORTE",
 }
 
 
