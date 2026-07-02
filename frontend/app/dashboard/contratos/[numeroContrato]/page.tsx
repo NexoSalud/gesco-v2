@@ -81,6 +81,7 @@ export default function ContratoDetailPage() {
     ccf_nombre: "", ccf_valor: 0,
     sena_valor: 0, icbf_valor: 0,
   }])
+  const [finalizarContrato, setFinalizarContrato] = useState(false)
   const [submittingPago, setSubmittingPago] = useState(false)
 
   // Modal anular
@@ -123,10 +124,12 @@ export default function ContratoDetailPage() {
         contrato_id: numero,
         ...pagoForm,
         planillas: pagoPlantillas,
+        finalizar_contrato: finalizarContrato,
       })
       setShowPago(false)
       toast.success("Pago registrado exitosamente")
       loadData()
+      setFinalizarContrato(false)
       setPagoForm({
         tipo_informe: "SUPERVISION", periodo_desde: "", periodo_hasta: "",
         fecha_firma: "", valor_a_pagar: 0, cuentas_cobro: "",
@@ -453,6 +456,19 @@ export default function ContratoDetailPage() {
                   onChange={e => setPagoForm({ ...pagoForm, observaciones: e.target.value })} />
               </div>
             </div>
+
+            {/* Checkbox para finalizar contrato - solo si es última cuota */}
+            {contrato && contrato.cuotas_pagadas + 1 >= contrato.cuotas_total && contrato.cuotas_total > 0 && (
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={finalizarContrato}
+                  onChange={(e) => setFinalizarContrato(e.target.checked)}
+                  className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                <span>Finalizar contrato al registrar este pago</span>
+              </label>
+            )}
 
             <Separator />
 

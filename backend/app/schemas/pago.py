@@ -41,6 +41,7 @@ class PagoCreate(BaseModel):
     observaciones: str | None = None
     act: str | None = None
     planillas: list[PlanillaCreate] = []
+    finalizar_contrato: bool = False
 
 
 class PagoOut(BaseModel):

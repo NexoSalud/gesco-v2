@@ -441,16 +441,11 @@ async def importar_contratos_excel(
             db.add(pago)
             await db.flush()
 
-            # Actualizar cuotas_pagadas del contrato
-            await db.execute(
-                select(Contrato).where(Contrato.numero_contrato == numero_contrato)
-            )
+            # Actualizar cuotas_pagadas del contrato (sin finalizar automáticamente)
             contrato_obj.cuotas_pagadas = min(
                 contrato_obj.cuotas_pagadas + 1,
                 cuotas_total_contrato
             )
-            if contrato_obj.cuotas_pagadas >= cuotas_total_contrato and cuotas_total_contrato > 0:
-                contrato_obj.estado = "FINALIZADO"
 
         except Exception as e:
             logger.exception(f"Error procesando fila {fila_idx}")
