@@ -40,32 +40,25 @@ def _parse_html_blocks(html_text):
     """Retorna [(tipo, contenido)] donde tipo='text'|'table'."""
     blocks, pos = [], 0
     while pos < len(html_text):
-        m = re.search(r'<table[^>]*>', html_text[pos:], re.IGNORECASE)
-        if not m:
+        # Buscar <table> usando el metodo mas simple: buscar por substring
+        table_start = html_text.lower().find('<table', pos)
+        if table_start == -1:
             rest = html_text[pos:].strip()
             if rest:
                 blocks.append(('text', rest))
             break
-        tbl_start = pos + m.start()
-        if tbl_start > pos and html_text[pos:tbl_start].strip():
-            blocks.append(('text', html_text[pos:tbl_start].strip()))
-        remaining = html_text[tbl_start:]
-        depth, end = 0, 0
-        for i, ch in enumerate(remaining):
-            if ch == '<':
-                tag = remaining[i:i+7].lower()
-                if tag == '<table' or tag.startswith('<table '):
-                    depth += 1
-                elif remaining[i:i+8].lower() == '</table>':
-                    depth -= 1
-                    if depth == 0:
-                        end = i + 8
-                        break
-        if end > 0:
-            blocks.append(('table', remaining[:end]))
-            pos = tbl_start + end
-        else:
-            pos += 1
+        # Texto antes de la tabla
+        if table_start > pos and html_text[pos:table_start].strip():
+            blocks.append(('text', html_text[pos:table_start].strip()))
+        # Encontrar </table>
+        table_end = html_text.lower().find('</table>', table_start + 6)
+        if table_end == -1:
+            # No se encontro cierre, tratar como texto
+            blocks.append(('text', html_text[pos:].strip()))
+            break
+        table_end += 8  # len('</table>')
+        blocks.append(('table', html_text[table_start:table_end]))
+        pos = table_end
     return blocks
 
 
@@ -117,7 +110,7 @@ def _make_table_xml(headers, rows_data):
         rPr = OxmlElement(f'{ns}:rPr')
         rf = OxmlElement(f'{ns}:rFonts'); rf.set(qn('w:ascii'),'Aptos Display'); rf.set(qn('w:hAnsi'),'Aptos Display')
         rPr.append(rf)
-        sz = OxmlElement(f'{ns}:sz'); sz.set(qn('w:val'),'18')
+        sz = OxmlElement(f'{ns}:sz'); sz.set(qn('w:val'),'20')  # 10pt para tablas
         rPr.append(sz)
         if bold:
             b = OxmlElement(f'{ns}:b'); rPr.append(b)
@@ -138,17 +131,23 @@ def _make_table_xml(headers, rows_data):
     return tbl
 
 
-def _make_paragraph_xml(text, size=12):
-    """Crea elemento <w:p> text-only."""
+def _make_paragraph_xml(text, bold=False, size=11):
+    """Crea elemento <w:p> con formato 11pt, justify, Aptos Display."""
     p = OxmlElement('w:p')
     pPr = OxmlElement('w:pPr')
     jc = OxmlElement('w:jc'); jc.set(qn('w:val'),'both'); pPr.append(jc)
+    if bold:
+        pStyle = OxmlElement('w:pStyle'); pStyle.set(qn('w:val'),'Normal')
+        pPr.append(pStyle)
     p.append(pPr)
     r = OxmlElement('w:r')
     rPr = OxmlElement('w:rPr')
     rf = OxmlElement('w:rFonts'); rf.set(qn('w:ascii'),'Aptos Display'); rf.set(qn('w:hAnsi'),'Aptos Display')
     rPr.append(rf)
-    sz = OxmlElement('w:sz'); sz.set(qn('w:val'),str(size*2)); rPr.append(sz)
+    sz = OxmlElement('w:sz'); sz.set(qn('w:val'),'22'); rPr.append(sz)
+    szCs = OxmlElement('w:szCs'); szCs.set(qn('w:val'),'22'); rPr.append(szCs)
+    if bold:
+        b = OxmlElement('w:b'); rPr.append(b)
     r.append(rPr)
     t = OxmlElement('w:t'); t.text=text; t.set(qn('xml:space'),'preserve')
     r.append(t); p.append(r)
@@ -202,8 +201,9 @@ def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None)
         for pi, p in enumerate(doc.paragraphs):
             if "<<OBLIGACIONES>>" in p.text:
                 _merge_runs_and_replace(p, "<<OBLIGACIONES>>", "")
-                last_element = p._p  # referencia OOXML para addnext
-                for oi, oblig in enumerate(obligaciones_esp, 1):
+                last_element = p._p
+                for oblig in obligaciones_esp:
+                    es_header = 'OBLIGACIONES' in oblig.upper()
                     blocks = _parse_html_blocks(oblig)
                     for bi, (btype, content) in enumerate(blocks):
                         if btype == 'table':
@@ -213,7 +213,6 @@ def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None)
                                 last_element.addnext(tbl)
                                 last_element = tbl
                         else:
-                            # Texto plano: limpiar HTML residual y dividir por \n
                             clean = re.sub(r'<br\s*/?>', '\n', content, flags=re.IGNORECASE)
                             clean = re.sub(r'<[^>]+>', '', clean)
                             clean = clean.replace('&nbsp;',' ').replace('&amp;','&')
@@ -223,11 +222,7 @@ def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None)
                                 part = part.strip()
                                 if not part:
                                     continue
-                                if bi == 0 and pi2 == 0:
-                                    texto = f"{oi}. {part}"
-                                else:
-                                    texto = part
-                                new_p = _make_paragraph_xml(texto, size=12)
+                                new_p = _make_paragraph_xml(part, bold=es_header, size=11)
                                 last_element.addnext(new_p)
                                 last_element = new_p
                 break
