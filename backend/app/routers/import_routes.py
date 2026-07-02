@@ -460,16 +460,17 @@ async def importar_contratos_excel(
 
 @router.post("/limpiar")
 async def limpiar_base_datos(db: AsyncSession = Depends(get_db)):
-    """Limpia TODA la data operativa para re-importar desde Excel.
-    Mantiene solo resoluciones (para asociar los contratos)."""
+    """Limpia TODA la base de datos para re-importar desde cero."""
     await db.execute(text("DELETE FROM planillas"))
     await db.execute(text("DELETE FROM pagos"))
     await db.execute(text("DELETE FROM contratos"))
     await db.execute(text("DELETE FROM contratistas"))
     await db.execute(text("DELETE FROM actividades_perfil"))
     await db.execute(text("DELETE FROM perfiles"))
+    await db.execute(text("DELETE FROM plantillas_observacion"))
+    await db.execute(text("DELETE FROM resoluciones"))
     await db.commit()
-    # Re-seedear perfiles con actividades completas
+    # Re-seedear perfiles y data demo
     from app.seed_data import seed_database
     await seed_database()
-    return {"message": "BD limpiada: contratos, contratistas, pagos y perfiles eliminados. Perfiles recreados con actividades completas."}
+    return {"message": "BD completamente limpiada y reseedeada: resoluciones, contratos, contratistas, pagos y perfiles eliminados."}
