@@ -255,12 +255,13 @@ export default function ContratoDetailPage() {
         </div>
 
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => contrato ? descargarDocxById(contrato.id) : descargarDocx(numero)}
-          >
+          <Button variant="outline" size="sm" className="gap-1.5"
+            onClick={() => router.push(`/dashboard/contratos/${encodeURIComponent(numero)}/editar`)}>
+            <Pencil className="w-4 h-4" />
+            Editar
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5"
+            onClick={() => contrato ? descargarDocxById(contrato.id) : descargarDocx(numero)}>
             <FileDown className="w-4 h-4" />
             DOCX
           </Button>

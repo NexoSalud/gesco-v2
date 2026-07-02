@@ -53,9 +53,18 @@ class ContratoUpdate(BaseModel):
     objeto: str | None = None
     obligaciones: str | None = None
     monto_total: float | None = None
+    monto_transporte: float | None = None
+    fecha_inicio: date | None = None
     fecha_fin: date | None = None
+    fecha_contrato: date | None = None
     supervisor: str | None = None
+    cedula_supervisor: str | None = None
+    cargo_supervisor: str | None = None
     unidad_atencion: str | None = None
+    no_cdp: str | None = None
+    rubro: str | None = None
+    rp: str | None = None
+    lugar_ejecucion: str | None = None
 
 
 class PagoResumen(BaseModel):

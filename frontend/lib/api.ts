@@ -67,13 +67,20 @@ export interface Contrato {
   monto_transporte: number
   fecha_inicio: string | null
   fecha_fin: string | null
+  fecha_contrato: string | null
   no_cdp: string | null
+  rubro: string | null
+  rp: string | null
+  lugar_ejecucion: string | null
   supervisor: string | null
+  cedula_supervisor: string | null
+  cargo_supervisor: string | null
   unidad_atencion: string | null
   cuotas: string | null
   cuotas_total: number
   cuotas_pagadas: number
-  contratista_rel: { nombre: string; identificacion: string } | null
+  valor_letras: string | null
+  contratista_rel: { nombre: string; identificacion: string; tipo_persona?: string; expedida_en?: string; telefono?: string; direccion?: string; correo?: string } | null
   pagos: any[]
   created_at: string
 }
