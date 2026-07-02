@@ -25,7 +25,8 @@ def _fmt_money(val) -> str:
     return "{:,.0f}".format(float(val)).replace(",", ".")
 
 
-def generar_supervision_pdf(contrato: dict, pago: dict, planillas: list) -> bytes:
+def generar_supervision_pdf(contrato: dict, pago: dict, planillas: list,
+                             actividades_supervision: list | None = None) -> bytes:
     """Genera PDF con el formato oficial de supervisión."""
     from app.services.numero_letras import numero_a_letras
 
@@ -97,14 +98,17 @@ def generar_supervision_pdf(contrato: dict, pago: dict, planillas: list) -> byte
         "anio_firma": hoy.year,
     }
 
-    # Actividades
-    actividades_text = (pago.get("actividades") or "").strip()
-    actividades = []
-    if actividades_text:
-        for linea in actividades_text.split("\n"):
-            linea = linea.strip()
-            if linea:
-                actividades.append({"descripcion": linea, "cumple": True})
+    # Actividades (priorizar actividades de supervisión si existen)
+    if actividades_supervision:
+        actividades = actividades_supervision
+    else:
+        actividades_text = (pago.get("actividades") or "").strip()
+        actividades = []
+        if actividades_text:
+            for linea in actividades_text.split("\n"):
+                linea = linea.strip()
+                if linea:
+                    actividades.append({"descripcion": linea, "cumple": True})
     if not actividades:
         actividades.append({"descripcion": "ACTIVIDADES DESARROLLADAS SEGÚN LO ESTABLECIDO EN EL CONTRATO.", "cumple": True})
 

@@ -40,3 +40,5 @@ class Pago(Base):
     # Relationships
     contrato = relationship("Contrato", back_populates="pagos")
     planillas = relationship("Planilla", back_populates="pago", cascade="all, delete-orphan")
+    actividades_supervision = relationship("ActividadSupervision", back_populates="pago",
+                                           cascade="all, delete-orphan", order_by="ActividadSupervision.orden")

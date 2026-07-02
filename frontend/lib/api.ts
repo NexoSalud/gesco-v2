@@ -248,3 +248,51 @@ export const createActividad = (perfilId: number, descripcion: string, orden: nu
 
 export const deleteActividad = (actividadId: number) =>
   request<void>(`/api/v1/actividades/${actividadId}`, { method: "DELETE" })
+
+
+// ─── Actividades de Contrato ────────────────────────────────────────────────────
+export interface ActividadContrato {
+  id: number
+  contrato_id: string
+  descripcion: string
+  tipo: string  // GENERAL | ESPECIFICA
+  orden: number
+}
+
+export const getActividadesContrato = (numero: string) =>
+  request<ActividadContrato[]>(`/api/v1/contratos/${encodeURIComponent(numero)}/actividades`)
+
+export const createActividadContrato = (numero: string, data: { descripcion: string; tipo?: string; orden?: number }) =>
+  request<ActividadContrato>(`/api/v1/contratos/${encodeURIComponent(numero)}/actividades`, {
+    method: "POST", body: JSON.stringify(data),
+  })
+
+export const updateActividadContrato = (id: number, data: any) =>
+  request<ActividadContrato>(`/api/v1/contratos/actividades/${id}`, {
+    method: "PUT", body: JSON.stringify(data),
+  })
+
+export const deleteActividadContrato = (id: number) =>
+  request<void>(`/api/v1/contratos/actividades/${id}`, { method: "DELETE" })
+
+export const heredarActividadesPerfil = (numero: string) =>
+  request<{ message: string }>(`/api/v1/contratos/${encodeURIComponent(numero)}/actividades/heredar`, { method: "POST" })
+
+
+// ─── Actividades de Supervisión ─────────────────────────────────────────────────
+export interface ActividadSupervision {
+  id: number
+  pago_id: number
+  actividad_contrato_id: number | null
+  descripcion: string
+  cumple: boolean | null
+  orden: number
+}
+
+export const getActividadesSupervision = (pagoId: number) =>
+  request<ActividadSupervision[]>(`/api/v1/pagos/${pagoId}/actividades`)
+
+export const evaluarActividadesSupervision = (pagoId: number, actividades: { id: number; cumple: boolean | null }[]) =>
+  request<{ message: string }>(`/api/v1/pagos/${pagoId}/actividades/evaluar`, {
+    method: "POST", body: JSON.stringify({ actividades }),
+  })

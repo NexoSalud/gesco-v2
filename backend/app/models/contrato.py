@@ -77,3 +77,5 @@ class Contrato(Base):
     contratista_rel = relationship("Contratista", back_populates="contratos")
     pagos = relationship("Pago", back_populates="contrato", cascade="all, delete-orphan",
                          order_by="Pago.numero_pago")
+    actividades_contrato = relationship("ActividadContrato", back_populates="contrato",
+                                        cascade="all, delete-orphan", order_by="ActividadContrato.orden")

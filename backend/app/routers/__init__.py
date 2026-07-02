@@ -6,3 +6,4 @@ from app.routers.perfiles import router as perfiles_router
 from app.routers.plantillas import router as plantillas_router
 from app.routers.export import router as export_router
 from app.routers.import_routes import router as import_router
+from app.routers.actividades import router as actividades_router

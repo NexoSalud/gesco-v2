@@ -12,6 +12,8 @@ from app.database import get_db
 from app.models.contrato import Contrato
 from app.models.pago import Pago
 from app.models.planilla import Planilla
+from app.models.actividad_contrato import ActividadContrato
+from app.models.actividad_supervision import ActividadSupervision
 from app.schemas.pago import PagoCreate, PagoOut
 from app.services.pdf_generator import generar_supervision_pdf
 
@@ -78,6 +80,30 @@ async def crear_pago(data: PagoCreate, db: AsyncSession = Depends(get_db)):
             **pl_data.model_dump(),
         )
         db.add(planilla)
+
+    # Heredar actividades del contrato al pago
+    acts_contrato = await db.execute(
+        select(ActividadContrato)
+        .where(ActividadContrato.contrato_id == data.contrato_id)
+        .order_by(ActividadContrato.orden)
+    )
+    for ac in acts_contrato.scalars().all():
+        act_sup = ActividadSupervision(
+            pago_id=pago.id,
+            actividad_contrato_id=ac.id,
+            descripcion=ac.descripcion,
+            orden=ac.orden,
+        )
+        db.add(act_sup)
+
+    # Si no hay actividades en el contrato, crear una genérica
+    if not acts_contrato.scalars().all():
+        act_sup = ActividadSupervision(
+            pago_id=pago.id,
+            descripcion="ACTIVIDADES DESARROLLADAS SEGÚN LO ESTABLECIDO EN EL CONTRATO.",
+            orden=0,
+        )
+        db.add(act_sup)
 
     # Finalizar contrato solo si el usuario lo solicita explícitamente
     if data.finalizar_contrato:
@@ -146,6 +172,17 @@ async def descargar_pdf_supervision(pago_id: int, db: AsyncSession = Depends(get
         "fecha_fin": str(contrato.fecha_fin) if contrato.fecha_fin else "",
         "objeto": contrato.objeto or "",
     }
+    # Cargar actividades de supervisión
+    acts_sup = await db.execute(
+        select(ActividadSupervision)
+        .where(ActividadSupervision.pago_id == pago.id)
+        .order_by(ActividadSupervision.orden)
+    )
+    actividades_supervision = [
+        {"descripcion": a.descripcion, "cumple": a.cumple}
+        for a in acts_sup.scalars().all()
+    ]
+
     data_pago = {
         "numero_pago": pago.numero_pago,
         "tipo_informe": pago.tipo_informe or "SUPERVISION",
@@ -175,7 +212,10 @@ async def descargar_pdf_supervision(pago_id: int, db: AsyncSession = Depends(get
         for pl in pago.planillas
     ]
 
-    pdf_bytes = generar_supervision_pdf(data_contrato, data_pago, planillas_list)
+    pdf_bytes = generar_supervision_pdf(
+        data_contrato, data_pago, planillas_list,
+        actividades_supervision=actividades_supervision,
+    )
 
     filename = f"Supervision_{contrato.numero_contrato}_Pago{pago.numero_pago}.pdf"
     return Response(
