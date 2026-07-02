@@ -54,6 +54,8 @@ PERFIL_NORMALIZATION = {
     "TECNICO AMBIENTAL": "OTRO",
     "TECNÓLOGO EN SISTEMAS": "OTRO",
     "TECNOLOGO SISTEMAS": "OTRO",
+    "HIGIENISTA": "OTRO",
+    "TRANSPORTE": "OTRO",
 }
 from app.schemas.import_schema import ImportResult
 from app.services.numero_letras import numero_a_letras
@@ -311,16 +313,10 @@ async def importar_contratos_excel(
                 rubro = _clean_str(_get_col(col_indices, row, "IMPUTACIÓN PRESUPUESTAL"))
                 unidad_atencion = _clean_str(_get_col(col_indices, row, "UNIDAD DE ATENCION"))
 
-                cuotas_raw = _clean_str(_get_col(col_indices, row, "CUOTAS"))
-                cuotas_total = 0
+                # Cuotas: ya no se usan, se deja en 0
+                # El progreso se mide por (total pagado / monto_total)
                 cuotas_txt = None
-                if cuotas_raw:
-                    cuotas_txt = cuotas_raw
-                    nums = re.findall(r"\d+", cuotas_raw)
-                    cuotas_total = int(nums[0]) if nums else 1
-                else:
-                    cuotas_txt = "1"
-                    cuotas_total = 1
+                cuotas_total = 0
 
                 estado_raw = _get_col(col_indices, row, "ESTADO", "estado_contrato")
                 estado = _map_estado(estado_raw)
@@ -375,8 +371,6 @@ async def importar_contratos_excel(
                     objeto=objeto or "",
                     monto_total=monto_total,
                     valor_letras=valor_letras,
-                    cuotas=cuotas_txt,
-                    cuotas_total=cuotas_total,
                     supervisor=supervisor or "",
                     cedula_supervisor=cedula_supervisor or "",
                     no_cdp=no_cdp or "",
@@ -390,62 +384,56 @@ async def importar_contratos_excel(
                 await db.flush()
                 contratos_creados.add(numero_contrato)
                 result_summary.created += 1
-
-                # Calcular cuotas totales para el contrato
-                cuotas_total_contrato = cuotas_total
             else:
                 # Contrato ya existe en este batch — obtenerlo
                 existing = await db.execute(select(Contrato).where(Contrato.numero_contrato == numero_contrato))
                 contrato_obj = existing.scalar_one_or_none()
                 if not contrato_obj:
-                    # No debería pasar, pero por si acaso
                     result_summary.errors.append({"fila": fila_idx, "numero_contrato": numero_contrato, "error": "Contrato no encontrado para crear pago"})
                     result_summary.skipped += 1
                     continue
-                cuotas_total_contrato = contrato_obj.cuotas_total
 
             # ─── DATOS DEL PAGO ──
-            tipo_informe = _clean_str(_get_col(col_indices, row, "TIPO DE INFORME")) or "SUPERVISION"
-            periodo_desde = _parse_date(_get_col(col_indices, row, "PERIODO INFORME DESDE"))
-            periodo_hasta = _parse_date(_get_col(col_indices, row, "PERIODO INFORME HASTA"))
             valor_a_pagar = _parse_number(_get_col(col_indices, row, "VALOR A PAGAR"))
-            folios = _clean_str(_get_col(col_indices, row, "N° FOLIOS"))
-            observaciones = _clean_str(_get_col(col_indices, row, "OBSERVACIONES"))
-            actividades = _clean_str(_get_col(col_indices, row, "ACTIVIDADES"))
 
-            # Obtener número de pago: usar PAGO No del Excel o auto-incrementar
-            pago_numero_raw = _get_col(col_indices, row, "PAGO No")
-            if pago_numero_raw is not None and str(pago_numero_raw).strip():
-                nums = re.findall(r"\d+", str(pago_numero_raw))
-                numero_pago = int(nums[0]) if nums else 1
-            else:
-                # Auto-incrementar basado en pagos existentes
-                result_p = await db.execute(
-                    select(Pago).where(Pago.contrato_id == numero_contrato).order_by(Pago.numero_pago.desc()).limit(1)
+            # Saltar creación de pago si el valor es 0 o negativo
+            if valor_a_pagar > 0:
+                tipo_informe = _clean_str(_get_col(col_indices, row, "TIPO DE INFORME")) or "SUPERVISION"
+                periodo_desde = _parse_date(_get_col(col_indices, row, "PERIODO INFORME DESDE"))
+                periodo_hasta = _parse_date(_get_col(col_indices, row, "PERIODO INFORME HASTA"))
+                folios = _clean_str(_get_col(col_indices, row, "N° FOLIOS"))
+                observaciones = _clean_str(_get_col(col_indices, row, "OBSERVACIONES"))
+                actividades = _clean_str(_get_col(col_indices, row, "ACTIVIDADES"))
+
+                # Fecha dummy si vacía (para permitir registro)
+                if periodo_desde is None:
+                    periodo_desde = date(2026, 1, 1)
+                if periodo_hasta is None:
+                    periodo_hasta = date(2026, 1, 31)
+
+                # Número de pago: forzar conversión a int
+                pago_numero_raw = _get_col(col_indices, row, "PAGO No")
+                numero_pago = 1
+                if pago_numero_raw is not None:
+                    try:
+                        numero_pago = int(float(str(pago_numero_raw)))
+                    except (ValueError, TypeError):
+                        pass
+
+                # Crear pago
+                pago = Pago(
+                    contrato_id=numero_contrato,
+                    numero_pago=numero_pago,
+                    tipo_informe=tipo_informe,
+                    periodo_desde=periodo_desde,
+                    periodo_hasta=periodo_hasta,
+                    valor_a_pagar=valor_a_pagar,
+                    folios=folios or "",
+                    observaciones=observaciones or "",
+                    actividades=actividades or "",
                 )
-                ultimo = result_p.scalar_one_or_none()
-                numero_pago = (ultimo.numero_pago + 1) if ultimo else 1
-
-            # ─── Crear pago ──
-            pago = Pago(
-                contrato_id=numero_contrato,
-                numero_pago=numero_pago,
-                tipo_informe=tipo_informe,
-                periodo_desde=periodo_desde,
-                periodo_hasta=periodo_hasta,
-                valor_a_pagar=valor_a_pagar,
-                folios=folios or "",
-                observaciones=observaciones or "",
-                actividades=actividades or "",
-            )
-            db.add(pago)
-            await db.flush()
-
-            # Actualizar cuotas_pagadas del contrato (sin finalizar automáticamente)
-            contrato_obj.cuotas_pagadas = min(
-                contrato_obj.cuotas_pagadas + 1,
-                cuotas_total_contrato
-            )
+                db.add(pago)
+                await db.flush()
 
         except Exception as e:
             logger.exception(f"Error procesando fila {fila_idx}")

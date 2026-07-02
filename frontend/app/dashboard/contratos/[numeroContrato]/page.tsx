@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import {
   ChevronLeft, FileText, Plus, AlertTriangle,
-  User, DollarSign, Calendar, Hash, MapPin,
+  User, DollarSign, Calendar, MapPin,
   FileDown, X, Printer,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -457,8 +457,11 @@ export default function ContratoDetailPage() {
               </div>
             </div>
 
-            {/* Checkbox para finalizar contrato - solo si es última cuota */}
-            {contrato && contrato.cuotas_pagadas + 1 >= contrato.cuotas_total && contrato.cuotas_total > 0 && (
+            {/* Checkbox para finalizar contrato - si el pago cubre el saldo */}
+            {contrato && (() => {
+              const totalPagado = pagos.reduce((s, p) => s + p.valor_a_pagar, 0)
+              return (totalPagado + (pagoForm.valor_a_pagar || 0) >= contrato.monto_total)
+            })() && (
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input
                   type="checkbox"

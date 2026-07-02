@@ -79,8 +79,6 @@ async def crear_pago(data: PagoCreate, db: AsyncSession = Depends(get_db)):
         )
         db.add(planilla)
 
-    # Actualizar cuotas pagadas
-    contrato.cuotas_pagadas = min(contrato.cuotas_pagadas + 1, contrato.cuotas_total)
     # Finalizar contrato solo si el usuario lo solicita explícitamente
     if data.finalizar_contrato:
         contrato.estado = "FINALIZADO"
