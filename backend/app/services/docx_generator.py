@@ -203,7 +203,7 @@ def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None)
                 _merge_runs_and_replace(p, "<<OBLIGACIONES>>", "")
                 last_element = p._p
                 for oblig in obligaciones_esp:
-                    es_header = 'OBLIGACIONES' in oblig.upper()
+                    es_header = oblig.strip().upper() in ('OBLIGACIONES GENERALES:', 'OBLIGACIONES ESPECÍFICAS:') or oblig.strip().startswith('OBLIGACIONES GENERALES') or oblig.strip().startswith('OBLIGACIONES ESPECÍFICAS')
                     blocks = _parse_html_blocks(oblig)
                     for bi, (btype, content) in enumerate(blocks):
                         if btype == 'table':
