@@ -1,15 +1,17 @@
 # Gesco V2
 
-FROM mcr.microsoft.com/playwright/python:v1.49.0-noble
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# System deps for python-docx
+# System deps for WeasyPrint + python-docx
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpango-1.0-0 \
     libpangoft2-1.0-0 \
     libpangocairo-1.0-0 \
     libgdk-pixbuf-2.0-0 \
+    libffi-dev \
+    shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
