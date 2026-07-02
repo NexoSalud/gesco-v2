@@ -44,6 +44,8 @@ const ARL_OPCIONES = ["ALFA", "AURORA", "BOLIVAR", "COLMENA", "EQUIDAD", "MAPFRE
 const AFP_OPCIONES = ["COLPENSIONES", "PORVENIR", "PROTECCION", "COLFONDOS", "SKANDIA"]
 const CCF_OPCIONES = ["COMFACAUCA", "COMFENALCO"]
 
+const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
+
 const MOTIVOS_ANULACION = [
   "Renuncia del contratista", "Incumplimiento contractual",
   "Terminación por mutuo acuerdo", "Decisión administrativa",
@@ -265,6 +267,35 @@ export default function ContratoDetailPage() {
             <FileDown className="w-4 h-4" />
             DOCX
           </Button>
+          {contrato && (
+            <>
+              <Button variant="outline" size="sm" className="gap-1.5"
+                onClick={() => window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/inexistencia`, "_blank")}>
+                <FileText className="w-4 h-4" />
+                Inexistencia
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5"
+                onClick={() => window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/estudios_previos`, "_blank")}>
+                <FileText className="w-4 h-4" />
+                Estudios Previos
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5"
+                onClick={() => window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/solicitud_cdp`, "_blank")}>
+                <FileText className="w-4 h-4" />
+                Solicitud CDP
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5"
+                onClick={() => window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/invitacion`, "_blank")}>
+                <FileText className="w-4 h-4" />
+                Invitación
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5"
+                onClick={() => window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/idoneidad`, "_blank")}>
+                <FileText className="w-4 h-4" />
+                Idoneidad
+              </Button>
+            </>
+          )}
           {contrato.estado !== "ANULADO" && contrato.estado !== "FINALIZADO" && (
             <>
               <Button size="sm" className="gap-1.5" onClick={abrirNuevoPago}>

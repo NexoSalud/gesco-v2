@@ -342,15 +342,17 @@ async def descargar_docx(numero_contrato: str, db: AsyncSession = Depends(get_db
                     actividades_generales.append(act.descripcion)
 
     # Combinar todas como obligaciones
-    todas_obligaciones = []
-    todas_obligaciones.append("OBLIGACIONES GENERALES:")
+    todas_obligaciones = ["OBLIGACIONES GENERALES:"]
+    num = 1
     for g in actividades_generales:
-        todas_obligaciones.append(g)
+        todas_obligaciones.append(f"{num}. {g}")
+        num += 1
     if actividades_especificas:
         todas_obligaciones.append("")
         todas_obligaciones.append("OBLIGACIONES ESPECÍFICAS:")
         for e in actividades_especificas:
-            todas_obligaciones.append(e)
+            todas_obligaciones.append(f"{num}. {e}")
+            num += 1
 
     contratista = contrato.contratista_rel
     docx_bytes = generar_contrato_docx(
@@ -517,13 +519,16 @@ async def descargar_docx_por_id(contrato_id: int, db: AsyncSession = Depends(get
                 else:
                     actividades_generales.append(act.descripcion)
     todas_obligaciones = ["OBLIGACIONES GENERALES:"]
+    num = 1
     for g in actividades_generales:
-        todas_obligaciones.append(g)
+        todas_obligaciones.append(f"{num}. {g}")
+        num += 1
     if actividades_especificas:
         todas_obligaciones.append("")
         todas_obligaciones.append("OBLIGACIONES ESPECÍFICAS:")
         for e in actividades_especificas:
-            todas_obligaciones.append(e)
+            todas_obligaciones.append(f"{num}. {e}")
+            num += 1
 
     contratista = contrato.contratista_rel
     docx_bytes = generar_contrato_docx(
@@ -554,6 +559,64 @@ async def descargar_docx_por_id(contrato_id: int, db: AsyncSession = Depends(get
     )
 
     filename = f"Contrato_{contrato_id}.docx"
+    return Response(
+        content=docx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/id/{contrato_id}/documentos/{tipo}")
+async def descargar_documento_contrato(
+    contrato_id: int, tipo: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Descarga un documento de contratación (inexistencia, estudios previos, etc.)
+    para un contrato específico.
+    
+    Tipos: inexistencia, estudios_previos, solicitud_cdp, invitacion, idoneidad
+    """
+    from app.services.docx_generator import generar_documento_contrato
+    
+    result = await db.execute(
+        select(Contrato)
+        .options(selectinload(Contrato.contratista_rel), selectinload(Contrato.pagos))
+        .where(Contrato.id == contrato_id)
+    )
+    contrato = result.scalar_one_or_none()
+    if not contrato:
+        raise HTTPException(404, "Contrato no encontrado")
+    
+    tipos_validos = {"inexistencia", "estudios_previos", "solicitud_cdp", "invitacion", "idoneidad",
+                     "designacion_supervision", "acta_inicio", "acta_liquidacion"}
+    if tipo not in tipos_validos:
+        raise HTTPException(400, f"Tipo de documento inválido. Válidos: {', '.join(sorted(tipos_validos))}")
+    
+    contratista = contrato.contratista_rel
+    
+    data = {
+        "numero_contrato": contrato.numero_contrato,
+        "nombre_contratista": contratista.nombre if contratista else "N/A",
+        "cedula": contratista.identificacion if contratista else "N/A",
+        "supervisor": contrato.supervisor or "N/A",
+        "cedula_supervisor": contrato.cedula_supervisor or "N/A",
+        "objeto": contrato.objeto or "",
+        "perfil": contrato.perfil or "N/A",
+        "monto_total": contrato.monto_total,
+        "fecha_inicio": str(contrato.fecha_inicio) if contrato.fecha_inicio else "",
+        "fecha_fin": str(contrato.fecha_fin) if contrato.fecha_fin else "",
+        "fecha_contrato": str(contrato.fecha_contrato or contrato.fecha_inicio) if contrato.fecha_contrato else "",
+        "unidad_atencion": contrato.unidad_atencion or "N/A",
+        "correo": contratista.correo if contratista else "",
+        "valor_letras": contrato.valor_letras or "",
+    }
+    
+    try:
+        docx_bytes = generar_documento_contrato(tipo, data)
+    except (ValueError, FileNotFoundError) as e:
+        raise HTTPException(500, str(e))
+    
+    filename = f"{tipo}_{contrato.numero_contrato}.docx".replace("/", "_")
     return Response(
         content=docx_bytes,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",

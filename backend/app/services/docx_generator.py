@@ -231,3 +231,100 @@ def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None)
     doc.save(buf)
     buf.seek(0)
     return buf.getvalue()
+
+
+# ─── Documentos de contratación (INEXISTENCIA, ESTUDIOS PREVIOS, etc.) ────────
+
+DOCUMENTOS_TEMPLATES = {
+    "inexistencia": "inexistencia.docx",
+    "estudios_previos": "estudios_previos.docx",
+    "solicitud_cdp": "solicitud_cdp.docx", 
+    "invitacion": "invitacion.docx",
+    "idoneidad": "idoneidad.docx",
+    "designacion_supervision": "designacion_supervision.docx",
+    "acta_inicio": "acta_inicio.docx",
+    "acta_liquidacion": "acta_liquidacion.docx",
+}
+
+
+def generar_documento_contrato(tipo: str, data: dict) -> bytes:
+    """Genera un documento de contratacion (inexistencia, estudios previos, etc.)
+    a partir de su plantilla DOCX y los datos del contrato.
+
+    Args:
+        tipo: uno de 'inexistencia', 'estudios_previos', 'solicitud_cdp',
+              'invitacion', 'idoneidad'
+        data: dict con los datos del contrato
+
+    Returns:
+        bytes del archivo .docx
+    """
+    from datetime import date
+
+    template_name = DOCUMENTOS_TEMPLATES.get(tipo)
+    if not template_name:
+        raise ValueError(f"Tipo de documento desconocido: {tipo}")
+
+    template_path = os.path.normpath(os.path.join(
+        os.path.dirname(__file__), "..", "templates", template_name))
+
+    if not os.path.exists(template_path):
+        raise FileNotFoundError(f"Plantilla no encontrada: {template_path}")
+
+    doc = Document(template_path)
+
+    # Mapa de placeholders comun para todos los documentos
+    fecha_inicio = str(data.get("fecha_inicio", str(date.today())))
+    valor = float(data.get("monto_total", 0))
+    from app.services.numero_letras import numero_a_letras
+    valor_letras = data.get("valor_letras", "") or numero_a_letras(valor)
+
+    MESES = ["", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
+             "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
+    hoy = date.today()
+
+    placeholders = {
+        "<<NO. DE CONTRATO>>": data.get("numero_contrato", "_________"),
+        "<<FECHA DEL CONTRATO>>": str(data.get("fecha_contrato", data.get("fecha_inicio", str(hoy)))),
+        "<<fecha del contrato>>": str(data.get("fecha_contrato", data.get("fecha_inicio", str(hoy)))),
+        "<<CONTRATISTA>>": data.get("nombre_contratista", "___________________"),
+        "<<CEDULA DEL CONTRATISTA>>": data.get("cedula", "_________"),
+        "<<CÉDULA DEL CONTRATISTA>>": data.get("cedula", "_________"),
+        "<<SUPERVISOR>>": data.get("supervisor", "_________"),
+        "<<CEDULA DE SUPERVISOR>>": data.get("cedula_supervisor", "_________"),
+        "<<OBJETO DEL CONTRATO>>": data.get("objeto", "_________"),
+        "<<PERFIL>>": data.get("perfil", "_________"),
+        "<<VALOR DEL CONTRATO>>": f"${valor:,.0f} ({valor_letras})",
+        "<<VALOR DE CDP>>": f"${valor:,.0f}",
+        "<<fecha de terminación>>": str(data.get("fecha_fin", "_________")),
+        "<<fecha de finalización>>": str(data.get("fecha_fin", "_________")),
+        "<<día>>": str(hoy.day),
+        "<<mes>>": MESES[hoy.month],
+        "<<año>>": str(hoy.year),
+        "<<Unidad de Atención>>": data.get("unidad_atencion", "_________"),
+        "<<CORREO>>": data.get("correo", "_________"),
+        "<<OBLIGACIONES>>": "Ver cláusula SEGUNDA del contrato.",
+    }
+
+    # Reemplazar usando el mismo enfoque que en _replace_all
+    import re as _re
+    for ph, val in placeholders.items():
+        val = str(val) if val is not None else ""
+        for p in doc.paragraphs:
+            if ph in p.text:
+                full_new = p.text.replace(ph, val)
+                for i, run in enumerate(p.runs):
+                    run.text = full_new if i == 0 else ""
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for p in cell.paragraphs:
+                        if ph in p.text:
+                            full_new = p.text.replace(ph, val)
+                            for i, run in enumerate(p.runs):
+                                run.text = full_new if i == 0 else ""
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    return buf.getvalue()
