@@ -294,6 +294,21 @@ export default function ContratoDetailPage() {
                 <FileText className="w-4 h-4" />
                 Idoneidad
               </Button>
+              <Button variant="outline" size="sm" className="gap-1.5"
+                onClick={() => window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/designacion_supervision`, "_blank")}>
+                <FileText className="w-4 h-4" />
+                Designación
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5"
+                onClick={() => window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/acta_inicio`, "_blank")}>
+                <FileText className="w-4 h-4" />
+                Acta Inicio
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5"
+                onClick={() => window.open(`${API}/api/v1/contratos/id/${contrato.id}/documentos/acta_liquidacion`, "_blank")}>
+                <FileText className="w-4 h-4" />
+                Acta Liquidación
+              </Button>
             </>
           )}
           {contrato.estado !== "ANULADO" && contrato.estado !== "FINALIZADO" && (
