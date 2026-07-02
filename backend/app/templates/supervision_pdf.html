@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Informe de Supervisión - {{ contrato.numero_contrato }}</title>
+<title>Informe de Supervisión - {{ informe.numero_contrato }}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -12,234 +12,359 @@
     background: #fff;
     padding: 10px;
   }
-  table { width: 100%; border-collapse: collapse; border: 2px solid #000; }
-  th, td { border: 1px solid #000; padding: 3px 6px; vertical-align: middle; }
+  .table-informe {
+    width: 100%;
+    border-collapse: collapse;
+    border: 2px solid #000;
+  }
+  .table-informe th, .table-informe td {
+    border: 1px solid #000;
+    padding: 3px 6px;
+    vertical-align: middle;
+  }
   .label { font-weight: bold; }
   .text-center { text-align: center; }
   .text-right { text-align: right; }
   .text-justify { text-align: justify; }
   .border-bottom-thick { border-bottom: 2px solid #000 !important; }
   .border-top-thick { border-top: 2px solid #000 !important; }
-  .header-blue { background-color: #a2c8ec !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .header-green { background-color: #b4d6a4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .header-orange { background-color: #f4b183 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .header-yellow { background-color: #ffe699 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .bg-light-gray { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .fs-9 { font-size: 9px; }
-  .fs-10 { font-size: 10px; }
-  .fw-bold { font-weight: bold; }
-  hr { border: 0.5px solid #000; margin: 12px 0; }
-  .page-break { page-break-before: always; }
-  .signature-area { margin-top: 50px; }
-  .signature-row { display: flex; justify-content: space-between; margin-top: 80px; }
-  .signature-box { text-align: center; width: 45%; }
-  .signature-line { border-top: 1px solid #000; margin-bottom: 5px; padding-top: 5px; }
-  ul { margin: 0; padding-left: 18px; }
-  ul li { margin-bottom: 2px; }
-  .sub-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-  .sub-table th, .sub-table td { border: 1px solid #000; padding: 2px 4px; font-size: 9px; }
-  .no-border { border: none !important; }
+  .header-blue {
+    background-color: #a2c8ec !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    font-weight: bold; text-align: center; font-size: 13px;
+  }
+  .bg-light {
+    background-color: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .flex-between { display: flex; justify-content: space-between; width: 100%; }
+  .table-nested { width: 100%; height: 100%; border-collapse: collapse; }
+  .table-nested td {
+    border: none; border-right: 1px solid #000; padding: 3px 6px;
+  }
+  .table-nested td:last-child { border-right: none; }
+  .list-anexos { list-style-type: none; padding: 0; margin: 0; }
+  .list-anexos li { padding: 2px 6px; border-bottom: 1px solid #ccc; }
+  .list-anexos li:last-child { border-bottom: none; }
+  .uppercase { text-transform: uppercase; }
 </style>
 </head>
 <body>
 
-<!-- ====== ENCABEZADO ====== -->
-<table>
-  <tr>
-    <td class="text-center header-blue fw-bold" style="font-size: 13px; padding: 8px;" colspan="2">
-      INFORME DE SUPERVISIÓN
+  <table class="table-informe">
+    <colgroup>
+      <col style="width: 25%;"><col style="width: 25%;"><col style="width: 25%;"><col style="width: 25%;">
+    </colgroup>
 
-      {% if pago.get('numero_pago') %}
-      - PAGO No. {{ pago.numero_pago }}
-      {% endif %}
-    </td>
-  </tr>
-</table>
+    <tr class="border-bottom-thick">
+      <td style="text-align: center; padding: 5px; background: #fff;">
+        {% if informe.logo_b64 %}
+        <img src="{{ informe.logo_b64 }}" alt="ESE Norte 3" style="max-height: 45px;">
+        {% endif %}
+      </td>
+      <td colspan="3" class="header-blue">
+        FORMATO UNICO INFORME DE SUPERVISION CONTRATOS - CONVENIOS Y CERTIFICACION DE PAGOS
+      </td>
+    </tr>
 
-<br>
+    <tr>
+      <th rowspan="2" class="label text-center">TIPO DE INFORME</th>
+      <th rowspan="2" class="label text-center">No. DE CONTRATO</th>
+      <th colspan="2" class="label text-center" style="border-bottom: 1px solid #000;">PERIODO DEL INFORME</th>
+    </tr>
+    <tr>
+      <th class="label text-center">DESDE</th>
+      <th class="label text-center">HASTA</th>
+    </tr>
 
-<!-- ====== SECCIÓN 1: DATOS DEL INFORME ====== -->
-<table>
-  <tr><td class="header-green fw-bold text-center" colspan="2" style="font-size: 12px;">1. DATOS DEL INFORME Y VALORES</td></tr>
-  <tr>
-    <td class="label" style="width: 35%;">No. INFORME (Pago):</td>
-    <td style="width: 65%;">{{ pago.get('numero_pago', '_____') }}</td>
-  </tr>
-  <tr>
-    <td class="label">TIPO DE INFORME:</td>
-    <td>{{ pago.get('tipo_informe', 'SUPERVISIÓN') }}</td>
-  </tr>
-  <tr>
-    <td class="label">PERÍODO DEL INFORME:</td>
-    <td>{{ pago.get('periodo_desde', '_________') }} AL {{ pago.get('periodo_hasta', '_________') }}</td>
-  </tr>
-  <tr>
-    <td class="label">VALOR A PAGAR:</td>
-    <td class="fw-bold">${{ "{:,.0f}".format(pago.get('valor_a_pagar', 0)) }}</td>
-  </tr>
-  <tr>
-    <td class="label">VALOR EN LETRAS:</td>
-    <td>{{ valor_letras }}</td>
-  </tr>
-</table>
-<br>
+    <tr class="border-bottom-thick">
+      <td style="padding: 0; vertical-align: top;">
+        <table class="table-nested">
+          <tr>
+            <td class="label" style="width: 35%;">PARCIAL</td>
+            <td class="label text-center" style="width: 15%;">{% if informe.tipo_informe and informe.tipo_informe.upper() == 'PARCIAL' %}X{% endif %}</td>
+            <td class="label" style="width: 35%;">FINAL</td>
+            <td class="label text-center" style="width: 15%;">{% if informe.tipo_informe and informe.tipo_informe.upper() == 'FINAL' %}X{% endif %}</td>
+          </tr>
+        </table>
+      </td>
+      <td class="text-center font-bold">{{ informe.numero_contrato }}</td>
+      <td class="text-center">{{ informe.periodo_desde }}</td>
+      <td class="text-center">{{ informe.periodo_hasta }}</td>
+    </tr>
 
-<!-- ====== SECCIÓN 2: DATOS DEL CONTRATO ====== -->
-<table>
-  <tr><td class="header-green fw-bold text-center" colspan="2" style="font-size: 12px;">2. DATOS DEL CONTRATO</td></tr>
-  <tr>
-    <td class="label" style="width: 35%;">No. CONTRATO:</td>
-    <td style="width: 65%;">{{ contrato.get('numero_contrato', '_____') }}</td>
-  </tr>
-  <tr>
-    <td class="label">CONTRATISTA:</td>
-    <td>{{ contrato.get('nombre_contratista', '_____') }}</td>
-  </tr>
-  <tr>
-    <td class="label">IDENTIFICACIÓN:</td>
-    <td>{{ contrato.get('identificacion', '_____') }}</td>
-  </tr>
-  <tr>
-    <td class="label">PERFIL:</td>
-    <td>{{ contrato.get('perfil', '_____') }}</td>
-  </tr>
-  <tr>
-    <td class="label">SUPERVISOR:</td>
-    <td>{{ contrato.get('supervisor', '_____') }}</td>
-  </tr>
-  <tr>
-    <td class="label">UNIDAD DE ATENCIÓN:</td>
-    <td>{{ contrato.get('unidad_atencion', '_____') }}</td>
-  </tr>
-</table>
-<br>
+    <tr>
+      <td class="label">CONTRATANTE</td>
+      <td colspan="3" class="uppercase">{{ informe.contratante }}</td>
+    </tr>
 
-<!-- ====== SECCIÓN 3: ACTIVIDADES ====== -->
-{% if pago.get('actividades') %}
-<table>
-  <tr><td class="header-blue fw-bold text-center" style="font-size: 12px;">3. ACTIVIDADES DESARROLLADAS</td></tr>
-  <tr><td style="padding: 8px; text-align: justify; font-size: 10px;">{{ pago.actividades|replace('\n', '<br>')|safe }}</td></tr>
-</table>
-<br>
-{% endif %}
+    <tr class="border-bottom-thick">
+      <td class="label">CONTRATISTA</td>
+      <td colspan="3" class="uppercase">{{ informe.contratista }}</td>
+    </tr>
 
-<!-- ====== SECCIÓN 4: OBSERVACIONES ====== -->
-{% if pago.get('observaciones') %}
-<table>
-  <tr><td class="header-blue fw-bold text-center" style="font-size: 12px;">4. OBSERVACIONES</td></tr>
-  <tr><td style="padding: 8px; text-align: justify; font-size: 10px;">{{ pago.observaciones|replace('\n', '<br>')|safe }}</td></tr>
-</table>
-<br>
-{% endif %}
+    <tr>
+      <td class="label">No. DE IDENTIFICACIÓN</td>
+      <td>{{ informe.identificacion }}</td>
+      <td class="label">EXPEDIDA EN</td>
+      <td class="uppercase">{{ informe.lugar_expedicion }}</td>
+    </tr>
 
-<!-- ====== SECCIÓN 5: PLANILLAS DE SEGURIDAD SOCIAL ====== -->
-{% if planillas and planillas|length > 0 %}
-<table>
-  <tr><td class="header-orange fw-bold text-center" colspan="9" style="font-size: 12px;">
-    {% if pago.get('numero_pago') %}5.{% else %}4.{% endif %} PLANILLAS DE SEGURIDAD SOCIAL
-  </td></tr>
-  <tr class="header-yellow fs-9 fw-bold text-center">
-    <td>No. Planilla</td>
-    <td>Periodo</td>
-    <td>IBC</td>
-    <td>EPS</td>
-    <td>$ EPS</td>
-    <td>ARL</td>
-    <td>$ ARL</td>
-    <td>AFP</td>
-    <td>$ AFP</td>
-  </tr>
-  {% for pl in planillas %}
-  <tr class="text-center fs-9">
-    <td>{{ pl.get('planilla_no', '') }}</td>
-    <td>{{ pl.get('periodo_cotizado', '') }}</td>
-    <td class="text-right">${{ "{:,.0f}".format(pl.get('ibc', 0)|int) }}</td>
-    <td>{{ pl.get('eps_nombre', '') }}</td>
-    <td class="text-right">${{ "{:,.0f}".format(pl.get('eps_valor', 0)|int) }}</td>
-    <td>{{ pl.get('arl_nombre', '') }}</td>
-    <td class="text-right">${{ "{:,.0f}".format(pl.get('arl_valor', 0)|int) }}</td>
-    <td>{{ pl.get('afp_nombre', '') }}</td>
-    <td class="text-right">${{ "{:,.0f}".format(pl.get('afp_valor', 0)|int) }}</td>
-  </tr>
-  {% endfor %}
-  {% if planillas[0].get('ccf_nombre') or planillas[0].get('sena_valor') %}
-  <tr class="header-yellow fs-9 fw-bold text-center">
-    <td colspan="2">CCF</td>
-    <td>$ CCF</td>
-    <td>SENA</td>
-    <td>$ SENA</td>
-    <td>ICBF</td>
-    <td>$ ICBF</td>
-    <td>Total Planilla</td>
-    <td>$ Total</td>
-  </tr>
-  {% for pl in planillas %}
-  <tr class="text-center fs-9">
-    <td colspan="2">{{ pl.get('ccf_nombre', '') }}</td>
-    <td class="text-right">${{ "{:,.0f}".format(pl.get('ccf_valor', 0)|int) }}</td>
-    <td>{{ 'SENA' if pl.get('sena_valor', 0) > 0 else '' }}</td>
-    <td class="text-right">${{ "{:,.0f}".format(pl.get('sena_valor', 0)|int) }}</td>
-    <td>{{ 'ICBF' if pl.get('icbf_valor', 0) > 0 else '' }}</td>
-    <td class="text-right">${{ "{:,.0f}".format(pl.get('icbf_valor', 0)|int) }}</td>
-    <td>Total</td>
-    <td class="text-right fw-bold">${{ "{:,.0f}".format((pl.get('eps_valor', 0)|int) + (pl.get('arl_valor', 0)|int) + (pl.get('afp_valor', 0)|int) + (pl.get('ccf_valor', 0)|int) + (pl.get('sena_valor', 0)|int) + (pl.get('icbf_valor', 0)|int)) }}</td>
-  </tr>
-  {% endfor %}
-  {% endif %}
-</table>
-<br>
-{% endif %}
+    <tr>
+      <td class="label">No. TELÉFONO y/o CELULAR</td>
+      <td colspan="3">{{ informe.telefono }}</td>
+    </tr>
 
-<!-- ====== SECCIÓN 6: CERTIFICACIÓN ====== -->
-<table>
-  <tr><td class="header-green fw-bold text-center" style="font-size: 12px;">CERTIFICACIÓN</td></tr>
-  <tr>
-    <td style="padding: 12px; text-align: justify; font-size: 10px; line-height: 1.5;">
-      El suscrito Supervisor del Contrato, en cumplimiento de lo establecido en la Ley 80 de 1993, Ley 1474 de 2011 y demás normas concordantes, certifica que:
+    <tr class="border-bottom-thick">
+      <td class="label">DIRECCION</td>
+      <td colspan="3" class="uppercase">{{ informe.direccion }}</td>
+    </tr>
 
-      <br><br>
-      El contrato No. <strong>{{ contrato.get('numero_contrato', '_____') }}</strong>, suscrito con <strong>{{ contrato.get('nombre_contratista', '_____') }}</strong>, identificado con CC No. <strong>{{ contrato.get('identificacion', '_____') }}</strong>, correspondiente al perfil de <strong>{{ contrato.get('perfil', '_____') }}</strong>, ha ejecutado las actividades correspondientes al período comprendido entre el <strong>{{ pago.get('periodo_desde', '_________') }}</strong> y el <strong>{{ pago.get('periodo_hasta', '_________') }}</strong>, dando cumplimiento a las obligaciones contractuales. 
+    <tr>
+      <td class="label">TIPO DE PERSONA</td>
+      <td style="padding: 0;">
+        <table class="table-nested">
+          <tr>
+            <td class="label" style="width: 70%;">JURIDICA</td>
+            <td class="label text-center" style="width: 30%;">{% if informe.tipo_persona and informe.tipo_persona.upper() == 'JURIDICA' %}X{% endif %}</td>
+          </tr>
+        </table>
+      </td>
+      <td class="label">NATURAL</td>
+      <td class="label text-center">{% if informe.tipo_persona and informe.tipo_persona.upper() == 'NATURAL' %}X{% endif %}</td>
+    </tr>
 
-      <br><br>
-      En consecuencia, se conceptúa <strong>FAVORABLEMENTE</strong> el trámite de pago por valor de <strong>${{ "{:,.0f}".format(pago.get('valor_a_pagar', 0)) }}</strong> (<em>{{ valor_letras }}</em>), correspondiente al informe No. {{ pago.get('numero_pago', '_____') }}.
-    </td>
-  </tr>
-</table>
-<br>
+    <tr class="border-bottom-thick">
+      <td class="label">ACTIVIDAD IICA- CÓDIGO CIIU:</td>
+      <td colspan="3">{{ informe.codigo_ciiu }}</td>
+    </tr>
 
-<!-- ====== SECCIÓN 7: FIRMAS ====== -->
-<table>
-  <tr><td class="no-border" style="padding: 8px;">&nbsp;</td></tr>
-  <tr>
-    <td class="no-border signature-area">
-      <div class="signature-row">
-        <div class="signature-box">
-          <div class="signature-line">
-            <strong>{{ contrato.get('supervisor', '_________________________') }}</strong>
-          </div>
-          <div style="font-size: 10px;">
-            Supervisor del Contrato<br>
-            {% if contrato.get('cedula_supervisor') %}CC. {{ contrato.get('cedula_supervisor') }}{% endif %}
-          </div>
-        </div>
-        <div class="signature-box">
-          <div class="signature-line">
-            <strong>{{ contrato.get('nombre_contratista', '_________________________') }}</strong>
-          </div>
-          <div style="font-size: 10px;">
-            Contratista<br>
-            CC. {{ contrato.get('identificacion', '_____') }}
-          </div>
-        </div>
-      </div>
-    </td>
-  </tr>
-</table>
+    <tr>
+      <td class="label">SUPERVISOR</td>
+      <td colspan="3" class="uppercase">{{ informe.supervisor }}</td>
+    </tr>
 
-<br><br>
-<div class="text-center fs-9" style="color: #666;">
-  Generado el {{ fecha_generacion }} — Gesco V2 ESE Norte 3
-</div>
+    <tr class="border-bottom-thick">
+      <td class="label">NIVEL PROFESIONAL</td>
+      <td class="uppercase">{% if 'UNIVERSITARIO' in informe.nivel_supervisor|upper %}UNIVERSITARIO{% else %}N/A{% endif %}</td>
+      <td class="uppercase">{% if 'DESPACHO' in informe.nivel_supervisor|upper %}DESPACHO{% else %}N/A{% endif %}</td>
+      <td class="uppercase">{% if 'COORDINACION' in informe.nivel_supervisor|upper %}COORDINACION{% else %}N/A{% endif %}</td>
+    </tr>
+
+    <tr>
+      <td class="label">INTERVENTOR</td>
+      <td colspan="3" class="uppercase">{{ informe.interventor }}</td>
+    </tr>
+
+    <tr class="border-bottom-thick">
+      <td class="label">NIVEL PROFESIONAL</td>
+      <td class="uppercase">{% if 'UNIVERSITARIO' in informe.nivel_interventor|upper %}UNIVERSITARIO{% else %}N/A{% endif %}</td>
+      <td class="uppercase">{% if 'DESPACHO' in informe.nivel_interventor|upper %}DESPACHO{% else %}N/A{% endif %}</td>
+      <td class="uppercase">{% if 'COORDINACION' in informe.nivel_interventor|upper %}COORDINACION{% else %}N/A{% endif %}</td>
+    </tr>
+
+    <tr>
+      <td class="label">CDP No.</td>
+      <td class="text-right">{{ informe.cdp or '' }}</td>
+      <td class="label">CRP No.</td>
+      <td class="text-right">{{ informe.crp or '' }}</td>
+    </tr>
+
+    <tr>
+      <td class="label">IMPUTACIÓN PRESUPUESTAL</td>
+      <td>{{ informe.imputacion or '' }}</td>
+      <td class="label">VALOR TOTAL DEL CONTRATO</td>
+      <td class="text-right">$ {{ "{:,.0f}".format(informe.valor_contrato|float).replace(',', '.') }}</td>
+    </tr>
+
+    <tr>
+      <td class="label">FECHA DE INICIO DEL<br>CONTRATO</td>
+      <td>{{ informe.fecha_inicio or '' }}</td>
+      <td class="label">FECHA TERMINACION DEL CONTRATO</td>
+      <td class="text-right">{{ informe.fecha_fin or '' }}</td>
+    </tr>
+
+    <tr class="border-bottom-thick">
+      <td class="label">TIEMPO DE ADICION DE<br>CONTRATO</td>
+      <td>{{ informe.tiempo_adicion or '' }}</td>
+      <td class="label">VALOR FINAL DEL CONTRATO</td>
+      <td class="text-right">$ {{ "{:,.0f}".format(informe.valor_final|float).replace(',', '.') }}</td>
+    </tr>
+
+    <tr class="border-top-thick">
+      <td class="label">FORMA DE PAGO</td>
+      <td colspan="2" class="text-justify" style="padding: 10px;">{{ informe.forma_pago }}</td>
+      <td style="padding: 0; vertical-align: top;">
+        <table class="table-nested" style="border-right: none;">
+          <tr>
+            <td class="label text-center" style="border-bottom: 1px solid #000; height: 35px;">PAGO No</td>
+          </tr>
+          <tr>
+            <td class="label text-center" style="height: 100px; font-size: 14px; border-bottom: none;">{{ informe.numero_pago }}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr class="border-top-thick">
+      <td class="label" colspan="3">VALOR A PAGAR</td>
+      <td class="text-right">$ {{ "{:,.0f}".format(informe.valor_a_pagar|float).replace(',', '.') }}</td>
+    </tr>
+    <tr>
+      <td class="label" colspan="3">OTRO SI</td>
+      <td class="text-right">$ {{ "{:,.0f}".format(informe.otro_si|float).replace(',', '.') }}</td>
+    </tr>
+    <tr>
+      <td class="label" colspan="3">VALOR PAGADO</td>
+      <td class="text-right">$ {{ "{:,.0f}".format(informe.valor_pagado|float).replace(',', '.') }}</td>
+    </tr>
+    <tr class="border-bottom-thick">
+      <td class="label" colspan="3">SALDO A PAGAR</td>
+      <td class="text-right">$ {{ "{:,.0f}".format(informe.saldo_a_pagar|float).replace(',', '.') }}</td>
+    </tr>
+
+    <tr>
+      <td colspan="4" class="text-center bg-light" style="padding: 6px;">
+        <div class="label">PAGO SEGURIDAD SOCIAL</div>
+        <div class="label" style="margin-top: 2px;">Se anexa el pago de la seguridad social.</div>
+      </td>
+    </tr>
+
+    <tr class="border-bottom-thick border-top-thick">
+      <td class="label">IBC al sistema de Seguridad<br>Social (40% del Ingreso<br>mensual)</td>
+      <td class="label">
+        <div class="flex-between"><span>$</span><span>{{ "{:,.0f}".format(informe.ibc|float).replace(',', '.') }}</span></div>
+      </td>
+      <td class="label">PERIODO COTIZADO</td>
+      <td class="text-right">{{ informe.periodo_cotizado }}</td>
+    </tr>
+
+    <tr>
+      <td class="label">EPS</td>
+      <td class="uppercase">{{ informe.eps_nombre }}</td>
+      <td class="label">VALOR PAGADO</td>
+      <td><div class="flex-between"><span>$</span><span>{{ "{:,.0f}".format(informe.eps_valor|float).replace(',', '.') }}</span></div></td>
+    </tr>
+    <tr>
+      <td class="label">ARL</td>
+      <td class="uppercase">{{ informe.arl_nombre }}</td>
+      <td class="label">VALOR PAGADO</td>
+      <td><div class="flex-between"><span>$</span><span>{{ "{:,.0f}".format(informe.arl_valor|float).replace(',', '.') }}</span></div></td>
+    </tr>
+    <tr>
+      <td class="label">SENA</td>
+      <td></td>
+      <td class="label">VALOR PAGADO</td>
+      <td><div class="flex-between"><span>$</span><span>{{ "{:,.0f}".format(informe.sena_valor|float).replace(',', '.') }}</span></div></td>
+    </tr>
+    <tr>
+      <td class="label">ICBF</td>
+      <td></td>
+      <td class="label">VALOR PAGADO</td>
+      <td><div class="flex-between"><span>$</span><span>{{ "{:,.0f}".format(informe.icbf_valor|float).replace(',', '.') }}</span></div></td>
+    </tr>
+    <tr>
+      <td class="label">CCF</td>
+      <td></td>
+      <td class="label">VALOR PAGADO</td>
+      <td><div class="flex-between"><span>$</span><span>{{ "{:,.0f}".format(informe.ccf_valor|float).replace(',', '.') }}</span></div></td>
+    </tr>
+    <tr>
+      <td class="label">AFP</td>
+      <td class="uppercase">{{ informe.afp_nombre }}</td>
+      <td class="label">VALOR PAGADO</td>
+      <td><div class="flex-between"><span>$</span><span>{{ "{:,.0f}".format(informe.afp_valor|float).replace(',', '.') }}</span></div></td>
+    </tr>
+
+    <tr class="border-top-thick">
+      <td class="label">VALOR TOTAL PLANILLA</td>
+      <td class="label"><div class="flex-between"><span>$</span><span>{{ "{:,.0f}".format(informe.total_planilla|float).replace(',', '.') }}</span></div></td>
+      <td class="label">PLANILLA No.</td>
+      <td class="text-right">{{ informe.planilla_no }}</td>
+    </tr>
+
+    <tr class="border-bottom-thick border-top-thick">
+      <td colspan="2" class="label">ANEXA CERTIFICACION PARA ASIMILARSE A ASALARIADO<br>(Retefuente)</td>
+      <td colspan="2" style="padding: 0;">
+        <table class="table-nested" style="border-right: none; height: 100%;">
+          <tr>
+            <td class="label text-center" style="width: 15%;">SI</td>
+            <td class="label text-center" style="width: 35%;">{% if informe.retefuente %}X{% endif %}</td>
+            <td class="label text-center" style="width: 15%;">NO</td>
+            <td class="label text-center" style="width: 35%; border-right: none;">{% if not informe.retefuente %}X{% endif %}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <table class="table-informe" style="margin-top: -2px;">
+    <colgroup>
+      <col style="width: 8%;"><col style="width: 72%;"><col style="width: 10%;"><col style="width: 10%;">
+    </colgroup>
+    <tr>
+      <td colspan="4" class="label text-center bg-light">OBJETO DEL CONTRATO</td>
+    </tr>
+    <tr class="border-bottom-thick">
+      <td colspan="4" class="text-center uppercase" style="padding: 10px;">{{ informe.objeto_contrato }}</td>
+    </tr>
+    <tr>
+      <td colspan="4" class="label text-center bg-light">DESCRIPCIÓN DE ACTIVIDADES REALIZADAS</td>
+    </tr>
+    <tr>
+      <td class="label text-center">numero</td>
+      <td class="label text-center">actividad</td>
+      <td class="label text-center">cumple</td>
+      <td class="label text-center">no cumple</td>
+    </tr>
+    {% for act in actividades %}
+    <tr>
+      <td class="text-center">{{ loop.index }}</td>
+      <td style="padding: 8px; text-align: justify;">{{ act.descripcion | safe }}</td>
+      <td class="label text-center" style="font-size: 14px;">{% if act.cumple %}X{% endif %}</td>
+      <td class="label text-center" style="font-size: 14px;">{% if not act.cumple %}X{% endif %}</td>
+    </tr>
+    {% endfor %}
+    <tr class="border-top-thick">
+      <td colspan="4" class="label text-center bg-light">OBSERVACIONES</td>
+    </tr>
+    <tr class="border-bottom-thick">
+      <td colspan="4" style="padding: 10px; text-align: justify; white-space: pre-line;">{{ informe.observaciones }}</td>
+    </tr>
+    <tr>
+      <td colspan="3" class="label text-center bg-light border-bottom-thick">DOCUMENTOS ANEXOS</td>
+      <td class="label text-center bg-light border-bottom-thick">No. FOLIOS, CD'S, DVD'S</td>
+    </tr>
+    <tr class="border-bottom-thick">
+      <td colspan="3" style="padding: 0;">
+        <ul class="list-anexos">
+          {% for anexo in anexos %}
+          <li>{{ anexo }}</li>
+          {% endfor %}
+        </ul>
+      </td>
+      <td class="label text-center" style="vertical-align: middle; font-size: 14px;">{{ informe.folios or '' }}</td>
+    </tr>
+  </table>
+
+  <table class="table-informe" style="margin-top: -2px; page-break-inside: avoid;">
+    <colgroup><col style="width: 50%;"><col style="width: 50%;"></colgroup>
+    <tr>
+      <td colspan="2" class="text-center" style="padding: 8px;">
+        Dado en el municipio de Puerto Tejada - Cauca, a los {{ informe.dia_firma }} días del mes de {{ informe.mes_firma }} de {{ informe.anio_firma }}
+      </td>
+    </tr>
+    <tr>
+      <td class="label uppercase" style="height: 60px; vertical-align: bottom; padding-bottom: 5px;">FIRMA SUPERVISOR</td>
+      <td class="text-center uppercase font-bold" style="vertical-align: bottom; padding-bottom: 5px;">{{ firmas[0] if firmas|length > 0 else '' }}</td>
+    </tr>
+    {% if firmas|length > 1 %}
+    <tr>
+      <td class="label uppercase" style="height: 60px; vertical-align: bottom; padding-bottom: 5px;">FIRMA CONTRATISTA</td>
+      <td class="text-center uppercase font-bold" style="vertical-align: bottom; padding-bottom: 5px;">{{ firmas[1] if firmas|length > 1 else '' }}</td>
+    </tr>
+    {% endif %}
+  </table>
 
 </body>
 </html>
