@@ -14,7 +14,8 @@ from app.database import get_db
 from app.models.contrato import Contrato
 from app.models.contratista import Contratista
 from app.models.pago import Pago
-from app.models.perfil import Perfil
+from app.models.perfil import Perfil, ActividadPerfil
+from app.models.actividad_contrato import ActividadContrato
 
 
 # Mapa de normalización de perfiles (variantes → nombre oficial)
@@ -386,6 +387,26 @@ async def importar_contratos_excel(
                 await db.flush()
                 contratos_creados.add(numero_contrato)
                 result_summary.created += 1
+
+                # Heredar actividades del perfil al contrato
+                if perfil_normalized:
+                    result_p = await db.execute(
+                        select(Perfil).where(Perfil.nombre == perfil_normalized)
+                    )
+                    perfil_obj = result_p.scalar_one_or_none()
+                    if perfil_obj:
+                        result_acts = await db.execute(
+                            select(ActividadPerfil).where(ActividadPerfil.perfil_id == perfil_obj.id).order_by(ActividadPerfil.orden)
+                        )
+                        for ap in result_acts.scalars().all():
+                            ac = ActividadContrato(
+                                contrato_id=numero_contrato,
+                                descripcion=ap.descripcion,
+                                tipo="GENERAL",
+                                orden=ap.orden,
+                            )
+                            db.add(ac)
+                        await db.flush()
             else:
                 # Contrato ya existe en este batch — obtenerlo
                 existing = await db.execute(select(Contrato).where(Contrato.numero_contrato == numero_contrato))

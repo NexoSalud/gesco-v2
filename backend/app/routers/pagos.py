@@ -82,22 +82,24 @@ async def crear_pago(data: PagoCreate, db: AsyncSession = Depends(get_db)):
         db.add(planilla)
 
     # Heredar actividades del contrato al pago
-    acts_contrato = await db.execute(
+    acts_contrato_result = await db.execute(
         select(ActividadContrato)
         .where(ActividadContrato.contrato_id == data.contrato_id)
         .order_by(ActividadContrato.orden)
     )
-    for ac in acts_contrato.scalars().all():
-        act_sup = ActividadSupervision(
-            pago_id=pago.id,
-            actividad_contrato_id=ac.id,
-            descripcion=ac.descripcion,
-            orden=ac.orden,
-        )
-        db.add(act_sup)
-
-    # Si no hay actividades en el contrato, crear una genérica
-    if not acts_contrato.scalars().all():
+    acts_contrato = acts_contrato_result.scalars().all()
+    
+    if acts_contrato:
+        for ac in acts_contrato:
+            act_sup = ActividadSupervision(
+                pago_id=pago.id,
+                actividad_contrato_id=ac.id,
+                descripcion=ac.descripcion,
+                orden=ac.orden,
+            )
+            db.add(act_sup)
+    else:
+        # Si no hay actividades en el contrato, crear una genérica
         act_sup = ActividadSupervision(
             pago_id=pago.id,
             descripcion="ACTIVIDADES DESARROLLADAS SEGÚN LO ESTABLECIDO EN EL CONTRATO.",

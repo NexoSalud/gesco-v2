@@ -15,6 +15,7 @@ import io
 from app.database import get_db
 from app.models.contrato import Contrato
 from app.models.pago import Pago
+from app.models.actividad_supervision import ActividadSupervision
 from app.services.excel_service import exportar_resolucion_excel
 from app.services.pdf_generator import generar_supervision_pdf
 
@@ -119,7 +120,18 @@ async def generar_pdfs_masivos(
                     for pl in pago.planillas
                 ]
                 try:
-                    pdf_bytes = generar_supervision_pdf(data_contrato, data_pago, planillas_list)
+                    # Load actividades de supervisión
+                    acts_sup = await db.execute(
+                        select(ActividadSupervision)
+                        .where(ActividadSupervision.pago_id == pago.id)
+                        .order_by(ActividadSupervision.orden)
+                    )
+                    actividades_supervision = [
+                        {"descripcion": a.descripcion, "cumple": a.cumple}
+                        for a in acts_sup.scalars().all()
+                    ]
+                    pdf_bytes = generar_supervision_pdf(data_contrato, data_pago, planillas_list,
+                                                        actividades_supervision=actividades_supervision)
                     filename = f"Supervision_{contrato.numero_contrato}_Pago{pago.numero_pago}.pdf"
                     zf.writestr(filename, pdf_bytes)
                 except Exception:

@@ -62,12 +62,11 @@ export default function ContratoDetailPage() {
   // Modal nuevo pago
   const [showPago, setShowPago] = useState(false)
   const [pagoForm, setPagoForm] = useState({
-    tipo_informe: "SUPERVISION",
+    tipo_informe: "PARCIAL",
     periodo_desde: "",
     periodo_hasta: "",
     fecha_firma: "",
     valor_a_pagar: 0,
-    cuentas_cobro: "",
     folios: "",
     actividades: "",
     observaciones: "",
@@ -131,8 +130,8 @@ export default function ContratoDetailPage() {
       loadData()
       setFinalizarContrato(false)
       setPagoForm({
-        tipo_informe: "SUPERVISION", periodo_desde: "", periodo_hasta: "",
-        fecha_firma: "", valor_a_pagar: 0, cuentas_cobro: "",
+        tipo_informe: "PARCIAL", periodo_desde: "", periodo_hasta: "",
+        fecha_firma: "", valor_a_pagar: 0,
         folios: "", actividades: "", observaciones: "", act: "",
       })
       setPagoPlantillas([{
@@ -420,6 +419,14 @@ export default function ContratoDetailPage() {
               Información del Pago
             </p>
             <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Tipo de Informe</label>
+                <Select value={pagoForm.tipo_informe}
+                  onChange={e => setPagoForm({ ...pagoForm, tipo_informe: e.target.value })}>
+                  <option value="PARCIAL">PARCIAL</option>
+                  <option value="FINAL">FINAL</option>
+                </Select>
+              </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Período Desde</label>
                 <Input type="date" value={pagoForm.periodo_desde}
