@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Scale,
   Upload,
+  User,
 } from "lucide-react"
 import { useState } from "react"
 
@@ -34,6 +35,11 @@ const NAV_ITEMS = [
     label: "Contratos",
     href: "/dashboard/contratos",
     icon: Scale,
+  },
+  {
+    label: "Contratistas",
+    href: "/dashboard/contratistas",
+    icon: User,
   },
   {
     label: "Perfiles",

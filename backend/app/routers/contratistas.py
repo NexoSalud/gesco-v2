@@ -8,7 +8,9 @@ from sqlalchemy.future import select
 
 from app.database import get_db
 from app.models.contratista import Contratista
+from app.models.contrato import Contrato
 from app.schemas.contratista import ContratistaCreate, ContratistaOut
+from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix="/api/v1/contratistas", tags=["Contratistas"])
 
@@ -31,7 +33,9 @@ async def listar_contratistas(
 @router.get("/{identificacion}", response_model=ContratistaOut)
 async def obtener_contratista(identificacion: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(Contratista).where(Contratista.identificacion == identificacion)
+        select(Contratista)
+        .options(selectinload(Contratista.contratos))
+        .where(Contratista.identificacion == identificacion)
     )
     contratista = result.scalar_one_or_none()
     if not contratista:
