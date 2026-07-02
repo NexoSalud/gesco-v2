@@ -1,153 +1,99 @@
-"""Generador de documentos .docx de contratos a partir de plantilla oficial.
-
-Carga la plantilla DOCX de la ESE Norte 3 y reemplaza los placeholders
-con los datos reales del contrato. Si no hay plantilla, genera uno básico.
-"""
+"""Generador de .docx de contratos a partir de plantilla oficial ESE Norte 3.
+Carga la plantilla, reemplaza <<PLACEHOLDERS>> y agrega obligaciones específicas."""
 
 import io
-import json
 import os
 import re
 from datetime import date
-from copy import deepcopy
 
 from docx import Document
-from docx.shared import Pt, Cm, Inches
+from docx.shared import Pt, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
 from app.services.numero_letras import numero_a_letras
 
-TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "..", "templates", "plantilla_contrato.docx")
-TEMPLATE_PATH = os.path.normpath(TEMPLATE_PATH)
+TEMPLATE_PATH = os.path.normpath(os.path.join(
+    os.path.dirname(__file__), "..", "templates", "plantilla_contrato.docx"))
 
 
-def _replace_in_paragraph(paragraph, placeholder, value):
-    """Reemplaza un placeholder en un párrafo, preservando formato."""
-    if not paragraph.text:
+def _merge_runs_and_replace(paragraph, old_text, new_text):
+    """Reemplaza old_text por new_text en un párrafo, manejando runs divididos.
+    Junta todo el texto del párrafo en el primer run y vacía los demás."""
+    if old_text not in paragraph.text:
         return False
-    if placeholder not in paragraph.text:
+    
+    full_old = paragraph.text
+    full_new = full_old.replace(old_text, new_text)
+    
+    runs = paragraph.runs
+    if not runs:
         return False
     
-    value = str(value) if value is not None else ""
-    
-    for run in paragraph.runs:
-        if placeholder in run.text:
-            run.text = run.text.replace(placeholder, value)
-    
-    # Si después de reemplazar en runs aún queda, reemplazar en todo el XML
-    if placeholder in paragraph.text:
-        # Reemplazo directo en el XML para preservar formato parcial
-        for run in paragraph.runs:
-            run.text = run.text.replace(placeholder, value)
-    
+    # Poner todo el texto modificado en el primer run, vaciar los demás
+    for i, run in enumerate(runs):
+        if i == 0:
+            run.text = full_new
+        else:
+            run.text = ""
     return True
 
 
-def _replace_in_table(table, placeholder, value):
-    """Reemplaza un placeholder en todas las celdas de una tabla."""
-    value = str(value) if value is not None else ""
-    replaced = False
-    for row in table.rows:
-        for cell in row.cells:
-            for paragraph in cell.paragraphs:
-                if _replace_in_paragraph(paragraph, placeholder, value):
-                    replaced = True
-    return replaced
-
-
-def _find_paragraph_by_text(doc, search_text):
-    """Encuentra el primer párrafo que contenga el texto dado."""
-    for i, p in enumerate(doc.paragraphs):
-        if search_text in p.text:
-            return i, p
-    return None, None
-
-
-def _insert_paragraph_after(doc, after_idx, text, bold=False, size=12, 
-                           align=WD_ALIGN_PARAGRAPH.JUSTIFY, style_name=None):
-    """Inserta un párrafo después del índice dado."""
-    # No se puede insertar fácilmente, así que trabajamos con XML
-    ref_paragraph = doc.paragraphs[after_idx]
-    new_p = OxmlElement('w:p')
-    ref_paragraph._p.addnext(new_p)
-    
-    # Crear run
-    pPr = OxmlElement('w:pPr')
-    if style_name:
-        pStyle = OxmlElement('w:pStyle')
-        pStyle.set(qn('w:val'), style_name)
-        pPr.append(pStyle)
-    
-    jc = OxmlElement('w:jc')
-    jc.set(qn('w:val'), {WD_ALIGN_PARAGRAPH.CENTER: 'center', 
-                         WD_ALIGN_PARAGRAPH.RIGHT: 'right',
-                         WD_ALIGN_PARAGRAPH.JUSTIFY: 'both'}.get(align, 'both'))
-    pPr.append(jc)
-    new_p.append(pPr)
-    
-    r = OxmlElement('w:r')
-    rPr = OxmlElement('w:rPr')
-    
-    rFonts = OxmlElement('w:rFonts')
-    rFonts.set(qn('w:ascii'), 'Aptos Display')
-    rFonts.set(qn('w:hAnsi'), 'Aptos Display')
-    rPr.append(rFonts)
-    
-    sz = OxmlElement('w:sz')
-    sz.set(qn('w:val'), str(size * 2))  # half-points
-    rPr.append(sz)
-    
-    if bold:
-        b = OxmlElement('w:b')
-        rPr.append(b)
-    
-    r.append(rPr)
-    t = OxmlElement('w:t')
-    t.text = text
-    t.set(qn('xml:space'), 'preserve')
-    r.append(t)
-    new_p.append(r)
-    
-    return new_p
+def _replace_all(doc, placeholders):
+    """Reemplaza placeholders en todos los párrafos y tablas del documento."""
+    for ph, val in placeholders.items():
+        val = str(val) if val is not None else ""
+        
+        # Reemplazar en párrafos
+        for p in doc.paragraphs:
+            _merge_runs_and_replace(p, ph, val)
+        
+        # Reemplazar en tablas
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for p in cell.paragraphs:
+                        _merge_runs_and_replace(p, ph, val)
 
 
 def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None) -> bytes:
-    """Genera contrato DOCX.
-
-    Si existe la plantilla oficial, la carga y reemplaza placeholders.
-    Si no, genera un documento básico.
-    """
+    """Genera contrato DOCX desde la plantilla oficial."""
     valor = float(data.get("valor_contrato", 0))
     valor_letras = data.get("valor_letras", "") or numero_a_letras(valor)
+    fecha_inicio = str(data.get("fecha_inicio", str(date.today())))
     
+    # Mapa de placeholders
     placeholders = {
         "<<NO. DE CONTRATO>>": data.get("numero_contrato", "_________"),
         "<<FECHA DEL CONTRATO>>": str(data.get("fecha_contrato", data.get("fecha_inicio", "_________"))),
+        "<<fecha del contrato>>": str(data.get("fecha_contrato", data.get("fecha_inicio", "_________"))),
         "<<CONTRATISTA>>": data.get("nombre_contratista", "___________________"),
-        "<<CÉDULA DEL CONTRATISTA>>": data.get("cedula", "_________"),
+        "<<CONTRAT": "",  # Manejar split runs
+        "<<CEDULA DEL CONTRATISTA>>": data.get("cedula", "_________"),
         "<<LUGAR DE EXPEDICIÓN>>": data.get("lugar_expedicion", "_________"),
+        "<< LUGAR DE EXPEDICIÓN>>": data.get("lugar_expedicion", "_________"),
         "<<DIRECCIÓN>>": data.get("direccion", "_________"),
         "<<TELÉFONO>>": data.get("telefono", "_________"),
         "<<CORREO>>": data.get("correo", "_________"),
         "<<OBJETO DEL CONTRATO>>": data.get("objeto", "_________"),
         "<<FECHA DE TERMINACIÓN>>": str(data.get("fecha_fin", "_________")),
+        "<<fecha de terminación>>": str(data.get("fecha_fin", "_________")),
         "<<VALOR DEL CONTRATO>>": f"${valor:,.0f} ({valor_letras})",
         "<<CDP>>": data.get("no_cdp", "_________"),
         "<<FECHA DEL CDP>>": str(data.get("fecha_cdp", "") or ""),
+        "<<fecha del CDP>>": str(data.get("fecha_cdp", "") or ""),
         "<<VALOR DEL CDP>>": str(data.get("valor_cdp", "") or ""),
         "<<LUGAR DE EJECUCIÓN>>": data.get("lugar_ejecucion", "Puerto Tejada - Cauca"),
-        "<<fecha del acta>>": str(date.today() if not data.get("fecha_inicio") else data.get("fecha_inicio", str(date.today()))),
+        "<<fecha del acta>>": fecha_inicio,
+        "<<SUPERVISOR>>": data.get("supervisor", "_________"),
+        "<<CEDULA DE SUPERVISOR>>": data.get("cedula_supervisor", "_________"),
         "<<PERFIL>>": data.get("perfil", "_________"),
-        "<<PERFIL_EN_MAYUS>>": (data.get("perfil", "_________") or "").upper(),
     }
 
-    # Intentar cargar plantilla
     if os.path.exists(TEMPLATE_PATH):
         doc = Document(TEMPLATE_PATH)
     else:
-        # Generar documento básico si no hay plantilla
         doc = Document()
         for sec in doc.sections:
             sec.top_margin = Cm(2.5)
@@ -160,43 +106,50 @@ def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None)
         r.bold = True
         r.font.size = Pt(14)
         r.font.name = 'Aptos Display'
-        
         p2 = doc.add_paragraph()
-        p2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         r2 = p2.add_run(f"Contratista: {data.get('nombre_contratista', '')}")
         r2.font.name = 'Aptos Display'
         r2.font.size = Pt(12)
 
-    # Reemplazar placeholders en párrafos
-    for p in doc.paragraphs:
-        for ph, val in placeholders.items():
-            try:
-                _replace_in_paragraph(p, ph, val)
-            except:
-                pass
+    # Reemplazar placeholders
+    _replace_all(doc, placeholders)
 
-    # Reemplazar placeholders en tablas
-    for table in doc.tables:
-        for ph, val in placeholders.items():
-            try:
-                _replace_in_table(table, ph, val)
-            except:
-                pass
+    # El placeholder <<CONTRATISTA>> está en algunos lugares como <<CONTRAT en un run e ISTA>> en otro.
+    # La función _merge_runs_and_replace maneja esto juntando todo el texto en el primer run.
+    # Pero si el texto completo fue reemplazado, el <<CONTRAT vacío ya no importa.
 
-    # Insertar obligaciones específicas después de <<OBLIGACIONES>>
+    # Insertar obligaciones específicas donde esté "<<OBLIGACIONES>>"
     if obligaciones_esp:
-        for idx, p in enumerate(doc.paragraphs):
+        for pi, p in enumerate(doc.paragraphs):
             if "<<OBLIGACIONES>>" in p.text:
-                # Reemplazar placeholder
-                _replace_in_paragraph(p, "<<OBLIGACIONES>>", "")
-                
-                # Insertar cada obligación como párrafo numerado
-                for i, oblig in enumerate(obligaciones_esp, 1):
-                    text = f"{i}. {oblig}"
-                    _insert_paragraph_after(doc, idx + i - 1, text, size=12)
+                _merge_runs_and_replace(p, "<<OBLIGACIONES>>", "")
+                # Insertar obligaciones después de este párrafo
+                for oi, oblig in enumerate(obligaciones_esp, 1):
+                    text = f"{oi}. {oblig}"
+                    new_p = OxmlElement('w:p')
+                    p._p.addnext(new_p)
+                    pPr = OxmlElement('w:pPr')
+                    jc = OxmlElement('w:jc')
+                    jc.set(qn('w:val'), 'both')
+                    pPr.append(jc)
+                    new_p.append(pPr)
+                    r_elem = OxmlElement('w:r')
+                    rPr = OxmlElement('w:rPr')
+                    rFonts = OxmlElement('w:rFonts')
+                    rFonts.set(qn('w:ascii'), 'Aptos Display')
+                    rFonts.set(qn('w:hAnsi'), 'Aptos Display')
+                    rPr.append(rFonts)
+                    sz = OxmlElement('w:sz')
+                    sz.set(qn('w:val'), '24')
+                    rPr.append(sz)
+                    r_elem.append(rPr)
+                    t = OxmlElement('w:t')
+                    t.text = text
+                    t.set(qn('xml:space'), 'preserve')
+                    r_elem.append(t)
+                    new_p.append(r_elem)
                 break
 
-    # Guardar
     buf = io.BytesIO()
     doc.save(buf)
     buf.seek(0)
