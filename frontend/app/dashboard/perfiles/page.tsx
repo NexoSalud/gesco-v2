@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import {
-  getPerfiles, getActividades, createActividad, deleteActividad,
+  getPerfiles, getActividades, createActividad, updateActividad, deleteActividad,
   createPerfil, updatePerfil, deletePerfil,
   type ActividadPerfil,
 } from "@/lib/api"
@@ -48,6 +48,9 @@ export default function PerfilesPage() {
   const [nuevaActividad, setNuevaActividad] = useState("")
   const [nuevaActividadTipo, setNuevaActividadTipo] = useState("GENERAL")
   const [addingActividad, setAddingActividad] = useState(false)
+  const [editActId, setEditActId] = useState<number | null>(null)
+  const [editActDesc, setEditActDesc] = useState("")
+  const [editActTipo, setEditActTipo] = useState("GENERAL")
 
   const loadPerfiles = useCallback(() => {
     getPerfiles().then(setPerfiles).catch(() => {})
@@ -137,6 +140,25 @@ export default function PerfilesPage() {
       loadPerfiles()
     } catch { console.error }
   }, [loadPerfiles])
+
+  const startEditAct = useCallback((a: ActividadPerfil) => {
+    setEditActId(a.id)
+    setEditActDesc(a.descripcion)
+    setEditActTipo(a.tipo || "GENERAL")
+  }, [])
+
+  const saveEditAct = useCallback(async () => {
+    if (editActId === null || !editActDesc.trim()) return
+    try {
+      const updated = await updateActividad(editActId, {
+        descripcion: editActDesc.trim(),
+        tipo: editActTipo,
+      })
+      setActividades(p => p.map(a => a.id === editActId ? updated : a))
+      setEditActId(null)
+      loadPerfiles()
+    } catch { console.error }
+  }, [editActId, editActDesc, editActTipo, loadPerfiles])
 
   const handleObjChange = useCallback((e: any) => {
     if (!selectedPerfil) return
@@ -287,11 +309,29 @@ export default function PerfilesPage() {
                     {actividades.map(a => (
                       <li key={a.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 group">
                         <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold flex items-center justify-center">{a.orden}</span>
-                        <span className="flex-1 text-sm text-gray-700">{a.descripcion}</span>
-                        <span className={"text-[10px] font-semibold px-1.5 py-0.5 rounded " + (a.tipo === "ESPECIFICA" ? "text-amber-700 bg-amber-50" : "text-blue-700 bg-blue-50")}>{a.tipo || "GENERAL"}</span>
-                        <Button variant="ghost" size="icon" className="text-red-400 opacity-0 group-hover:opacity-100" onClick={() => handleDeleteAct(a.id)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {editActId === a.id ? (
+                          <div className="flex-1 flex items-center gap-2">
+                            <Input value={editActDesc} onChange={e => setEditActDesc(e.target.value)}
+                              className="flex-1 h-8 text-sm" autoFocus
+                              onKeyDown={e => { if (e.key === "Enter") saveEditAct(); if (e.key === "Escape") setEditActId(null); }} />
+                            <select value={editActTipo} onChange={e => setEditActTipo(e.target.value)}
+                              className="h-8 px-1 rounded border border-gray-200 text-xs">
+                              <option value="GENERAL">General</option>
+                              <option value="ESPECIFICA">Esp.</option>
+                            </select>
+                            <Button variant="ghost" size="sm" onClick={saveEditAct} className="text-emerald-600 h-8">✓</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setEditActId(null)} className="text-gray-400 h-8">✕</Button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="flex-1 text-sm text-gray-700 cursor-pointer" onClick={() => startEditAct(a)}>{a.descripcion}</span>
+                            <span className={"text-[10px] font-semibold px-1.5 py-0.5 rounded cursor-pointer " + (a.tipo === "ESPECIFICA" ? "text-amber-700 bg-amber-50" : "text-blue-700 bg-blue-50")}
+                              onClick={() => startEditAct(a)}>{a.tipo || "GENERAL"}</span>
+                            <Button variant="ghost" size="icon" className="text-red-400 opacity-0 group-hover:opacity-100" onClick={() => handleDeleteAct(a.id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
                       </li>
                     ))}
                   </ul>

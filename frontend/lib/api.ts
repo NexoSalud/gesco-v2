@@ -255,7 +255,14 @@ export const getActividades = (perfilId: number) =>
   request<ActividadPerfil[]>(`/api/v1/perfiles/${perfilId}/actividades`)
 
 export const createActividad = (perfilId: number, descripcion: string, orden: number = 0, tipo: string = "GENERAL") =>
-  request<ActividadPerfil>(`/api/v1/perfiles/${perfilId}/actividades?descripcion=${encodeURIComponent(descripcion)}&orden=${orden}&tipo=${tipo}`, { method: "POST" })
+  request<ActividadPerfil>(`/api/v1/perfiles/${perfilId}/actividades`, {
+    method: "POST", body: JSON.stringify({ descripcion, orden, tipo }),
+  })
+
+export const updateActividad = (id: number, data: { descripcion?: string; tipo?: string; orden?: number }) =>
+  request<ActividadPerfil>(`/api/v1/perfiles/actividades/${id}`, {
+    method: "PUT", body: JSON.stringify(data),
+  })
 
 export const deleteActividad = (actividadId: number) =>
   request<void>(`/api/v1/actividades/${actividadId}`, { method: "DELETE" })

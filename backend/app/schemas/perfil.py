@@ -4,6 +4,12 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+class ActividadCreate(BaseModel):
+    descripcion: str = Field(..., min_length=1)
+    tipo: str = Field("GENERAL", pattern=r"^(GENERAL|ESPECIFICA)$")
+    orden: int = 0
+
+
 class ActividadPerfilOut(BaseModel):
     id: int
     descripcion: str

@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.perfil import Perfil, ActividadPerfil
-from app.schemas.perfil import PerfilCreate, PerfilOut, ActividadPerfilOut
+from app.schemas.perfil import PerfilCreate, PerfilOut, ActividadCreate, ActividadPerfilOut
 
 router = APIRouter(prefix="/api/v1/perfiles", tags=["Perfiles"])
 
@@ -85,11 +85,26 @@ async def listar_actividades(perfil_id: int, db: AsyncSession = Depends(get_db))
 
 @router.post("/{perfil_id}/actividades", response_model=ActividadPerfilOut, status_code=201)
 async def crear_actividad(
-    perfil_id: int, descripcion: str, orden: int = 0,
-    tipo: str = "GENERAL", db: AsyncSession = Depends(get_db)
+    perfil_id: int, data: ActividadCreate, db: AsyncSession = Depends(get_db)
 ):
-    actividad = ActividadPerfil(perfil_id=perfil_id, descripcion=descripcion, orden=orden, tipo=tipo)
+    actividad = ActividadPerfil(perfil_id=perfil_id, **data.model_dump())
     db.add(actividad)
+    await db.commit()
+    await db.refresh(actividad)
+    return actividad
+
+
+@router.put("/actividades/{actividad_id}", response_model=ActividadPerfilOut)
+async def actualizar_actividad(
+    actividad_id: int, data: ActividadCreate, db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(ActividadPerfil).where(ActividadPerfil.id == actividad_id))
+    actividad = result.scalar_one_or_none()
+    if not actividad:
+        raise HTTPException(404, "Actividad no encontrada")
+    actividad.descripcion = data.descripcion
+    actividad.tipo = data.tipo
+    actividad.orden = data.orden if hasattr(data, 'orden') else actividad.orden
     await db.commit()
     await db.refresh(actividad)
     return actividad
