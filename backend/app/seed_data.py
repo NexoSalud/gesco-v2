@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import async_session_factory
 from app.models.perfil import Perfil, ActividadPerfil
+from app.services.actividades_referencia import ACTIVIDADES_POR_PERFIL, PROFILE_MAP
 from app.models.plantilla import PlantillaObservacion
 from app.models.resolucion import Resolucion
 from app.models.contrato import Contrato
@@ -18,200 +19,80 @@ from app.models.planilla import Planilla
 
 logger = logging.getLogger(__name__)
 
-PERFILES_DATA = [
-    {
-        "nombre": "MEDICINA",
-        "objeto": "Prestar servicios profesionales como Médico en los Equipos Básicos en Salud (EBS) para el fortalecimiento de la Atención Primaria en Salud, desarrollando actividades de promoción, prevención, diagnóstico, tratamiento y seguimiento de la población asignada en el marco de la Resolución 1010 de 2025.",
-        "obligaciones": [
-            "Realizar la identificación integral del riesgo individual, familiar y comunitario de la población adscrita al microterritorio asignado.",
-            "Ejecutar las atenciones individuales de promoción y mantenimiento de la salud, conforme a la Resolución 3280 de 2018.",
-            "Aplicar las guías de práctica clínica, protocolos institucionales y lineamientos técnicos definidos por la E.S.E. NORTE 3.",
-            "Realizar acciones de inducción a la demanda de servicios de salud, priorizando eventos de salud pública.",
-            "Identificar, notificar y gestionar oportunamente los eventos de interés en salud pública.",
-            "Realizar la canalización oportuna de las personas a los servicios de salud.",
-            "Hacer seguimiento efectivo al acceso y continuidad de las atenciones en salud dentro de la red.",
-            "Promover la articulación intersectorial y transectorial de los servicios de salud.",
-            "Diligenciar diaria, completa y oportunamente los RIPS con códigos CIE-10.",
-            "Cumplir con las metas del programa con referencia al 100% de la población caracterizada.",
-        ],
-        "actividades": [
-            "Atención en salud por medicina general",
-            "Tamizaje para cáncer de próstata (PSA)",
-            "Tamizaje para cáncer de mama (valoración clínica)",
-            "Tamizaje para cáncer de colon (sangre oculta)",
-            "Control por medicina general y educación",
-            "Atención Preconcepcional",
-            "Asesoría en anticoncepción",
-        ],
-    },
-    {
-        "nombre": "ENFERMERIA",
-        "objeto": "Prestar servicios profesionales como Enfermero(a) en los Equipos Básicos en Salud (EBS), desarrollando actividades de cuidado integral, promoción de la salud, prevención de la enfermedad.",
-        "obligaciones": [
-            "Formular, implementar y realizar seguimiento al Plan Integral de Cuidado Primario (PICP).",
-            "Identificar y analizar los riesgos individuales, familiares y comunitarios.",
-            "Brindar orientación e información clara sobre la oferta de servicios de salud.",
-            "Inducir a la demanda de servicios de salud y notificar eventos de interés en salud pública.",
-            "Realizar canalización oportuna a servicios de nivel primario y red de prestación.",
-            "Sistematizar, registrar y reportar la información en sistemas definidos por Minsalud.",
-            "Aplicar guías de promoción, Resolución 3280, RIAS y guías de eventos de interés.",
-            "Diligenciar los RIPS utilizando los códigos CIE-10.",
-            "Cumplir con las normas de bioseguridad y seguridad del paciente.",
-        ],
-        "actividades": [
-            "Atención integral de enfermería",
-            "Visitas domiciliarias a pacientes crónicos",
-            "Vigilancia epidemiológica",
-            "Educación en salud comunitaria",
-            "Promoción y prevención",
-            "Tamizaje nutricional",
-        ],
-    },
-    {
-        "nombre": "PSICOLOGIA",
-        "objeto": "Prestar servicios profesionales como Psicólogo en los programas de salud mental de la ESE Norte 3.",
-        "obligaciones": [
-            "Realizar valoración psicológica integral a los usuarios asignados.",
-            "Brindar atención psicológica individual y grupal.",
-            "Ejecutar actividades de promoción de la salud mental y prevención de trastornos.",
-            "Realizar intervención en crisis cuando sea requerido.",
-            "Participar en la ruta de atención integral en salud mental.",
-            "Elaborar informes psicológicos y mantener registros actualizados.",
-            "Remitir a psiquiatría los casos que lo requieran.",
-        ],
-        "actividades": [
-            "Valoración psicológica integral",
-            "Atención psicológica individual",
-            "Terapia grupal",
-            "Intervención en crisis",
-            "Promoción de salud mental",
-        ],
-    },
-    {
-        "nombre": "SALUD ORAL",
-        "objeto": "Prestar servicios profesionales como Odontólogo en los puntos de atención de la ESE Norte 3.",
-        "obligaciones": [
-            "Realizar consulta odontológica general a la población asignada.",
-            "Ejecutar actividades de promoción de la salud oral y prevención de enfermedades bucodentales.",
-            "Aplicar sellantes, flúor y demás medidas preventivas según lineamientos.",
-            "Realizar tratamientos odontológicos básicos de acuerdo con su perfil.",
-            "Remitir a especialistas los casos de mayor complejidad.",
-            "Registrar adecuadamente la información clínica en los sistemas.",
-            "Participar en jornadas de salud extramurales programadas.",
-        ],
-        "actividades": [
-            "Consulta odontológica general",
-            "Aplicación de sellantes y flúor",
-            "Tratamientos odontológicos básicos",
-            "Promoción de salud oral",
-            "Jornadas extramurales",
-        ],
-    },
-    {
-        "nombre": "AUXILIAR ENFERMERIA",
-        "objeto": "Prestar servicios de apoyo como Auxiliar de Enfermería en los Equipos Básicos en Salud.",
-        "obligaciones": [
-            "Apoyar la ejecución de las actividades del PIC en los municipios asignados.",
-            "Realizar la toma de medidas antropométricas y signos vitales a la población objeto.",
-            "Aplicar encuestas de caracterización y tamizaje según lineamientos del programa.",
-            "Promover estilos de vida saludable en la comunidad mediante actividades educativas.",
-            "Mantener el orden y asepsia del material e instrumentos de trabajo.",
-            "Elaborar y presentar informes mensuales de actividades realizadas.",
-            "Cumplir con los protocolos de bioseguridad establecidos por la ESE.",
-        ],
-        "actividades": [
-            "Toma de signos vitales y medidas antropométricas",
-            "Aplicación de encuestas de caracterización",
-            "Educación en salud individual y grupal",
-            "Apoyo en jornadas de vacunación",
-            "Organización de material e insumos",
-        ],
-    },
-    {
-        "nombre": "AUXILIAR VACUNACION",
-        "objeto": "Prestar servicios de apoyo como Auxiliar de Vacunación en los Equipos Básicos en Salud.",
-        "obligaciones": [
-            "Apoyar las jornadas de vacunación programadas por la ESE.",
-            "Realizar registro y seguimiento del esquema de vacunación.",
-            "Promover la vacunación como medida de prevención de enfermedades.",
-            "Mantener la cadena de frío de los biológicos.",
-            "Diligenciar los registros de vacunación.",
-            "Cumplir con los protocolos de bioseguridad.",
-        ],
-        "actividades": [
-            "Jornadas de vacunación",
-            "Registro de esquemas de vacunación",
-            "Promoción de vacunación",
-            "Mantenimiento de cadena de frío",
-        ],
-    },
-    {
-        "nombre": "GESTOR COMUNITARIO",
-        "objeto": "Prestar servicios como Gestor Comunitario en los Equipos Básicos en Salud, promoviendo la participación comunitaria.",
-        "obligaciones": [
-            "Promover la participación de la comunidad en las actividades de salud.",
-            "Realizar visitas domiciliarias para identificación de riesgos.",
-            "Articular con líderes comunitarios y organizaciones sociales.",
-            "Apoyar la ejecución del Plan de Intervenciones Colectivas.",
-            "Promover estilos de vida saludable en la comunidad.",
-        ],
-        "actividades": [
-            "Visitas domiciliarias comunitarias",
-            "Articulación con líderes comunitarios",
-            "Promoción de salud comunitaria",
-            "Apoyo a jornadas de salud",
-        ],
-    },
-    {
-        "nombre": "TRANSPORTE",
-        "objeto": "Prestar servicios de conducción y transporte para el desplazamiento del talento humano, insumos y usuarios de la ESE Norte 3.",
-        "obligaciones": [
-            "Conducir vehículos asignados por la ESE para el transporte de personal e insumos.",
-            "Mantener el vehículo en óptimas condiciones de aseo y funcionamiento.",
-            "Realizar el mantenimiento preventivo básico del vehículo.",
-            "Cumplir con las normas de tránsito y seguridad vial.",
-            "Apoyar la logística de las jornadas extramurales.",
-        ],
-        "actividades": [
-            "Conducción de vehículos institucionales",
-            "Transporte de personal e insumos",
-            "Mantenimiento preventivo de vehículos",
-            "Apoyo logístico en jornadas extramurales",
-        ],
-    },
-    {
-        "nombre": "SINDICATO",
-        "objeto": "Prestar servicios de apoyo administrativo y operativo para el fortalecimiento de la Atención Primaria en Salud.",
-        "obligaciones": [
-            "Apoyar las actividades administrativas y operativas de la ESE.",
-            "Cumplir con los cronogramas y programaciones establecidas.",
-            "Presentar informes de actividades realizadas.",
-            "Cumplir con los protocolos institucionales.",
-        ],
-        "actividades": [
-            "Apoyo administrativo",
-            "Gestión documental",
-            "Coordinación operativa",
-        ],
-    },
-    {
-        "nombre": "OTRO",
-        "objeto": "Prestar servicios profesionales o de apoyo a la gestión según las necesidades del servicio.",
-        "obligaciones": [
-            "Desarrollar las actividades y funciones asignadas por el supervisor.",
-            "Cumplir con los horarios y cronogramas establecidos.",
-            "Presentar informes periódicos de las actividades realizadas.",
-            "Participar en las reuniones y capacitaciones programadas.",
-            "Cumplir con los protocolos y procedimientos institucionales.",
-        ],
-        "actividades": [
+PERFILES_DATA = []
+# Mapa de perfiles que queremos crear (nombre -> referencia)
+PERFILES_REF = [
+    ("MEDICINA", "MEDICINA"),
+    ("ENFERMERIA", "ENFERMERIA"),
+    ("PSICOLOGIA", "PSICOLOGIA"),
+    ("SALUD ORAL", "SALUD ORAL"),
+    ("AUXILIAR ENFERMERIA", "AUXILIAR ENFERMERIA"),
+    ("AUXILIAR VACUNACION", "AUXILIAR VACUNACION"),
+    ("GESTOR COMUNITARIO", "GESTOR COMUNITARIO"),
+    ("TRANSPORTE", "TRANSPORTE_188"),
+    ("SINDICATO", "SINDICATO_103"),
+    ("OTRO", None),
+]
+
+for nombre, ref_key in PERFILES_REF:
+    if ref_key and ref_key in ACTIVIDADES_POR_PERFIL:
+        actividades = ACTIVIDADES_POR_PERFIL[ref_key]
+    else:
+        actividades = [
             "Desarrollo de funciones asignadas",
             "Presentación de informes",
             "Participación en capacitaciones",
             "Cumplimiento de protocolos",
+        ]
+    
+    objeto_map = {
+        "MEDICINA": "Prestar servicios profesionales como Médico en los Equipos Básicos en Salud (EBS) para el fortalecimiento de la Atención Primaria en Salud, desarrollando actividades de promoción, prevención, diagnóstico, tratamiento y seguimiento de la población asignada en el marco de la Resolución 1010 de 2025.",
+        "ENFERMERIA": "Prestar servicios profesionales como Enfermero(a) en los Equipos Básicos en Salud (EBS), desarrollando actividades de cuidado integral, promoción de la salud, prevención de la enfermedad.",
+        "PSICOLOGIA": "Prestar servicios profesionales como Psicólogo en los programas de salud mental de la ESE Norte 3.",
+        "SALUD ORAL": "Prestar servicios profesionales como Odontólogo en los puntos de atención de la ESE Norte 3.",
+        "AUXILIAR ENFERMERIA": "Prestar servicios de apoyo como Auxiliar de Enfermería en los Equipos Básicos en Salud.",
+        "AUXILIAR VACUNACION": "Prestar servicios de apoyo como Auxiliar de Vacunación en los Equipos Básicos en Salud.",
+        "GESTOR COMUNITARIO": "Prestar servicios como Gestor Comunitario en los Equipos Básicos en Salud, promoviendo la participación comunitaria.",
+        "TRANSPORTE": "Prestar servicios de conducción y transporte para el desplazamiento del talento humano, insumos y usuarios de la ESE Norte 3.",
+        "SINDICATO": "Prestar servicios de apoyo administrativo y operativo para el fortalecimiento de la Atención Primaria en Salud.",
+        "OTRO": "Prestar servicios profesionales o de apoyo a la gestión según las necesidades del servicio.",
+    }
+    
+    obligaciones_map = {
+        "MEDICINA": [
+            "Realizar la identificación integral del riesgo individual, familiar y comunitario.",
+            "Ejecutar las atenciones individuales de promoción y mantenimiento de la salud.",
+            "Identificar, notificar y gestionar oportunamente los eventos de interés en salud pública.",
+            "Diligenciar diaria, completa y oportunamente los RIPS con códigos CIE-10.",
+            "Cumplir con los protocolos de bioseguridad y seguridad del paciente.",
         ],
-    },
-]
+        "ENFERMERIA": [
+            "Formular, implementar y realizar seguimiento al Plan Integral de Cuidado Primario (PICP).",
+            "Identificar y analizar los riesgos individuales, familiares y comunitarios.",
+            "Realizar canalización oportuna a servicios de nivel primario y red de prestación.",
+            "Diligenciar los RIPS utilizando los códigos CIE-10.",
+            "Cumplir con las normas de bioseguridad y seguridad del paciente.",
+        ],
+        "SALUD ORAL": [
+            "Realizar consulta odontológica general a la población asignada.",
+            "Ejecutar actividades de promoción de la salud oral y prevención de enfermedades bucodentales.",
+            "Aplicar sellantes, flúor y demás medidas preventivas según lineamientos.",
+            "Registrar adecuadamente la información clínica en los sistemas.",
+            "Participar en jornadas de salud extramurales.",
+        ],
+    }
+    
+    PERFILES_DATA.append({
+        "nombre": nombre,
+        "objeto": objeto_map.get(nombre, "Prestar servicios profesionales o de apoyo según el perfil asignado."),
+        "obligaciones": obligaciones_map.get(nombre, [
+            "Desarrollar las actividades y funciones asignadas por el supervisor.",
+            "Cumplir con los horarios y cronogramas establecidos.",
+            "Presentar informes periódicos de las actividades realizadas.",
+            "Cumplir con los protocolos y procedimientos institucionales.",
+        ]),
+        "actividades": actividades,
+    })
 
 PLANTILLAS_OBSERVACION = [
     {"titulo": "Cumplimiento total", "contenido": "El contratista cumplió a cabalidad con las actividades programadas durante el período."},
