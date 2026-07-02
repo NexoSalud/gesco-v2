@@ -70,7 +70,7 @@ async def crear_resolucion(data: ResolucionCreate, db: AsyncSession = Depends(ge
     # Recargar con relaciones para evitar lazy loading en async
     result = await db.execute(
         select(Resolucion)
-        .options(selectinload(Resolucion.contratos))
+        .options(selectinload(Resolucion.contratos).selectinload(Contrato.contratista_rel))
         .where(Resolucion.id == db_obj.id)
     )
     return result.scalar_one()
@@ -80,7 +80,7 @@ async def crear_resolucion(data: ResolucionCreate, db: AsyncSession = Depends(ge
 async def obtener_resolucion(resolucion_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Resolucion)
-        .options(selectinload(Resolucion.contratos))
+        .options(selectinload(Resolucion.contratos).selectinload(Contrato.contratista_rel))
         .where(Resolucion.id == resolucion_id)
     )
     r = result.scalar_one_or_none()
@@ -106,7 +106,7 @@ async def actualizar_resolucion(
     # Recargar con relaciones para evitar MissingGreenlet
     result = await db.execute(
         select(Resolucion)
-        .options(selectinload(Resolucion.contratos))
+        .options(selectinload(Resolucion.contratos).selectinload(Contrato.contratista_rel))
         .where(Resolucion.id == r.id)
     )
     return result.scalar_one()

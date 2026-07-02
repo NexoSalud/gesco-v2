@@ -48,11 +48,14 @@ class ContratoResumen(BaseModel):
     @classmethod
     def resolve_beneficiario(cls, data: Any) -> Any:
         if isinstance(data, dict):
+            data.setdefault("beneficiario", None)
             return data
-        if hasattr(data, 'contratista_rel') and data.contratista_rel:
-            setattr(data, 'beneficiario', data.contratista_rel.nombre)
-        elif not hasattr(data, 'beneficiario'):
-            setattr(data, 'beneficiario', None)
+        # ORM instance — intenta extraer desde la relación
+        try:
+            rel = data.contratista_rel
+            data.beneficiario = rel.nombre if rel else None
+        except Exception:
+            data.beneficiario = None
         return data
 
 
