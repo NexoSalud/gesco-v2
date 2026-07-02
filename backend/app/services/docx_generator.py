@@ -183,6 +183,7 @@ def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None)
         "<<fecha del acta>>": fecha_inicio,
         "<<SUPERVISOR>>": data.get("supervisor", "_________"),
         "<<CEDULA DE SUPERVISOR>>": data.get("cedula_supervisor", "_________"),
+        "<<CÉDULA DE SUPERVISOR>>": data.get("cedula_supervisor", "_________"),
         "<<PERFIL>>": data.get("perfil", "_________"),
     }
 
@@ -295,6 +296,7 @@ def generar_documento_contrato(tipo: str, data: dict) -> bytes:
         "<<cédula del supervisor>>": data.get("cedula_supervisor", "_________"),
         "<<SUPERVISOR>>": data.get("supervisor", "_________"),
         "<<CEDULA DE SUPERVISOR>>": data.get("cedula_supervisor", "_________"),
+        "<<CÉDULA DE SUPERVISOR>>": data.get("cedula_supervisor", "_________"),
         "<<OBJETO DEL CONTRATO>>": data.get("objeto", "_________"),
         "<<PERFIL>>": data.get("perfil", "_________"),
         "<<VALOR DEL CONTRATO>>": f"${valor:,.0f} ({valor_letras})",
@@ -306,6 +308,7 @@ def generar_documento_contrato(tipo: str, data: dict) -> bytes:
         "<<mes>>": MESES[hoy.month],
         "<<año>>": str(hoy.year),
         "<<Unidad de Atención>>": data.get("unidad_atencion", "_________"),
+        "<<unidad de atención>>": data.get("unidad_atencion", "_________"),
         "<<LUGAR DE EXPEDICIÓN>>": data.get("lugar_expedicion", "_________"),
         "<< LUGAR DE EXPEDICIÓN>>": data.get("lugar_expedicion", "_________"),
         "<<lugar de expedición>>": data.get("lugar_expedicion", "_________"),
