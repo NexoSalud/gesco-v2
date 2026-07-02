@@ -210,66 +210,6 @@ async def seed_database():
             await db.commit()
             logger.info(f"Seed completado: {len(PERFILES_DATA)} perfiles creados")
 
-            # Demo data
-            try:
-                existing_res = await db.execute(select(Resolucion).limit(1))
-                if not existing_res.scalar_one_or_none():
-                    logger.info("Insertando data demo...")
-                    resolucion = Resolucion(
-                        codigo="RES-DEMO-2026",
-                        titulo="CONTRATACIÓN TALENTO HUMANO ESE NORTE 3",
-                        vigencia=2026, presupuesto=500_000_000, indirect_percentage=15,
-                    )
-                    db.add(resolucion)
-                    await db.flush()
-
-                    contratistas_data = [
-                        ("1143987654", "MARÍA ALEJANDRA VALENCIA"),
-                        ("76345218", "LUIS ALBERTO MOSQUERA"),
-                        ("1143890123", "DIANA PATRICIA HURTADO"),
-                    ]
-                    contratistas = []
-                    for cc, nombre in contratistas_data:
-                        cnt = Contratista(identificacion=cc, nombre=nombre)
-                        db.add(cnt)
-                        contratistas.append(cnt)
-                    await db.flush()
-
-                    contratos_data = [
-                        {"numero": "CT-DEMO-001", "perfil": "MEDICINA", "contratista": contratistas[0], "monto": 48_000_000, "cuotas": 12},
-                        {"numero": "CT-DEMO-002", "perfil": "ENFERMERIA", "contratista": contratistas[1], "monto": 28_800_000, "cuotas": 12},
-                        {"numero": "CT-DEMO-003", "perfil": "PSICOLOGIA", "contratista": contratistas[2], "monto": 36_000_000, "cuotas": 12},
-                    ]
-                    for cd in contratos_data:
-                        ct = Contrato(
-                            resolucion_id=resolucion.id, contratista_id=cd["contratista"].id,
-                            numero_contrato=cd["numero"], perfil=cd["perfil"],
-                            estado="ACTIVO", monto_total=cd["monto"],
-                            supervisor="Dr. Carlos Méndez", cuotas_total=cd["cuotas"], cuotas_pagadas=0,
-                        )
-                        db.add(ct)
-                    await db.flush()
-
-                    pago = Pago(
-                        contrato_id="CT-DEMO-001", numero_pago=1, valor_a_pagar=4_000_000,
-                        valor_pagado=4_000_000, tipo_informe="SUPERVISION",
-                    )
-                    db.add(pago)
-                    await db.flush()
-
-                    planilla = Planilla(
-                        pago_id=pago.id, eps_nombre="NUEVA EPS", eps_valor=380_000,
-                        arl_nombre="POSITIVA", arl_valor=52_000, afp_nombre="PORVENIR", afp_valor=345_000,
-                        ccf_nombre="COMFACAUCA", ccf_valor=28_000,
-                        valor_total=380_000 + 52_000 + 345_000 + 28_000,
-                    )
-                    db.add(planilla)
-                    await db.commit()
-                    logger.info("Demo data insertada")
-            except Exception as e:
-                await db.rollback()
-                logger.warning(f"Error demo data: {e}")
-
         except Exception as e:
             await db.rollback()
             logger.warning(f"Error en seed: {e}")

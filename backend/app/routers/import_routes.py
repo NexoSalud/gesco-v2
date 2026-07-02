@@ -10,13 +10,11 @@ from openpyxl import load_workbook
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db, async_session_factory
+from app.database import get_db
 from app.models.contrato import Contrato
 from app.models.contratista import Contratista
 from app.models.pago import Pago
-from app.models.planilla import Planilla
 from app.models.perfil import Perfil
-from sqlalchemy import text
 
 
 # Mapa de normalización de perfiles (variantes → nombre oficial)
@@ -458,19 +456,4 @@ async def importar_contratos_excel(
     return result_summary
 
 
-@router.post("/limpiar")
-async def limpiar_base_datos(db: AsyncSession = Depends(get_db)):
-    """Limpia TODA la base de datos para re-importar desde cero."""
-    await db.execute(text("DELETE FROM planillas"))
-    await db.execute(text("DELETE FROM pagos"))
-    await db.execute(text("DELETE FROM contratos"))
-    await db.execute(text("DELETE FROM contratistas"))
-    await db.execute(text("DELETE FROM actividades_perfil"))
-    await db.execute(text("DELETE FROM perfiles"))
-    await db.execute(text("DELETE FROM plantillas_observacion"))
-    await db.execute(text("DELETE FROM resoluciones"))
-    await db.commit()
-    # Re-seedear perfiles y data demo
-    from app.seed_data import seed_database
-    await seed_database()
-    return {"message": "BD completamente limpiada y reseedeada: resoluciones, contratos, contratistas, pagos y perfiles eliminados."}
+
