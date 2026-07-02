@@ -213,13 +213,13 @@ export default function PerfilesPage() {
                       Actividades
                     </p>
                     <ul className="space-y-1">
-                      {perfil.actividades.slice(0, 5).map((act: string, i: number) => (
+                      {perfil.actividades.slice(0, 5).map((act: any, i: number) => (
                         <li
                           key={i}
                           className="flex items-start gap-2 text-xs text-gray-600"
                         >
                           <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5 flex-shrink-0" />
-                          {act}
+                          {act.descripcion || act}
                         </li>
                       ))}
                       {perfil.actividades.length > 5 && (
