@@ -170,8 +170,12 @@ export const buscarContratistas = (q: string) =>
 
 export const getPerfiles = () => request<any[]>("/api/v1/perfiles")
 export const getPerfil = (id: number) => request<any>(`/api/v1/perfiles/${id}`)
+export const createPerfil = (data: any) =>
+  request<any>("/api/v1/perfiles", { method: "POST", body: JSON.stringify(data) })
 export const updatePerfil = (id: number, data: any) =>
   request<any>(`/api/v1/perfiles/${id}`, { method: "PUT", body: JSON.stringify(data) })
+export const deletePerfil = (id: number) =>
+  request<void>(`/api/v1/perfiles/${id}`, { method: "DELETE" })
 export const getPerfilesPredefinidos = () => request<{ perfiles: string[] }>("/api/v1/contratos/perfiles/predefinidos")
 
 // ─── Export ──────────────────────────────────────────────────────────────────
