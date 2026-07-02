@@ -196,6 +196,7 @@ async def seed_database():
                     actividad = ActividadPerfil(
                         perfil_id=perfil.id,
                         descripcion=act,
+                        tipo="GENERAL",
                         orden=i,
                     )
                     db.add(actividad)

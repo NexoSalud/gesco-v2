@@ -247,14 +247,15 @@ export async function uploadImportExcel(resolucionId: number, file: File): Promi
 export interface ActividadPerfil {
   id: number
   descripcion: string
+  tipo?: string
   orden: number
 }
 
 export const getActividades = (perfilId: number) =>
   request<ActividadPerfil[]>(`/api/v1/perfiles/${perfilId}/actividades`)
 
-export const createActividad = (perfilId: number, descripcion: string, orden: number = 0) =>
-  request<ActividadPerfil>(`/api/v1/perfiles/${perfilId}/actividades?descripcion=${encodeURIComponent(descripcion)}&orden=${orden}`, { method: "POST" })
+export const createActividad = (perfilId: number, descripcion: string, orden: number = 0, tipo: string = "GENERAL") =>
+  request<ActividadPerfil>(`/api/v1/perfiles/${perfilId}/actividades?descripcion=${encodeURIComponent(descripcion)}&orden=${orden}&tipo=${tipo}`, { method: "POST" })
 
 export const deleteActividad = (actividadId: number) =>
   request<void>(`/api/v1/actividades/${actividadId}`, { method: "DELETE" })

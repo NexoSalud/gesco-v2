@@ -26,6 +26,7 @@ class ActividadPerfil(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     perfil_id: Mapped[int] = mapped_column(ForeignKey("perfiles.id", ondelete="CASCADE"))
     descripcion: Mapped[str] = mapped_column(Text)
+    tipo: Mapped[str] = mapped_column(String(20), default="GENERAL", comment="GENERAL | ESPECIFICA")
     orden: Mapped[int] = mapped_column(Integer, default=0)
 
     perfil = relationship("Perfil", back_populates="actividades")

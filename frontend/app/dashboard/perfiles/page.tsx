@@ -46,6 +46,7 @@ export default function PerfilesPage() {
   // Actividades
   const [actividades, setActividades] = useState<ActividadPerfil[]>([])
   const [nuevaActividad, setNuevaActividad] = useState("")
+  const [nuevaActividadTipo, setNuevaActividadTipo] = useState("GENERAL")
   const [addingActividad, setAddingActividad] = useState(false)
 
   const loadPerfiles = useCallback(() => {
@@ -121,7 +122,7 @@ export default function PerfilesPage() {
     setAddingActividad(true)
     try {
       const nextOrden = actividades.length > 0 ? Math.max(...actividades.map(a => a.orden)) + 1 : 1
-      const created = await createActividad(selectedPerfil.id, nuevaActividad.trim(), nextOrden)
+      const created = await createActividad(selectedPerfil.id, nuevaActividad.trim(), nextOrden, nuevaActividadTipo)
       setActividades(p => [...p, created])
       setNuevaActividad("")
       loadPerfiles()
@@ -268,7 +269,12 @@ export default function PerfilesPage() {
               <TabsContent value="actividades" className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Input value={nuevaActividad} onChange={e => setNuevaActividad(e.target.value)}
-                    placeholder="Nueva actividad..." onKeyDown={e => { if (e.key === "Enter" && !addingActividad) handleAddAct() }} />
+                    placeholder="Nueva actividad..." onKeyDown={e => { if (e.key === "Enter" && !addingActividad) handleAddAct() }} className="flex-1" />
+                  <select value={nuevaActividadTipo} onChange={e => setNuevaActividadTipo(e.target.value)}
+                    className="h-10 px-2 rounded-lg border border-gray-200 text-sm bg-white">
+                    <option value="GENERAL">General</option>
+                    <option value="ESPECIFICA">Específica</option>
+                  </select>
                   <Button onClick={handleAddAct} disabled={!nuevaActividad.trim() || addingActividad} size="sm">
                     {addingActividad ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                     Agregar
@@ -282,6 +288,7 @@ export default function PerfilesPage() {
                       <li key={a.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 group">
                         <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold flex items-center justify-center">{a.orden}</span>
                         <span className="flex-1 text-sm text-gray-700">{a.descripcion}</span>
+                        <span className={"text-[10px] font-semibold px-1.5 py-0.5 rounded " + (a.tipo === "ESPECIFICA" ? "text-amber-700 bg-amber-50" : "text-blue-700 bg-blue-50")}>{a.tipo || "GENERAL"}</span>
                         <Button variant="ghost" size="icon" className="text-red-400 opacity-0 group-hover:opacity-100" onClick={() => handleDeleteAct(a.id)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>

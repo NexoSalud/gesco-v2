@@ -85,9 +85,10 @@ async def listar_actividades(perfil_id: int, db: AsyncSession = Depends(get_db))
 
 @router.post("/{perfil_id}/actividades", response_model=ActividadPerfilOut, status_code=201)
 async def crear_actividad(
-    perfil_id: int, descripcion: str, orden: int = 0, db: AsyncSession = Depends(get_db)
+    perfil_id: int, descripcion: str, orden: int = 0,
+    tipo: str = "GENERAL", db: AsyncSession = Depends(get_db)
 ):
-    actividad = ActividadPerfil(perfil_id=perfil_id, descripcion=descripcion, orden=orden)
+    actividad = ActividadPerfil(perfil_id=perfil_id, descripcion=descripcion, orden=orden, tipo=tipo)
     db.add(actividad)
     await db.commit()
     await db.refresh(actividad)

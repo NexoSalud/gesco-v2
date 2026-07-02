@@ -14,6 +14,7 @@ from app.models.pago import Pago
 from app.models.planilla import Planilla
 from app.models.actividad_contrato import ActividadContrato
 from app.models.actividad_supervision import ActividadSupervision
+from app.models.perfil import Perfil, ActividadPerfil
 from app.schemas.pago import PagoCreate, PagoUpdate, PagoOut
 from app.services.pdf_generator import generar_supervision_pdf
 
@@ -81,25 +82,29 @@ async def crear_pago(data: PagoCreate, db: AsyncSession = Depends(get_db)):
         )
         db.add(planilla)
 
-    # Heredar actividades del contrato al pago
-    acts_contrato_result = await db.execute(
-        select(ActividadContrato)
-        .where(ActividadContrato.contrato_id == data.contrato_id)
-        .order_by(ActividadContrato.orden)
-    )
-    acts_contrato = acts_contrato_result.scalars().all()
-    
-    if acts_contrato:
-        for ac in acts_contrato:
-            act_sup = ActividadSupervision(
-                pago_id=pago.id,
-                actividad_contrato_id=ac.id,
-                descripcion=ac.descripcion,
-                orden=ac.orden,
+    # Heredar actividades del PERFIL al pago (no del contrato)
+    if contrato.perfil:
+        result_perfil = await db.execute(
+            select(Perfil).where(Perfil.nombre == contrato.perfil)
+        )
+        perfil_obj = result_perfil.scalar_one_or_none()
+        if perfil_obj:
+            acts_perfil = await db.execute(
+                select(ActividadPerfil)
+                .where(ActividadPerfil.perfil_id == perfil_obj.id)
+                .order_by(ActividadPerfil.orden)
             )
-            db.add(act_sup)
-    else:
-        # Si no hay actividades en el contrato, crear una genérica
+            for ap in acts_perfil.scalars().all():
+                act_sup = ActividadSupervision(
+                    pago_id=pago.id,
+                    descripcion=ap.descripcion,
+                    cumple=True if ap.tipo == "GENERAL" else None,
+                    orden=ap.orden,
+                )
+                db.add(act_sup)
+
+    if not contrato.perfil:
+        # Sin perfil, crear una genérica
         act_sup = ActividadSupervision(
             pago_id=pago.id,
             descripcion="ACTIVIDADES DESARROLLADAS SEGÚN LO ESTABLECIDO EN EL CONTRATO.",

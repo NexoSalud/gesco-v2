@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 class ActividadPerfilOut(BaseModel):
     id: int
     descripcion: str
+    tipo: str = "GENERAL"
     orden: int
 
     model_config = {"from_attributes": True}
