@@ -71,6 +71,7 @@ def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None)
         "<<CONTRATISTA>>": data.get("nombre_contratista", "___________________"),
         "<<CONTRAT": "",  # Manejar split runs
         "<<CEDULA DEL CONTRATISTA>>": data.get("cedula", "_________"),
+        "<<CÉDULA DEL CONTRATISTA>>": data.get("cedula", "_________"),
         "<<LUGAR DE EXPEDICIÓN>>": data.get("lugar_expedicion", "_________"),
         "<< LUGAR DE EXPEDICIÓN>>": data.get("lugar_expedicion", "_________"),
         "<<DIRECCIÓN>>": data.get("direccion", "_________"),
