@@ -52,7 +52,8 @@ const MOTIVOS_ANULACION = [
 export default function ContratoDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const numero = params.numeroContrato as string
+  const numero = decodeURIComponent(params.numeroContrato as string)
+  const numeroEnc = encodeURIComponent(numero)
 
   const [contrato, setContrato] = useState<Contrato | null>(null)
   const [pagos, setPagos] = useState<Pago[]>([])
@@ -90,7 +91,7 @@ export default function ContratoDetailPage() {
   const loadData = async () => {
     try {
       const [c, p] = await Promise.all([
-        getContrato(numero),
+        getContrato(numeroEnc),
         getPagos(numero),
       ])
       setContrato(c)
@@ -121,7 +122,7 @@ export default function ContratoDetailPage() {
     setSubmittingPago(true)
     try {
       await createPago({
-        contrato_id: numero,
+        contrato_id: numeroEnc,
         ...pagoForm,
         planillas: pagoPlantillas,
       })
@@ -153,7 +154,7 @@ export default function ContratoDetailPage() {
       return
     }
     try {
-      await anularContrato(numero, motivo)
+      await anularContrato(numeroEnc, motivo)
       setShowAnular(false)
       toast.success("Contrato anulado")
       loadData()
@@ -211,7 +212,7 @@ export default function ContratoDetailPage() {
             variant="outline"
             size="sm"
             className="gap-1.5"
-            onClick={() => descargarDocx(numero)}
+            onClick={() => descargarDocx(numeroEnc)}
           >
             <FileDown className="w-4 h-4" />
             DOCX
@@ -292,7 +293,7 @@ export default function ContratoDetailPage() {
                   size="sm"
                   className="h-7 w-7 p-0"
                   disabled={contrato.cuotas_pagadas >= contrato.cuotas_total}
-                  onClick={() => registrarCuota(numero, "sumar").then(() => loadData())}
+                  onClick={() => registrarCuota(numeroEnc, "sumar").then(() => loadData())}
                 >
                   <Plus className="w-3 h-3" />
                 </Button>
@@ -301,7 +302,7 @@ export default function ContratoDetailPage() {
                   size="sm"
                   className="h-7 w-7 p-0"
                   disabled={contrato.cuotas_pagadas <= 0}
-                  onClick={() => registrarCuota(numero, "restar").then(() => loadData())}
+                  onClick={() => registrarCuota(numeroEnc, "restar").then(() => loadData())}
                 >
                   <Minus className="w-3 h-3" />
                 </Button>

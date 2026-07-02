@@ -213,7 +213,7 @@ export default function DashboardPage() {
                   {alertas.slice(0, 5).map((a: any) => (
                     <Link
                       key={a.numero_contrato}
-                      href={`/dashboard/contratos/${a.numero_contrato}`}
+                      href={`/dashboard/contratos/${encodeURIComponent(a.numero_contrato)}`}
                       className="flex items-center justify-between p-3 rounded-lg bg-white hover:bg-amber-50/50 transition-colors border border-amber-100"
                     >
                       <div className="flex items-center gap-3">

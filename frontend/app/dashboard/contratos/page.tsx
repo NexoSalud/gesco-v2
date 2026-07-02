@@ -145,7 +145,7 @@ export default function ContratosGlobalPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <Link
-                        href={`/dashboard/contratos/${c.numero_contrato}`}
+                        href={`/dashboard/contratos/${encodeURIComponent(c.numero_contrato)}`}
                         className="inline-flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700"
                       >
                         Ver <ArrowRight className="w-3.5 h-3.5" />

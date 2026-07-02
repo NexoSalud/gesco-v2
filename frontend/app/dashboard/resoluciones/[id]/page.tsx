@@ -422,7 +422,7 @@ export default function ResolucionDetailPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => router.push(`/dashboard/contratos/${c.numero_contrato}`)}
+                              onClick={() => router.push(`/dashboard/contratos/${encodeURIComponent(c.numero_contrato)}`)}
                             >
                               Ver
                             </Button>
