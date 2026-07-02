@@ -155,12 +155,24 @@ async def seed_database():
             existing = await db.execute(select(Perfil))
             perfiles_existentes = existing.scalars().all()
             if perfiles_existentes:
-                # Verificar si los perfiles actuales son los viejos (migrados de GESCO)
-                # Chequear si el primer perfil tiene el formato nuevo (MEDICINA, ENFERMERIA...)
-                nombres_viejos = {"AUXILIAR DE ENFERMERÍA", "MÉDICO GENERAL", "ENFERMERO(A)", "ODONTÓLOGO", "PSICÓLOGO", "BACTERIÓLOGO"}
                 nombres_actuales = {p.nombre for p in perfiles_existentes}
-                if nombres_actuales & nombres_viejos:
-                    logger.info("Migrando perfiles viejos a nueva version gestionContractos...")
+                nombres_viejos = {"AUXILIAR DE ENFERMERÍA", "MÉDICO GENERAL", "ENFERMERO(A)", "ODONTÓLOGO", "PSICÓLOGO", "BACTERIÓLOGO"}
+                # Verificar si los perfiles tienen las actividades completas (version corta vs larga)
+                necesita_migracion = bool(nombres_actuales & nombres_viejos)
+                if not necesita_migracion and "MEDICINA" in nombres_actuales:
+                    # Verificar si MEDICINA tiene 37 actividades (version completa) o solo 7
+                    perf_med = [p for p in perfiles_existentes if p.nombre == "MEDICINA"]
+                    if perf_med:
+                        count = await db.execute(
+                            text("SELECT COUNT(*) FROM actividades_perfil WHERE perfil_id = :pid"),
+                            {"pid": perf_med[0].id}
+                        )
+                        if count.scalar() < 37:
+                            necesita_migracion = True
+                            logger.info(f"MEDICINA tiene solo {count.scalar()} actividades, necesita actualizacion")
+                
+                if necesita_migracion:
+                    logger.info("Migrando perfiles a version completa gestionContractos...")
                     await db.execute(text("DELETE FROM actividades_perfil"))
                     await db.execute(text("DELETE FROM perfiles"))
                     await db.commit()
