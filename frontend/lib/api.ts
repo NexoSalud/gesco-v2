@@ -1,7 +1,7 @@
 /** API client for Gesco V2 backend */
 
 // En producción usa rutas relativas (Next.js rewrites proxy /api al backend)
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8099"
+const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
 
 export const api = {
   base: API,

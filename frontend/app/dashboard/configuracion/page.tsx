@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { ImageIcon, Upload, Trash2, Settings, CheckCircle } from "lucide-react"
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8099"
+const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
 
 export default function ConfiguracionPage() {
   const [logoLeftUrl, setLogoLeftUrl] = useState<string | null>(null)
