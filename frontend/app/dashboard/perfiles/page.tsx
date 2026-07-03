@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { ActividadEditor } from "@/components/ui/actividad-editor"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogFooter, DialogDescription,
@@ -235,7 +236,7 @@ export default function PerfilesPage() {
                       {p.actividades.slice(0, 5).map((a: any, j: number) => (
                         <li key={j} className="flex items-start gap-2 text-xs text-gray-600">
                           <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5 flex-shrink-0" />
-                          {a.descripcion || a}
+                          <span dangerouslySetInnerHTML={{ __html: a.descripcion || a }} />
                         </li>
                       ))}
                       {p.actividades.length > 5 && <li className="text-xs text-gray-400 ml-3.5">+{p.actividades.length - 5} más</li>}
@@ -289,18 +290,24 @@ export default function PerfilesPage() {
               </TabsContent>
 
               <TabsContent value="actividades" className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Input value={nuevaActividad} onChange={e => setNuevaActividad(e.target.value)}
-                    placeholder="Nueva actividad..." onKeyDown={e => { if (e.key === "Enter" && !addingActividad) handleAddAct() }} className="flex-1" />
-                  <select value={nuevaActividadTipo} onChange={e => setNuevaActividadTipo(e.target.value)}
-                    className="h-10 px-2 rounded-lg border border-gray-200 text-sm bg-white">
-                    <option value="GENERAL">General</option>
-                    <option value="ESPECIFICA">Específica</option>
-                  </select>
-                  <Button onClick={handleAddAct} disabled={!nuevaActividad.trim() || addingActividad} size="sm">
-                    {addingActividad ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                    Agregar
-                  </Button>
+                <div className="space-y-2">
+                  <ActividadEditor
+                    value={nuevaActividad}
+                    onChange={setNuevaActividad}
+                    placeholder="Escribe la nueva actividad..."
+                    minHeight={100}
+                  />
+                  <div className="flex items-center gap-2">
+                    <select value={nuevaActividadTipo} onChange={e => setNuevaActividadTipo(e.target.value)}
+                      className="h-10 px-2 rounded-lg border border-gray-200 text-sm bg-white">
+                      <option value="GENERAL">General</option>
+                      <option value="ESPECIFICA">Específica</option>
+                    </select>
+                    <Button onClick={handleAddAct} disabled={!nuevaActividad.trim() || addingActividad} size="sm">
+                      {addingActividad ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                      Agregar
+                    </Button>
+                  </div>
                 </div>
                 {actividades.length === 0 ? (
                   <p className="text-sm text-gray-400 text-center py-6">No hay actividades registradas.</p>
@@ -310,21 +317,27 @@ export default function PerfilesPage() {
                       <li key={a.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 group">
                         <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold flex items-center justify-center">{a.orden}</span>
                         {editActId === a.id ? (
-                          <div className="flex-1 flex items-center gap-2">
-                            <Input value={editActDesc} onChange={e => setEditActDesc(e.target.value)}
-                              className="flex-1 h-8 text-sm" autoFocus
-                              onKeyDown={e => { if (e.key === "Enter") saveEditAct(); if (e.key === "Escape") setEditActId(null); }} />
-                            <select value={editActTipo} onChange={e => setEditActTipo(e.target.value)}
-                              className="h-8 px-1 rounded border border-gray-200 text-xs">
-                              <option value="GENERAL">General</option>
-                              <option value="ESPECIFICA">Esp.</option>
-                            </select>
-                            <Button variant="ghost" size="sm" onClick={saveEditAct} className="text-emerald-600 h-8">✓</Button>
-                            <Button variant="ghost" size="sm" onClick={() => setEditActId(null)} className="text-gray-400 h-8">✕</Button>
+                          <div className="flex-1 space-y-2">
+                            <ActividadEditor
+                              value={editActDesc}
+                              onChange={setEditActDesc}
+                              placeholder="Editar actividad..."
+                              minHeight={80}
+                              maxHeight={200}
+                            />
+                            <div className="flex items-center gap-2">
+                              <select value={editActTipo} onChange={e => setEditActTipo(e.target.value)}
+                                className="h-8 px-1 rounded border border-gray-200 text-xs">
+                                <option value="GENERAL">General</option>
+                                <option value="ESPECIFICA">Esp.</option>
+                              </select>
+                              <Button variant="ghost" size="sm" onClick={saveEditAct} className="text-emerald-600 h-8">✓ Guardar</Button>
+                              <Button variant="ghost" size="sm" onClick={() => setEditActId(null)} className="text-gray-400 h-8">✕ Cancelar</Button>
+                            </div>
                           </div>
                         ) : (
                           <>
-                            <span className="flex-1 text-sm text-gray-700 cursor-pointer" onClick={() => startEditAct(a)}>{a.descripcion}</span>
+                            <span className="flex-1 text-sm text-gray-700 cursor-pointer" onClick={() => startEditAct(a)} dangerouslySetInnerHTML={{ __html: a.descripcion }} />
                             <span className={"text-[10px] font-semibold px-1.5 py-0.5 rounded cursor-pointer " + (a.tipo === "ESPECIFICA" ? "text-amber-700 bg-amber-50" : "text-blue-700 bg-blue-50")}
                               onClick={() => startEditAct(a)}>{a.tipo || "GENERAL"}</span>
                             <Button variant="ghost" size="icon" className="text-red-400 opacity-0 group-hover:opacity-100" onClick={() => handleDeleteAct(a.id)}>
