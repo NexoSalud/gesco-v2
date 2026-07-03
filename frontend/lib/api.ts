@@ -172,6 +172,15 @@ export const getPagos = (contrato_id?: string) => {
 
 export const getPlantillas = () => request<any[]>("/api/v1/plantillas")
 
+export const createPlantilla = (data: { titulo: string; contenido: string }) =>
+  request<any>("/api/v1/plantillas", { method: "POST", body: JSON.stringify(data) })
+
+export const updatePlantilla = (id: number, data: { titulo: string; contenido: string }) =>
+  request<any>(`/api/v1/plantillas/${id}`, { method: "PUT", body: JSON.stringify(data) })
+
+export const deletePlantilla = (id: number) =>
+  request<void>(`/api/v1/plantillas/${id}`, { method: "DELETE" })
+
 export const createPago = (data: any) =>
   request<Pago>("/api/v1/pagos", { method: "POST", body: JSON.stringify(data) })
 

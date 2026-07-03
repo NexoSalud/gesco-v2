@@ -594,8 +594,43 @@ export default function ContratoDetailPage() {
               </div>
 
               <div className="col-span-2 space-y-1.5">
-                <label className="text-sm font-medium">Observaciones</label>
-                <Textarea rows={2} value={pagoForm.observaciones}
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Observaciones</label>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const { getPlantillas } = await import("@/lib/api")
+                        const plants = await getPlantillas()
+                        if (!plants.length) {
+                          toast.error("No hay plantillas disponibles. Crea una desde Plantillas.")
+                          return
+                        }
+                        // Mostrar selector simple con confirm
+                        const titulos = plants.map((p: any) => p.titulo).join("\n")
+                        const idx = prompt(
+                          `Selecciona una plantilla (ingresa el número):\n\n${plants.map((p: any, i: number) => `${i + 1}. ${p.titulo}`).join("\n")}`
+                        )
+                        if (idx !== null) {
+                          const i = parseInt(idx) - 1
+                          if (i >= 0 && i < plants.length) {
+                            const current = pagoForm.observaciones || ""
+                            const sep = current ? "\n\n" : ""
+                            setPagoForm({ ...pagoForm, observaciones: current + sep + plants[i].contenido })
+                            toast.success(`Observación cargada desde: ${plants[i].titulo}`)
+                          }
+                        }
+                      } catch {
+                        toast.error("Error cargando plantillas")
+                      }
+                    }}
+                    className="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    Cargar plantilla
+                  </button>
+                </div>
+                <Textarea rows={4} value={pagoForm.observaciones}
                   onChange={e => setPagoForm({ ...pagoForm, observaciones: e.target.value })} />
               </div>
             </div>
