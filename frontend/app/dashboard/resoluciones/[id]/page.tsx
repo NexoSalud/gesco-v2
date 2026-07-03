@@ -7,7 +7,8 @@ import {
   getResolucion, getContratos, getPerfilesPredefinidos,
   createContrato, descargarDocx, descargarExcelResolucion,
   descargarPdfsMasivos, registrarCuota, anularContrato,
-  getResolucionAnalytics,
+  getResolucionAnalytics, deleteResolucion,
+  activarResolucion, cerrarResolucion,
   type Resolucion, type Contrato, type ResolucionAnalytics,
 } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,9 +27,20 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog"
+import {
   ArrowLeft, Plus, FileDown, FileText, AlertTriangle,
   Wallet, TrendingUp, DollarSign, Users, Download,
-  ChevronLeft, X, Search, Filter,
+  ChevronLeft, X, Search, Filter, Trash2, Power, PowerOff,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -51,6 +63,10 @@ export default function ResolucionDetailPage() {
 
   // Modal
   const [showModal, setShowModal] = useState(false)
+  // Delete dialog
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
   const [newForm, setNewForm] = useState({
     numero_contrato: "",
     contratista_identificacion: "",
@@ -77,6 +93,20 @@ export default function ResolucionDetailPage() {
     costo_tipo: "DIRECTO",
   })
   const [submitting, setSubmitting] = useState(false)
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    try {
+      await deleteResolucion(id)
+      toast.success("Resolución eliminada")
+      router.push("/dashboard/resoluciones")
+    } catch (err: any) {
+      toast.error("Error al eliminar: " + err.message)
+    } finally {
+      setDeleting(false)
+      setShowDeleteDialog(false)
+    }
+  }
 
   const loadData = async () => {
     try {
@@ -221,6 +251,9 @@ export default function ResolucionDetailPage() {
           <div className="flex items-center gap-3 mt-2">
             <h1 className="text-2xl font-bold text-gray-900">{resolucion.codigo}</h1>
             <Badge variant="info">{resolucion.vigencia || "—"}</Badge>
+            {resolucion.activa && (
+              <Badge variant="success">Activa</Badge>
+            )}
             <Badge
               variant={
                 saldo >= 0 ? "success" : "danger"
@@ -235,6 +268,74 @@ export default function ResolucionDetailPage() {
         </div>
 
         <div className="flex gap-2">
+          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50 gap-1.5">
+                <Trash2 className="w-4 h-4" />
+                Eliminar
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar resolución?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción no se puede deshacer. Se eliminará la resolución {resolucion.codigo}.
+                  {contratos.length > 0 && (
+                    <span className="block mt-2 text-amber-600 font-medium">
+                      ⚠️ La resolución tiene {contratos.length} contrato{contratos.length !== 1 ? "s" : ""} asociado{contratos.length !== 1 ? "s" : ""}. No se puede eliminar hasta que no tenga contratos.
+                    </span>
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={deleting || contratos.length > 0}
+                  onClick={handleDelete}
+                >
+                  {deleting ? "Eliminando..." : "Sí, eliminar"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {resolucion.activa ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
+              onClick={async () => {
+                try {
+                  await cerrarResolucion(id)
+                  toast.success("Resolución cerrada")
+                  loadData()
+                } catch (err: any) {
+                  toast.error("Error: " + err.message)
+                }
+              }}
+            >
+              <PowerOff className="w-4 h-4" />
+              Cerrar
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+              onClick={async () => {
+                try {
+                  await activarResolucion(id)
+                  toast.success("Resolución activada")
+                  loadData()
+                } catch (err: any) {
+                  toast.error("Error: " + err.message)
+                }
+              }}
+            >
+              <Power className="w-4 h-4" />
+              Activar
+            </Button>
+          )}
           <Link href={`/dashboard/resoluciones/${id}/editar`}>
             <Button variant="outline" size="sm">Editar</Button>
           </Link>

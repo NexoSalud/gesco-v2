@@ -14,6 +14,7 @@ class ResolucionBase(BaseModel):
     presupuesto: float = 0
     indirect_percentage: float = 0
     notas: str | None = None
+    activa: bool = False
 
 
 class ResolucionCreate(ResolucionBase):
@@ -26,6 +27,7 @@ class ResolucionUpdate(BaseModel):
     presupuesto: float | None = None
     indirect_percentage: float | None = None
     notas: str | None = None
+    activa: bool | None = None
 
 
 class ContratoResumen(BaseModel):
@@ -69,6 +71,7 @@ class ResolucionOut(ResolucionBase):
 
 class ResolucionDashboard(ResolucionBase):
     id: int
+    activa: bool = False
     created_at: datetime
     total_contratos: int = 0
     comprometido: float = 0

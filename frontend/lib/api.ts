@@ -36,6 +36,7 @@ export interface Resolucion {
   presupuesto: number
   indirect_percentage: number
   notas: string | null
+  activa: boolean
   created_at: string
   total_contratos?: number
   comprometido?: number
@@ -52,6 +53,12 @@ export const updateResolucion = (id: number, data: any) =>
   request<Resolucion>(`/api/v1/resoluciones/${id}`, { method: "PUT", body: JSON.stringify(data) })
 export const deleteResolucion = (id: number) =>
   request<void>(`/api/v1/resoluciones/${id}`, { method: "DELETE" })
+
+export const activarResolucion = (id: number) =>
+  request<Resolucion>(`/api/v1/resoluciones/${id}/activar`, { method: "POST" })
+
+export const cerrarResolucion = (id: number) =>
+  request<Resolucion>(`/api/v1/resoluciones/${id}/cerrar`, { method: "POST" })
 
 // ─── Contratos ───────────────────────────────────────────────────────────────
 

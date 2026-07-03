@@ -313,13 +313,15 @@ async def resolucion_analytics(
 
 @router.get("/dashboard-global")
 async def dashboard_global(db: AsyncSession = Depends(get_db)):
-    """KPIs globales multi-resolución."""
+    """KPIs de la resolución activa. Solo una resolución activa a la vez."""
     stats = await db.execute(text("""
         SELECT
-            COUNT(DISTINCT r.id) AS total_resoluciones,
+            r.id AS resolucion_activa_id,
+            r.codigo AS resolucion_activa_codigo,
+            r.presupuesto AS presupuesto_global,
+            r.indirect_percentage,
             COUNT(c.id) AS total_contratos,
             COALESCE(SUM(CASE WHEN c.estado <> 'ANULADO' THEN c.monto_total + c.monto_transporte ELSE 0 END), 0) AS total_comprometido,
-            COALESCE(SUM(r.presupuesto), 0) AS presupuesto_global,
             COUNT(CASE WHEN c.estado = 'ANULADO' THEN 1 END) AS total_anulados,
             COUNT(CASE WHEN c.estado = 'FINALIZADO' THEN 1 END) AS total_finalizados,
             COUNT(CASE WHEN c.estado = 'EN_PROCESO' THEN 1 END) AS en_proceso,
@@ -329,10 +331,31 @@ async def dashboard_global(db: AsyncSession = Depends(get_db)):
             COALESCE(SUM(c.cuotas_pagadas), 0) AS cuotas_pagadas_global
         FROM resoluciones r
         LEFT JOIN contratos c ON c.resolucion_id = r.id
+        WHERE r.activa = TRUE
+        GROUP BY r.id, r.codigo, r.presupuesto, r.indirect_percentage
     """))
     s = stats.fetchone()
+    if not s:
+        return {
+            "resolucion_activa_id": None,
+            "resolucion_activa_codigo": None,
+            "total_resoluciones": 0,
+            "total_contratos": 0,
+            "total_comprometido": 0,
+            "presupuesto_global": 0,
+            "saldo_global": 0,
+            "total_anulados": 0,
+            "total_finalizados": 0,
+            "en_proceso": 0,
+            "activos": 0,
+            "promedio_valor": 0,
+            "cuotas_totales_global": 0,
+            "cuotas_pagadas_global": 0,
+        }
     return {
-        "total_resoluciones": s.total_resoluciones,
+        "resolucion_activa_id": s.resolucion_activa_id,
+        "resolucion_activa_codigo": s.resolucion_activa_codigo,
+        "total_resoluciones": 1,
         "total_contratos": s.total_contratos,
         "total_comprometido": float(s.total_comprometido),
         "presupuesto_global": float(s.presupuesto_global),
@@ -344,4 +367,5 @@ async def dashboard_global(db: AsyncSession = Depends(get_db)):
         "promedio_valor": float(s.promedio_valor),
         "cuotas_totales_global": s.cuotas_totales_global,
         "cuotas_pagadas_global": s.cuotas_pagadas_global,
+        "indirect_percentage": float(s.indirect_percentage),
     }

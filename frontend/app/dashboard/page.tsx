@@ -130,12 +130,19 @@ export default function DashboardPage() {
           <Card className="hover:shadow-md transition-shadow">
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Resoluciones</p>
-                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                  <FileText className="w-4 h-4 text-blue-600" />
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Resolución Activa</p>
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-emerald-600" />
                 </div>
               </div>
-              <p className="text-2xl font-bold">{global.total_resoluciones}</p>
+              <p className="text-2xl font-bold truncate" title={global.resolucion_activa_codigo || "—"}>
+                {global.resolucion_activa_codigo || "Sin activa"}
+              </p>
+              {global.resolucion_activa_id && (
+                <Link href={`/dashboard/resoluciones/${global.resolucion_activa_id}`} className="text-xs text-emerald-600 hover:underline mt-1 block">
+                  Ver detalle →
+                </Link>
+              )}
             </CardContent>
           </Card>
 
@@ -249,7 +256,7 @@ export default function DashboardPage() {
             </Link>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            {resoluciones.map((r) => {
+            {[...resoluciones].sort((a, b) => (b.activa ? 1 : 0) - (a.activa ? 1 : 0)).map((r) => {
               const comprometido = r.comprometido || 0
               const saldo = r.saldo !== undefined ? r.saldo : r.presupuesto - comprometido
               const progreso = r.presupuesto > 0 ? (comprometido / r.presupuesto) * 100 : 0
@@ -261,13 +268,18 @@ export default function DashboardPage() {
                   href={`/dashboard/resoluciones/${r.id}`}
                   className="group block"
                 >
-                  <Card className="hover:shadow-lg hover:border-emerald-200 transition-all duration-200">
+                  <Card className={`hover:shadow-lg hover:border-emerald-200 transition-all duration-200 ${r.activa ? "ring-2 ring-emerald-400" : ""}`}>
                     <CardContent className="p-5">
                       <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h3 className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
-                            {r.codigo}
-                          </h3>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
+                              {r.codigo}
+                            </h3>
+                            {r.activa && (
+                              <Badge variant="success">Activa</Badge>
+                            )}
+                          </div>
                           {r.titulo && (
                             <p className="text-sm text-gray-500 line-clamp-1 mt-0.5">{r.titulo}</p>
                           )}

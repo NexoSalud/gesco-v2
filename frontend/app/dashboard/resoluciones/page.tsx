@@ -103,9 +103,14 @@ export default function ResolucionesPage() {
                   <CardContent className="p-5 flex flex-col h-full">
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors truncate">
-                          {r.codigo}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors truncate">
+                            {r.codigo}
+                          </h3>
+                          {r.activa && (
+                            <Badge variant="success" className="shrink-0">Activa</Badge>
+                          )}
+                        </div>
                         {r.titulo && (
                           <p className="text-sm text-gray-500 line-clamp-1 mt-0.5">{r.titulo}</p>
                         )}

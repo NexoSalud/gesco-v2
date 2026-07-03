@@ -2,7 +2,7 @@
 
 import datetime
 from datetime import date
-from sqlalchemy import String, Float, Text, Date, DateTime, Integer, func
+from sqlalchemy import String, Float, Text, Date, DateTime, Integer, Boolean, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -20,6 +20,7 @@ class Resolucion(Base):
     presupuesto: Mapped[float] = mapped_column(Float, default=0)
     indirect_percentage: Mapped[float] = mapped_column(Float, default=0, comment="% para costos indirectos")
     notas: Mapped[str | None] = mapped_column(Text)
+    activa: Mapped[bool] = mapped_column(Boolean, default=False, comment="Solo una puede estar activa a la vez")
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
 
     # Relationships

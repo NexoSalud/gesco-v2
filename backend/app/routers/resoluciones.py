@@ -49,7 +49,7 @@ async def listar_resoluciones(db: AsyncSession = Depends(get_db)):
             unidad_id=r.unidad_id, vigencia=r.vigencia,
             fuente=r.fuente, presupuesto=r.presupuesto,
             indirect_percentage=r.indirect_percentage, notas=r.notas,
-            created_at=r.created_at,
+            activa=r.activa, created_at=r.created_at,
             total_contratos=s.total_contratos,
             comprometido=float(s.comprometido),
             saldo=float(r.presupuesto - s.comprometido),
@@ -63,6 +63,18 @@ async def listar_resoluciones(db: AsyncSession = Depends(get_db)):
 
 @router.post("", response_model=ResolucionOut, status_code=201)
 async def crear_resolucion(data: ResolucionCreate, db: AsyncSession = Depends(get_db)):
+    # Si se marca como activa, desactivar las demás
+    if data.activa:
+        await db.execute(
+            text("UPDATE resoluciones SET activa = FALSE WHERE activa = TRUE")
+        )
+    # Si no se marca activa y no hay ninguna activa, activar esta automáticamente
+    if not data.activa:
+        existente = await db.execute(
+            text("SELECT COUNT(*) FROM resoluciones WHERE activa = TRUE")
+        )
+        if existente.scalar() == 0:
+            data.activa = True
     db_obj = Resolucion(**data.model_dump())
     db.add(db_obj)
     await db.commit()
@@ -100,10 +112,68 @@ async def actualizar_resolucion(
     if not r:
         raise HTTPException(404, "Resolución no encontrada")
     for field, value in data.model_dump(exclude_unset=True).items():
+        # Si se activa esta resolución, desactivar las demás
+        if field == "activa" and value is True:
+            await db.execute(
+                text("UPDATE resoluciones SET activa = FALSE WHERE activa = TRUE AND id != :rid"),
+                {"rid": resolucion_id},
+            )
         setattr(r, field, value)
     await db.commit()
     await db.refresh(r)
     # Recargar con relaciones para evitar MissingGreenlet
+    result = await db.execute(
+        select(Resolucion)
+        .options(selectinload(Resolucion.contratos).selectinload(Contrato.contratista_rel))
+        .where(Resolucion.id == r.id)
+    )
+    return result.scalar_one()
+
+
+@router.post("/{resolucion_id}/activar", response_model=ResolucionOut)
+async def activar_resolucion(
+    resolucion_id: int, db: AsyncSession = Depends(get_db)
+):
+    """Activa una resolución y desactiva las demás."""
+    result = await db.execute(
+        select(Resolucion).where(Resolucion.id == resolucion_id)
+    )
+    r = result.scalar_one_or_none()
+    if not r:
+        raise HTTPException(404, "Resolución no encontrada")
+    if r.activa:
+        raise HTTPException(400, "La resolución ya está activa")
+    # Desactivar todas las demás
+    await db.execute(
+        text("UPDATE resoluciones SET activa = FALSE WHERE activa = TRUE")
+    )
+    r.activa = True
+    await db.commit()
+    await db.refresh(r)
+    result = await db.execute(
+        select(Resolucion)
+        .options(selectinload(Resolucion.contratos).selectinload(Contrato.contratista_rel))
+        .where(Resolucion.id == r.id)
+    )
+    return result.scalar_one()
+
+
+@router.post("/{resolucion_id}/cerrar", response_model=ResolucionOut)
+async def cerrar_resolucion(
+    resolucion_id: int, db: AsyncSession = Depends(get_db)
+):
+    """Cierra (desactiva) una resolución."""
+    result = await db.execute(
+        select(Resolucion).where(Resolucion.id == resolucion_id)
+    )
+    r = result.scalar_one_or_none()
+    if not r:
+        raise HTTPException(404, "Resolución no encontrada")
+    if not r.activa:
+        raise HTTPException(400, "La resolución ya está cerrada")
+    r.activa = False
+    await db.commit()
+    await db.refresh(r)
     result = await db.execute(
         select(Resolucion)
         .options(selectinload(Resolucion.contratos).selectinload(Contrato.contratista_rel))
