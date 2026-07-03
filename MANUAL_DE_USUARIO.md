@@ -31,8 +31,12 @@ Verás el panel principal con el resumen de contratos, resoluciones y alertas de
 
 Cuando ingresas, lo primero que ves es el **Dashboard** con:
 
-- **Resumen general**: número de resoluciones, contratos, presupuesto
+- **Resumen general**: muestra los datos de la **resolución activa** (presupuesto, comprometido, saldo)
+- **Resolución activa**: tarjeta destacada con el código de la resolución vigente y link al detalle
+- **Gráfico de ejecución**: donut con el porcentaje de presupuesto ejecutado
 - **Alertas**: contratos próximos a vencer en los próximos 30 días
+
+> 📌 El dashboard solo muestra información de la **resolución activa**. Para ver datos de otra resolución, actívala desde su detalle.
 - **Navegación lateral**: menú para acceder a todas las secciones
 
 ### Menú lateral
@@ -77,6 +81,29 @@ En el detalle ves la lista de contratos asociados y KPIs como:
 - Total contratos, activos, anulados
 - Presupuesto asignado y comprometido
 - Saldo disponible
+
+### Resolución activa (una a la vez)
+
+Solo puede haber **una resolución activa** a la vez. El dashboard y los indicadores globales siempre muestran los datos de esa resolución.
+
+- Cuando creas una resolución y no hay ninguna activa, se activa automáticamente
+- Al activar una resolución, las demás se desactivan automáticamente
+- Las resoluciones cerradas quedan como histórico y puedes consultarlas en cualquier momento
+
+#### Activar / Cerrar una resolución
+
+Desde el **detalle de la resolución** verás un botón según su estado:
+
+| Botón | Cuándo aparece | Qué hace |
+|-------|----------------|----------|
+| 🟢 **Activar** (verde) | Cuando la resolución está cerrada | La activa y desactiva las demás. El dashboard empezará a mostrar sus datos |
+| 🟠 **Cerrar** (ámbar) | Cuando la resolución está activa | La desactiva. Deja de mostrarse en el dashboard. Puedes activar otra después |
+
+**Consejos:**
+- Cambia de resolución activa según la vigencia que estés gestionando
+- Al cerrar el año, puedes desactivar la resolución vieja y activar la nueva
+- Puedes tener muchas resoluciones cerradas como histórico, pero solo **una activa**
+- Las resoluciones cerradas siguen siendo accesibles desde el listado de resoluciones
 
 ### Editar / Eliminar
 
@@ -350,4 +377,4 @@ El progreso se calcula automáticamente: no necesitas hacer nada, solo registrar
 
 ---
 
-*Documento generado el 02 de julio de 2026 — Gesco V2 ESE Norte 3*
+*Documento actualizado el 03 de julio de 2026 — Gesco V2 ESE Norte 3*
