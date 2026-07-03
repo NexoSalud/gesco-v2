@@ -287,7 +287,7 @@ OBLIGACIONES ESPECÍFICAS:
 
 ### Registrar un pago
 
-![Modal de pago](manual_screenshots/pago_modal.png)
+![Modal de pago](manual_screenshots/pago_modal_nuevo.png)
 
 1. Ve al detalle del contrato
 2. Haz clic en **Pago**
