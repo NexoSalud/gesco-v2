@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import engine, Base
+from sqlalchemy import text
 from app.routers import (
     resoluciones_router,
     contratos_router,
@@ -30,10 +31,23 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup: create tables & seed data."""
+    """Startup: create tables, run migrations & seed data."""
     logger.info("Inicializando base de datos...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Migración: agregar columna activa a resoluciones si no existe
+        try:
+            await conn.execute(text("ALTER TABLE resoluciones ADD COLUMN activa BOOLEAN DEFAULT FALSE NOT NULL"))
+            logger.info("Migración OK: columna 'activa' agregada a resoluciones")
+            # Activar la resolución más reciente
+            await conn.execute(text("""
+                UPDATE resoluciones SET activa = TRUE WHERE id = (
+                    SELECT id FROM resoluciones ORDER BY created_at DESC LIMIT 1
+                )
+            """))
+            logger.info("Resolución más reciente marcada como activa")
+        except Exception:
+            logger.info("Columna 'activa' ya existe, saltando migración")
     await seed_database()
     logger.info("Gesco V2 listo!")
     yield
