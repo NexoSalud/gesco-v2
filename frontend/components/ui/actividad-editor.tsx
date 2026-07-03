@@ -3,8 +3,16 @@
 import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
+import * as TiptapTable from "@tiptap/extension-table"
+import * as TiptapTableRow from "@tiptap/extension-table-row"
+import * as TiptapTableCell from "@tiptap/extension-table-cell"
+import * as TiptapTableHeader from "@tiptap/extension-table-header"
 import { useState, useEffect } from "react"
-import { Bold, Italic, List, ListOrdered, Undo, Redo, Heading1, Heading2 } from "lucide-react"
+import {
+  Bold, Italic, List, ListOrdered, Undo, Redo,
+  Heading1, Heading2, Table as TableIcon, Trash2,
+  Minus, Plus,
+} from "lucide-react"
 
 interface ActividadEditorProps {
   value: string
@@ -25,6 +33,10 @@ export function ActividadEditor({ value, onChange, placeholder, minHeight = 120,
       Placeholder.configure({
         placeholder: placeholder || "Escribe la actividad...",
       }),
+      TiptapTable.Table.configure({ resizable: true }),
+      TiptapTableRow.TableRow,
+      TiptapTableCell.TableCell,
+      TiptapTableHeader.TableHeader,
     ],
     content: value || "",
     onUpdate: ({ editor }) => {
@@ -48,6 +60,10 @@ export function ActividadEditor({ value, onChange, placeholder, minHeight = 120,
       editor.commands.setContent(value || "")
     }
   }, [value, editor])
+
+  const addTable = () => {
+    editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+  }
 
   if (!mounted) {
     return (
@@ -97,6 +113,29 @@ export function ActividadEditor({ value, onChange, placeholder, minHeight = 120,
         <ToolBtn onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive("orderedList")} title="Lista numerada">
           <ListOrdered className="w-4 h-4" />
         </ToolBtn>
+        <span className="w-px h-5 bg-gray-200 mx-1" />
+        <ToolBtn onClick={addTable} active={editor.isActive("table")} title="Insertar tabla">
+          <TableIcon className="w-4 h-4" />
+        </ToolBtn>
+        {editor.isActive("table") && (
+          <>
+            <ToolBtn onClick={() => editor.chain().focus().addColumnAfter().run()} active={false} title="Columna después">
+              <Plus className="w-3.5 h-3.5" /><span className="text-[10px]">col</span>
+            </ToolBtn>
+            <ToolBtn onClick={() => editor.chain().focus().deleteColumn().run()} active={false} title="Eliminar columna">
+              <Minus className="w-3.5 h-3.5" /><span className="text-[10px]">col</span>
+            </ToolBtn>
+            <ToolBtn onClick={() => editor.chain().focus().addRowAfter().run()} active={false} title="Fila después">
+              <Plus className="w-3.5 h-3.5" /><span className="text-[10px]">row</span>
+            </ToolBtn>
+            <ToolBtn onClick={() => editor.chain().focus().deleteRow().run()} active={false} title="Eliminar fila">
+              <Minus className="w-3.5 h-3.5" /><span className="text-[10px]">row</span>
+            </ToolBtn>
+            <ToolBtn onClick={() => editor.chain().focus().deleteTable().run()} active={false} title="Eliminar tabla">
+              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+            </ToolBtn>
+          </>
+        )}
         <span className="flex-1" />
         <ToolBtn onClick={() => editor.chain().focus().undo().run()} active={false} title="Deshacer">
           <Undo className="w-4 h-4" />
