@@ -6,7 +6,7 @@ import {
   getContrato, getPagos, createPago, updatePago, deletePago,
   descargarDocx, descargarDocxById, descargarPdfSupervision,
   anularContrato, anularContratoById,
-  getActividadesContrato, getActividadesSupervision,
+  getActividadesContratoById, getActividadesSupervision,
   evaluarActividadesSupervision,
   type Contrato, type Pago,
   type ActividadContrato,
@@ -103,9 +103,9 @@ export default function ContratoDetailPage() {
     setFinalizarContrato(false)
     setShowPago(true)
     // Cargar actividades del contrato para evaluación
-    if (numero) {
+    if (contrato?.id) {
       setLoadingActividades(true)
-      getActividadesContrato(numero)
+      getActividadesContratoById(contrato.id)
         .then((acts) => {
           setActividadesEvaluacion(
             acts.map((a: ActividadContrato) => ({
@@ -118,7 +118,7 @@ export default function ContratoDetailPage() {
         .catch(() => setActividadesEvaluacion([]))
         .finally(() => setLoadingActividades(false))
     }
-  }, [numero])
+  }, [contrato?.id])
 
   const abrirEditarPago = useCallback((p: Pago) => {
     setPagoEditando(p)

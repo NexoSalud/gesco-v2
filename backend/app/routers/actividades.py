@@ -60,6 +60,19 @@ async def listar_actividades_contrato(numero_contrato: str, db: AsyncSession = D
     return acts
 
 
+@router.get("/contratos/id/{contrato_id}/actividades", response_model=list[ActividadContratoOut])
+async def listar_actividades_contrato_por_id(contrato_id: int, db: AsyncSession = Depends(get_db)):
+    """Busca actividades del contrato por ID numérico (evita problemas con slashes)."""
+    ctr = await db.execute(
+        select(Contrato).where(Contrato.id == contrato_id)
+    )
+    contrato = ctr.scalar_one_or_none()
+    if not contrato:
+        raise HTTPException(404, "Contrato no encontrado")
+    # Delegar en la función por número
+    return await listar_actividades_contrato(contrato.numero_contrato, db)
+
+
 @router.post("/contratos/{numero_contrato}/actividades", response_model=ActividadContratoOut, status_code=201)
 async def crear_actividad_contrato(
     numero_contrato: str, data: ActividadContratoCreate, db: AsyncSession = Depends(get_db)

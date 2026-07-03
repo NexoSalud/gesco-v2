@@ -294,6 +294,9 @@ export interface ActividadContrato {
 export const getActividadesContrato = (numero: string) =>
   request<ActividadContrato[]>(`/api/v1/contratos/${encodeURIComponent(numero)}/actividades`)
 
+export const getActividadesContratoById = (id: number) =>
+  request<ActividadContrato[]>(`/api/v1/contratos/id/${id}/actividades`)
+
 export const createActividadContrato = (numero: string, data: { descripcion: string; tipo?: string; orden?: number }) =>
   request<ActividadContrato>(`/api/v1/contratos/${encodeURIComponent(numero)}/actividades`, {
     method: "POST", body: JSON.stringify(data),
