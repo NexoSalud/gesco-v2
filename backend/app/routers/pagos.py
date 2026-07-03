@@ -82,8 +82,26 @@ async def crear_pago(data: PagoCreate, db: AsyncSession = Depends(get_db)):
         )
         db.add(planilla)
 
-    # Heredar actividades del PERFIL al pago (no del contrato)
-    if contrato.perfil:
+    # Heredar actividades del CONTRATO al pago
+    acts_contrato = await db.execute(
+        select(ActividadContrato)
+        .where(ActividadContrato.contrato_id == data.contrato_id)
+        .order_by(ActividadContrato.orden)
+    )
+    acts_contrato_list = acts_contrato.scalars().all()
+
+    if acts_contrato_list:
+        for ac in acts_contrato_list:
+            act_sup = ActividadSupervision(
+                pago_id=pago.id,
+                actividad_contrato_id=ac.id,
+                descripcion=ac.descripcion,
+                cumple=None,
+                orden=ac.orden,
+            )
+            db.add(act_sup)
+    elif contrato.perfil:
+        # Fallback: copiar del perfil directamente
         result_perfil = await db.execute(
             select(Perfil).where(Perfil.nombre == contrato.perfil)
         )
@@ -98,13 +116,13 @@ async def crear_pago(data: PagoCreate, db: AsyncSession = Depends(get_db)):
                 act_sup = ActividadSupervision(
                     pago_id=pago.id,
                     descripcion=ap.descripcion,
-                    cumple=True if ap.tipo == "GENERAL" else None,
+                    cumple=None,
                     orden=ap.orden,
                 )
                 db.add(act_sup)
 
-    if not contrato.perfil:
-        # Sin perfil, crear una genérica
+    if not acts_contrato_list and not contrato.perfil:
+        # Sin actividades ni perfil, crear una genérica
         act_sup = ActividadSupervision(
             pago_id=pago.id,
             descripcion="ACTIVIDADES DESARROLLADAS SEGÚN LO ESTABLECIDO EN EL CONTRATO.",

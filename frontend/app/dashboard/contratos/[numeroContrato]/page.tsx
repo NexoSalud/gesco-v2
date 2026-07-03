@@ -6,7 +6,10 @@ import {
   getContrato, getPagos, createPago, updatePago, deletePago,
   descargarDocx, descargarDocxById, descargarPdfSupervision,
   anularContrato, anularContratoById,
+  getActividadesContrato, getActividadesSupervision,
+  evaluarActividadesSupervision,
   type Contrato, type Pago,
+  type ActividadContrato,
 } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge, getEstadoBadgeVariant } from "@/components/ui/badge"
@@ -85,6 +88,8 @@ export default function ContratoDetailPage() {
   const [finalizarContrato, setFinalizarContrato] = useState(false)
   const [submittingPago, setSubmittingPago] = useState(false)
   const [pagoEditando, setPagoEditando] = useState<Pago | null>(null)
+  const [actividadesEvaluacion, setActividadesEvaluacion] = useState<{ id: number | null; descripcion: string; cumple: boolean | null }[]>([])
+  const [loadingActividades, setLoadingActividades] = useState(false)
   const [showDeletePago, setShowDeletePago] = useState<number | null>(null)
   const [showDocs, setShowDocs] = useState(false)
 
@@ -97,7 +102,23 @@ export default function ContratoDetailPage() {
     })
     setFinalizarContrato(false)
     setShowPago(true)
-  }, [])
+    // Cargar actividades del contrato para evaluación
+    if (numero) {
+      setLoadingActividades(true)
+      getActividadesContrato(numero)
+        .then((acts) => {
+          setActividadesEvaluacion(
+            acts.map((a: ActividadContrato) => ({
+              id: null,
+              descripcion: a.descripcion,
+              cumple: null,
+            }))
+          )
+        })
+        .catch(() => setActividadesEvaluacion([]))
+        .finally(() => setLoadingActividades(false))
+    }
+  }, [numero])
 
   const abrirEditarPago = useCallback((p: Pago) => {
     setPagoEditando(p)
@@ -113,6 +134,20 @@ export default function ContratoDetailPage() {
       act: p.act || "",
     })
     setShowPago(true)
+    // Cargar actividades de supervisión existentes
+    setLoadingActividades(true)
+    getActividadesSupervision(p.id)
+      .then((acts) => {
+        setActividadesEvaluacion(
+          acts.map((a: any) => ({
+            id: a.id,
+            descripcion: a.descripcion,
+            cumple: a.cumple,
+          }))
+        )
+      })
+      .catch(() => setActividadesEvaluacion([]))
+      .finally(() => setLoadingActividades(false))
   }, [])
 
   // Modal anular
@@ -154,18 +189,35 @@ export default function ContratoDetailPage() {
       const body = { ...pagoForm, planillas: pagoPlantillas }
       if (pagoEditando) {
         await updatePago(pagoEditando.id, body)
+        // Evaluar actividades existentes
+        const evaluaciones = actividadesEvaluacion
+          .filter(a => a.id !== null && a.cumple !== null)
+          .map(a => ({ id: a.id!, cumple: a.cumple }))
+        if (evaluaciones.length > 0) {
+          await evaluarActividadesSupervision(pagoEditando.id, evaluaciones)
+        }
         toast.success("Pago actualizado")
       } else {
-        await createPago({
+        const pagoCreado = await createPago({
           contrato_id: numero,
           ...body,
           finalizar_contrato: finalizarContrato,
-        })
+        }) as any
+        // Obtener actividades de supervisión creadas y evaluarlas
+        const actsSup = await getActividadesSupervision(pagoCreado.id)
+        const evaluaciones = actividadesEvaluacion.map(ae => {
+          const match = actsSup.find((as: any) => as.descripcion === ae.descripcion)
+          return { id: match?.id, cumple: ae.cumple }
+        }).filter(e => e.id !== null)
+        if (evaluaciones.length > 0) {
+          await evaluarActividadesSupervision(pagoCreado.id, evaluaciones as any)
+        }
         toast.success("Pago registrado exitosamente")
       }
       setShowPago(false)
       setPagoEditando(null)
       setFinalizarContrato(false)
+      setActividadesEvaluacion([])
       setPagoForm({
         tipo_informe: "PARCIAL", periodo_desde: "", periodo_hasta: "",
         fecha_firma: "", valor_a_pagar: 0,
@@ -553,6 +605,59 @@ export default function ContratoDetailPage() {
             </div>
 
             {/* Checkbox para finalizar contrato - si el pago cubre el saldo */}
+            {/* Evaluación de actividades */}
+            {loadingActividades ? (
+              <div className="col-span-2 py-4 text-center text-sm text-gray-400">
+                Cargando actividades...
+              </div>
+            ) : actividadesEvaluacion.length > 0 && (
+              <div className="col-span-2 space-y-3">
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Evaluación de Actividades
+                  </p>
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3">
+                  {actividadesEvaluacion.map((act, i) => (
+                    <div key={i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-700">{act.descripcion}</p>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setActividadesEvaluacion(prev =>
+                            prev.map((a, j) => j === i ? { ...a, cumple: true } : a)
+                          )}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
+                            act.cumple === true
+                              ? "bg-emerald-100 border-emerald-400 text-emerald-700"
+                              : "bg-white border-gray-200 text-gray-400 hover:border-emerald-300"
+                          }`}
+                        >
+                          Cumple
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActividadesEvaluacion(prev =>
+                            prev.map((a, j) => j === i ? { ...a, cumple: false } : a)
+                          )}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
+                            act.cumple === false
+                              ? "bg-red-100 border-red-400 text-red-700"
+                              : "bg-white border-gray-200 text-gray-400 hover:border-red-300"
+                          }`}
+                        >
+                          No Cumple
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {contrato && (() => {
               const totalPagado = pagos.reduce((s, p) => s + p.valor_a_pagar, 0)
               return (totalPagado + (pagoForm.valor_a_pagar || 0) >= contrato.monto_total)
