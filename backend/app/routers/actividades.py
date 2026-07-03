@@ -28,7 +28,36 @@ async def listar_actividades_contrato(numero_contrato: str, db: AsyncSession = D
         .where(ActividadContrato.contrato_id == numero_contrato)
         .order_by(ActividadContrato.orden)
     )
-    return result.scalars().all()
+    acts = result.scalars().all()
+    # Si no hay actividades en el contrato, buscar del perfil
+    if not acts:
+        ctr = await db.execute(
+            select(Contrato).where(Contrato.numero_contrato == numero_contrato)
+        )
+        contrato = ctr.scalar_one_or_none()
+        if contrato and contrato.perfil:
+            from app.models.perfil import Perfil, ActividadPerfil
+            result = await db.execute(
+                select(Perfil).where(Perfil.nombre == contrato.perfil)
+            )
+            perfil = result.scalar_one_or_none()
+            if perfil:
+                acts_perfil = await db.execute(
+                    select(ActividadPerfil)
+                    .where(ActividadPerfil.perfil_id == perfil.id)
+                    .order_by(ActividadPerfil.orden)
+                )
+                return [
+                    ActividadContratoOut(
+                        id=ap.id,
+                        contrato_id=numero_contrato,
+                        descripcion=ap.descripcion,
+                        tipo="GENERAL",
+                        orden=ap.orden,
+                    )
+                    for ap in acts_perfil.scalars().all()
+                ]
+    return acts
 
 
 @router.post("/contratos/{numero_contrato}/actividades", response_model=ActividadContratoOut, status_code=201)
