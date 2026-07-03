@@ -215,7 +215,7 @@ async def anular_contrato(
     # Auto-finalizar si todas las cuotas están pagadas
     if contrato.cuotas_pagadas >= contrato.cuotas_total and contrato.cuotas_total > 0:
         contrato.estado = "FINALIZADO"
-        await db.commit()
+    await db.commit()
     return {"message": "Contrato anulado", "motivo": motivo}
 
 
@@ -456,7 +456,7 @@ async def anular_contrato_por_id(
     contrato.fecha_anulacion = date.today()
     if contrato.cuotas_pagadas >= contrato.cuotas_total and contrato.cuotas_total > 0:
         contrato.estado = "FINALIZADO"
-        await db.commit()
+    await db.commit()
     return {"message": "Contrato anulado", "motivo": motivo}
 
 
