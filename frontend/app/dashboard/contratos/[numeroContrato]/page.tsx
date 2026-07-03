@@ -613,6 +613,15 @@ export default function ContratoDetailPage() {
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Evaluación de Actividades
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => setActividadesEvaluacion(prev =>
+                      prev.map(a => ({ ...a, cumple: true }))
+                    )}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors border border-emerald-300"
+                  >
+                    ✅ Marcar todas como Cumple
+                  </button>
                 </div>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {actividadesEvaluacion.map((act, i) => {
@@ -634,7 +643,7 @@ export default function ContratoDetailPage() {
                           {i + 1}
                         </span>
                         <div className="flex-1 min-w-0 pt-1">
-                          <p className="text-sm text-gray-700 leading-relaxed">{act.descripcion}</p>
+                          <p className="text-sm text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: act.descripcion }} />
                         </div>
                         <div className="flex gap-2 shrink-0 pt-0.5">
                           <button
