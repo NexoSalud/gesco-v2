@@ -90,6 +90,8 @@ export default function ContratoDetailPage() {
   const [pagoEditando, setPagoEditando] = useState<Pago | null>(null)
   const [actividadesEvaluacion, setActividadesEvaluacion] = useState<{ id: number | null; descripcion: string; cumple: boolean | null }[]>([])
   const [loadingActividades, setLoadingActividades] = useState(false)
+  const [plantillasList, setPlantillasList] = useState<any[]>([])
+  const [plantillaSeleccionada, setPlantillaSeleccionada] = useState("")
   const [showDeletePago, setShowDeletePago] = useState<number | null>(null)
   const [showDocs, setShowDocs] = useState(false)
 
@@ -118,6 +120,11 @@ export default function ContratoDetailPage() {
         .catch(() => setActividadesEvaluacion([]))
         .finally(() => setLoadingActividades(false))
     }
+    // Cargar plantillas
+    import("@/lib/api").then(({ getPlantillas }) =>
+      getPlantillas().then(setPlantillasList).catch(() => {})
+    )
+    setPlantillaSeleccionada("")
   }, [contrato?.id])
 
   const abrirEditarPago = useCallback((p: Pago) => {
@@ -148,6 +155,11 @@ export default function ContratoDetailPage() {
       })
       .catch(() => setActividadesEvaluacion([]))
       .finally(() => setLoadingActividades(false))
+    // Cargar plantillas
+    import("@/lib/api").then(({ getPlantillas }) =>
+      getPlantillas().then(setPlantillasList).catch(() => {})
+    )
+    setPlantillaSeleccionada("")
   }, [])
 
   // Modal anular
@@ -218,6 +230,8 @@ export default function ContratoDetailPage() {
       setPagoEditando(null)
       setFinalizarContrato(false)
       setActividadesEvaluacion([])
+      setPlantillasList([])
+      setPlantillaSeleccionada("")
       setPagoForm({
         tipo_informe: "PARCIAL", periodo_desde: "", periodo_hasta: "",
         fecha_firma: "", valor_a_pagar: 0,
@@ -594,44 +608,39 @@ export default function ContratoDetailPage() {
               </div>
 
               <div className="col-span-2 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Observaciones</label>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        const { getPlantillas } = await import("@/lib/api")
-                        const plants = await getPlantillas()
-                        if (!plants.length) {
-                          toast.error("No hay plantillas disponibles. Crea una desde Plantillas.")
-                          return
-                        }
-                        // Mostrar selector simple con confirm
-                        const titulos = plants.map((p: any) => p.titulo).join("\n")
-                        const idx = prompt(
-                          `Selecciona una plantilla (ingresa el número):\n\n${plants.map((p: any, i: number) => `${i + 1}. ${p.titulo}`).join("\n")}`
-                        )
-                        if (idx !== null) {
-                          const i = parseInt(idx) - 1
-                          if (i >= 0 && i < plants.length) {
-                            const current = pagoForm.observaciones || ""
-                            const sep = current ? "\n\n" : ""
-                            setPagoForm({ ...pagoForm, observaciones: current + sep + plants[i].contenido })
-                            toast.success(`Observación cargada desde: ${plants[i].titulo}`)
-                          }
-                        }
-                      } catch {
-                        toast.error("Error cargando plantillas")
-                      }
-                    }}
-                    className="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    Cargar plantilla
-                  </button>
-                </div>
+                <label className="text-sm font-medium">Observaciones</label>
                 <Textarea rows={4} value={pagoForm.observaciones}
                   onChange={e => setPagoForm({ ...pagoForm, observaciones: e.target.value })} />
+                <div className="flex gap-2">
+                  <select
+                    value={plantillaSeleccionada}
+                    onChange={e => setPlantillaSeleccionada(e.target.value)}
+                    className="flex-1 text-xs rounded-lg border border-gray-200 px-3 py-2 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="">— Cargar desde plantilla —</option>
+                    {plantillasList.map((p: any) => (
+                      <option key={p.id} value={p.id}>{p.titulo}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const plant = plantillasList.find((p: any) => String(p.id) === plantillaSeleccionada)
+                      if (!plant) {
+                        toast.error("Selecciona una plantilla")
+                        return
+                      }
+                      const current = pagoForm.observaciones || ""
+                      const sep = current ? "\n\n" : ""
+                      setPagoForm({ ...pagoForm, observaciones: current + sep + plant.contenido })
+                      toast.success(`Observación cargada: ${plant.titulo}`)
+                    }}
+                    className="shrink-0 px-3 py-2 text-xs font-medium rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors border border-emerald-300"
+                  >
+                    <FileText className="w-3.5 h-3.5 inline mr-1" />
+                    Cargar
+                  </button>
+                </div>
               </div>
             </div>
 
