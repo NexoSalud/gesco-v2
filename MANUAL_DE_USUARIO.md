@@ -239,7 +239,26 @@ Los **Perfiles** son los cargos profesionales (MEDICINA, ENFERMERIA, PSICOLOGIA,
 - **GENERAL** (azul): obligaciones generales del contratista
 - **ESPECÍFICA** (ámbar): obligaciones específicas según el perfil
 
-Al agregar una actividad, selecciona GENERAL o ESPECÍFICA. Puedes cambiar el tipo haciendo clic en el texto de la actividad y editándolo inline.
+### Editor WYSIWYG de actividades
+
+Al agregar o editar una actividad, verás un **editor de texto enriquecido** con las siguientes herramientas:
+
+| Botón | Función |
+|-------|---------|
+| **B** | Negrita |
+| **I** | Cursiva |
+| **H1** / **H2** | Títulos y subtítulos |
+| **≡** / **1.** | Listas con viñetas y numeradas |
+| **⊞** | Insertar tabla (3×3 con encabezado) |
+| **↩ / ↪** | Deshacer / Rehacer |
+
+Cuando insertas una tabla y haces clic dentro de ella, aparecen botones contextuales:
+
+| Botón | Función |
+|-------|---------|
+| +col / -col | Agregar o eliminar columna |
+| +row / -row | Agregar o eliminar fila |
+| 🗑️ | Eliminar tabla completa |
 
 ### Crear un nuevo perfil
 
@@ -276,10 +295,23 @@ OBLIGACIONES ESPECÍFICAS:
    - **Tipo de Informe**: PARCIAL o FINAL
    - **Período Desde / Hasta**: fechas del período evaluado
    - **Valor a Pagar**: monto del pago
-   - **Actividades / Observaciones**: notas relevantes
-4. **Evaluar actividades**: cada actividad del perfil aparece con opción **Cumple** ✅ / **No Cumple** ❌
-5. Si el pago cubre el saldo total, aparecerá la opción **"Finalizar contrato al registrar este pago"**
-6. Haz clic en **Registrar Pago**
+   - **Observaciones**: notas relevantes (puedes cargar desde una plantilla, ver abajo)
+
+4. **Evaluación de Actividades**: cada actividad del contrato aparece como una **tarjeta** con:
+   - Número de actividad en un círculo con color
+   - Descripción de la actividad (con formato)
+   - Botones **✅ Cumple** y **❌ No Cumple**
+   - La tarjeta cambia de color según la selección: verde si cumple, rojo si no cumple
+
+   > Puedes hacer clic en **✅ Marcar todas como Cumple** para aprobar todas las actividades de una vez.
+
+5. **Cargar plantilla en observaciones**: debajo del campo de observaciones hay un selector desplegable que lista todas las plantillas disponibles. Selecciona una y haz clic en **Cargar** para insertar su contenido.
+
+6. **Planillas de Seguridad Social**: agrega una o más planillas con los datos de EPS, ARL, AFP y CCF.
+
+7. Si el pago cubre el saldo total, aparecerá la opción **"Finalizar contrato al registrar este pago"**.
+
+8. Haz clic en **Registrar Pago**. Las evaluaciones de actividades se guardan automáticamente.
 
 ### Editar un pago
 
@@ -303,7 +335,41 @@ En la tabla de pagos, haz clic en el ícono de **impresora** 🖨️ para descar
 
 ---
 
-## 9. Importar desde Excel
+## 9. Plantillas de Observación
+
+Las **Plantillas** son textos predefinidos que se pueden cargar en el campo de **Observaciones** al registrar un pago. Ahorran tiempo al evitar escribir evaluaciones repetitivas.
+
+### Lista de plantillas
+
+![Lista de plantillas](manual_screenshots/plantillas.png)
+
+Ve a **Plantillas** en el menú lateral. Verás tarjetas con el título, una vista previa del contenido y la fecha de creación.
+
+### Crear una plantilla
+
+1. Haz clic en **Nueva Plantilla**
+2. Completa:
+   - **Título**: nombre descriptivo (ej. "Cumplimiento total")
+   - **Contenido**: texto de la observación
+3. Haz clic en **Crear Plantilla**
+
+### Editar / Eliminar
+
+- Haz clic en el ícono de **lápiz** ✏️ en una tarjeta para editar
+- Haz clic en **Vista** para ver el contenido completo en un modal
+- Haz clic en el ícono de **basurero** 🗑️ para eliminar (requiere confirmación)
+
+### Usar plantilla en un pago
+
+1. Ve al detalle del contrato y haz clic en **Pago**
+2. En el campo **Observaciones**, despliega el selector "— Cargar desde plantilla —"
+3. Selecciona la plantilla deseada
+4. Haz clic en **Cargar**
+5. El contenido de la plantilla se agrega al texto existente
+
+---
+
+## 10. Importar desde Excel
 
 ![Página de importación](manual_screenshots/importar.png)
 
@@ -340,7 +406,7 @@ El Excel debe tener los siguientes encabezados (columnas):
 
 ---
 
-## 10. Progreso de pago
+## 11. Progreso de pago
 
 Cada contrato muestra una tarjeta de **Progreso de Pago** con:
 
@@ -352,18 +418,20 @@ El progreso se calcula automáticamente: no necesitas hacer nada, solo registrar
 
 ---
 
-## 11. Consejos útiles
+## 12. Consejos útiles
 
 - ✅ **Revisa el perfil** del contratista antes de importar — las actividades del perfil determinan lo que se evalúa en las supervisiones
 - ✅ **Contratos con slashes**: los números como "022 del 02/02/2026" se manejan solos
 - ✅ **Para ver contratos de un contratista**: ve a Contratistas, busca, y en su detalle verás todos sus contratos
 - ✅ **Actividades en PDF**: al descargar el contrato DOCX, las actividades aparecen numeradas con su tipo (GENERAL/ESPECÍFICA)
-- ✅ **Marcar actividades**: en el pago, cada actividad tiene su checkbox Cumple/No Cumple
+- ✅ **Evaluar actividades**: el modal de pago muestra cada actividad con botones Cumple/No Cumple. Usa **"Marcar todas como Cumple"** para agilizar
+- ✅ **Tablas en actividades**: usa el editor WYSIWYG para crear tablas dentro de las actividades (ej. grupos etarios por atención)
+- ✅ **Plantillas de observaciones**: crea textos predefinidos en Plantillas y cárgalos en el campo de observaciones del pago
 - ✅ **Finalizar contrato**: marca la casilla al hacer el último pago
 
 ---
 
-## 12. Solución de problemas comunes
+## 13. Solución de problemas comunes
 
 | Problema | Causa posible | Solución |
 |----------|--------------|----------|
@@ -377,4 +445,4 @@ El progreso se calcula automáticamente: no necesitas hacer nada, solo registrar
 
 ---
 
-*Documento actualizado el 03 de julio de 2026 — Gesco V2 ESE Norte 3*
+*Documento actualizado el 03 de julio de 2026 (v2.1) — Gesco V2 ESE Norte 3*
