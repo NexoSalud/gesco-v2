@@ -592,11 +592,7 @@ export default function ContratoDetailPage() {
                 <Input value={pagoForm.folios}
                   onChange={e => setPagoForm({ ...pagoForm, folios: e.target.value })} />
               </div>
-              <div className="col-span-2 space-y-1.5">
-                <label className="text-sm font-medium">Actividades</label>
-                <Textarea rows={2} value={pagoForm.actividades}
-                  onChange={e => setPagoForm({ ...pagoForm, actividades: e.target.value })} />
-              </div>
+
               <div className="col-span-2 space-y-1.5">
                 <label className="text-sm font-medium">Observaciones</label>
                 <Textarea rows={2} value={pagoForm.observaciones}
@@ -618,42 +614,60 @@ export default function ContratoDetailPage() {
                     Evaluación de Actividades
                   </p>
                 </div>
-                <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3">
-                  {actividadesEvaluacion.map((act, i) => (
-                    <div key={i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-700">{act.descripcion}</p>
-                      </div>
-                      <div className="flex gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setActividadesEvaluacion(prev =>
-                            prev.map((a, j) => j === i ? { ...a, cumple: true } : a)
-                          )}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
-                            act.cumple === true
-                              ? "bg-emerald-100 border-emerald-400 text-emerald-700"
-                              : "bg-white border-gray-200 text-gray-400 hover:border-emerald-300"
-                          }`}
-                        >
-                          Cumple
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActividadesEvaluacion(prev =>
-                            prev.map((a, j) => j === i ? { ...a, cumple: false } : a)
-                          )}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
-                            act.cumple === false
-                              ? "bg-red-100 border-red-400 text-red-700"
-                              : "bg-white border-gray-200 text-gray-400 hover:border-red-300"
-                          }`}
-                        >
-                          No Cumple
-                        </button>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {actividadesEvaluacion.map((act, i) => {
+                    const numColor = act.cumple === true
+                      ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                      : act.cumple === false
+                      ? 'bg-red-100 text-red-700 border-red-300'
+                      : 'bg-gray-100 text-gray-500 border-gray-300'
+                    return (
+                    <div key={i} className={`rounded-xl border-2 p-4 transition-all ${
+                      act.cumple === true
+                        ? 'border-emerald-300 bg-emerald-50/30'
+                        : act.cumple === false
+                        ? 'border-red-300 bg-red-50/30'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}>
+                      <div className="flex items-start gap-3">
+                        <span className={`shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-bold ${numColor}`}>
+                          {i + 1}
+                        </span>
+                        <div className="flex-1 min-w-0 pt-1">
+                          <p className="text-sm text-gray-700 leading-relaxed">{act.descripcion}</p>
+                        </div>
+                        <div className="flex gap-2 shrink-0 pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setActividadesEvaluacion(prev =>
+                              prev.map((a, j) => j === i ? { ...a, cumple: true } : a)
+                            )}
+                            className={`px-4 py-2 text-sm font-semibold rounded-xl border-2 transition-all ${
+                              act.cumple === true
+                                ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-200'
+                                : 'bg-white border-gray-200 text-gray-400 hover:border-emerald-300 hover:text-emerald-600'
+                            }`}
+                          >
+                            ✅ Cumple
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActividadesEvaluacion(prev =>
+                              prev.map((a, j) => j === i ? { ...a, cumple: false } : a)
+                            )}
+                            className={`px-4 py-2 text-sm font-semibold rounded-xl border-2 transition-all ${
+                              act.cumple === false
+                                ? 'bg-red-500 border-red-500 text-white shadow-md shadow-red-200'
+                                : 'bg-white border-gray-200 text-gray-400 hover:border-red-300 hover:text-red-600'
+                            }`}
+                          >
+                            ❌ No Cumple
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               </div>
             )}
