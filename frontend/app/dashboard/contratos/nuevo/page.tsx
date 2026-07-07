@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { getPerfiles, buscarContratistas, createPago } from "@/lib/api"
+import { getPerfiles, getResoluciones, buscarContratistas, createPago } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,7 @@ const fmt = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP",
 export default function NuevoContratoPage() {
   const router = useRouter()
   const [perfiles, setPerfiles] = useState<any[]>([])
+  const [resoluciones, setResoluciones] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
@@ -31,7 +32,7 @@ export default function NuevoContratoPage() {
   // Form
   const [form, setForm] = useState({
     numero_contrato: "",
-    resolucion: "",
+    resolucion_id: 0,
     perfil: "",
     monto_total: 0,
     fecha_inicio: "",
@@ -49,7 +50,13 @@ export default function NuevoContratoPage() {
   })
 
   useEffect(() => {
-    getPerfiles().then(setPerfiles).catch(() => {}).finally(() => setLoading(false))
+    Promise.all([
+      getPerfiles(),
+      getResoluciones(),
+    ]).then(([p, r]) => {
+      setPerfiles(p)
+      setResoluciones(r || [])
+    }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   // Búsqueda de contratista (debounced)
@@ -93,8 +100,15 @@ export default function NuevoContratoPage() {
     }
     setSubmitting(true)
     try {
+      if (!form.resolucion_id) {
+        toast.error("Debes seleccionar una resolución")
+        setSubmitting(false)
+        return
+      }
+
       const body: any = {
         numero_contrato: form.numero_contrato.trim(),
+        resolucion_id: form.resolucion_id,
         perfil: form.perfil,
         estado: "ACTIVO",
         monto_total: form.monto_total || 0,
@@ -217,8 +231,15 @@ export default function NuevoContratoPage() {
               <Input value={form.numero_contrato} onChange={e => setForm({ ...form, numero_contrato: e.target.value })} placeholder="Ej: 001 del 01/01/2026" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-500">Resolución</label>
-              <Input value={form.resolucion} onChange={e => setForm({ ...form, resolucion: e.target.value })} placeholder="Ej: 1010" />
+              <label className="text-xs font-medium text-gray-500">Resolución*</label>
+              <Select value={form.resolucion_id} onChange={e => setForm({ ...form, resolucion_id: parseInt(e.target.value) || 0 })}>
+                <option value={0}>Seleccionar...</option>
+                {resoluciones.map((r: any) => (
+                  <option key={r.id} value={r.id}>
+                    {r.codigo}{r.vigencia ? ` — ${r.vigencia}` : ""}{r.activa ? " (ACTIVA)" : ""}
+                  </option>
+                ))}
+              </Select>
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-500">Perfil*</label>
