@@ -160,8 +160,17 @@ async def crear_contrato(data: ContratoCreate, db: AsyncSession = Depends(get_db
     )
     db.add(contrato)
     await db.commit()
-    await db.refresh(contrato)
-    return contrato
+
+    # Recargar con relaciones para serialización correcta
+    result = await db.execute(
+        select(Contrato)
+        .options(
+            selectinload(Contrato.contratista_rel),
+            selectinload(Contrato.pagos),
+        )
+        .where(Contrato.id == contrato.id)
+    )
+    return result.scalar_one()
 
 
 @router.get("/{numero_contrato}", response_model=ContratoOut)
