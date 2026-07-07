@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import {
   getResolucion, getContratos, getPerfilesPredefinidos,
-  createContrato, descargarDocx, descargarExcelResolucion,
+  createContrato, buscarContratistas, descargarDocx, descargarExcelResolucion,
   descargarPdfsMasivos, registrarCuota, anularContrato,
   getResolucionAnalytics, deleteResolucion,
   activarResolucion, cerrarResolucion,
@@ -41,6 +41,7 @@ import {
   ArrowLeft, Plus, FileDown, FileText, AlertTriangle,
   Wallet, TrendingUp, DollarSign, Users, Download,
   ChevronLeft, X, Search, Filter, Trash2, Power, PowerOff,
+  Loader2, User,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -63,6 +64,14 @@ export default function ResolucionDetailPage() {
 
   // Modal
   const [showModal, setShowModal] = useState(false)
+
+  // Buscador contratista (modal)
+  const [busquedaCont, setBusquedaCont] = useState("")
+  const [resultadosCont, setResultadosCont] = useState<any[]>([])
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [contratistaSel, setContratistaSel] = useState<any | null>(null)
+  const [buscando, setBuscando] = useState(false)
+
   // Delete dialog
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -93,6 +102,49 @@ export default function ResolucionDetailPage() {
     costo_tipo: "DIRECTO",
   })
   const [submitting, setSubmitting] = useState(false)
+
+  // Búsqueda de contratista (debounced)
+  useEffect(() => {
+    if (busquedaCont.length < 3) { setResultadosCont([]); return }
+    setBuscando(true)
+    const t = setTimeout(async () => {
+      try {
+        const res = await buscarContratistas(busquedaCont)
+        setResultadosCont(res || [])
+        setShowDropdown(true)
+      } catch { setResultadosCont([]) }
+      finally { setBuscando(false) }
+    }, 400)
+    return () => clearTimeout(t)
+  }, [busquedaCont])
+
+  const seleccionarContratista = (c: any) => {
+    setContratistaSel(c)
+    setNewForm(prev => ({
+      ...prev,
+      contratista_nombre: c.nombre || "",
+      contratista_identificacion: c.identificacion || "",
+      contratista_expedida_en: c.expedida_en || "",
+      contratista_telefono: c.telefono || "",
+      contratista_direccion: c.direccion || "",
+      contratista_correo: c.correo || "",
+    }))
+    setShowDropdown(false)
+    setBusquedaCont("")
+  }
+
+  const limpiarContratista = () => {
+    setContratistaSel(null)
+    setNewForm(prev => ({
+      ...prev,
+      contratista_nombre: "",
+      contratista_identificacion: "",
+      contratista_expedida_en: "",
+      contratista_telefono: "",
+      contratista_direccion: "",
+      contratista_correo: "",
+    }))
+  }
 
   const handleDelete = async () => {
     setDeleting(true)
@@ -141,9 +193,27 @@ export default function ResolucionDetailPage() {
 
   const handleCreateContract = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!newForm.numero_contrato.trim()) {
+      toast.error("El número de contrato es obligatorio")
+      return
+    }
     setSubmitting(true)
     try {
-      await createContrato({ ...newForm, resolucion_id: id })
+      const body: any = { ...newForm, resolucion_id: id }
+      if (contratistaSel) {
+        body.contratista_id = contratistaSel.id
+        delete body.contratista_nombre
+        delete body.contratista_identificacion
+        delete body.contratista_expedida_en
+        delete body.contratista_telefono
+        delete body.contratista_direccion
+        delete body.contratista_correo
+      } else if (!body.contratista_identificacion) {
+        toast.error("Debes seleccionar o crear un contratista")
+        setSubmitting(false)
+        return
+      }
+      await createContrato(body)
       setShowModal(false)
       toast.success("Contrato creado exitosamente")
       loadData()
@@ -165,6 +235,9 @@ export default function ResolucionDetailPage() {
       cargo_supervisor: "", unidad_atencion: "", cuotas: "1", cuotas_total: 1,
       lugar_ejecucion: "", costo_tipo: "DIRECTO",
     })
+    setContratistaSel(null)
+    setBusquedaCont("")
+    setResultadosCont([])
   }
 
   const refreshContracts = () => {
@@ -807,40 +880,80 @@ export default function ResolucionDetailPage() {
             </div>
 
             <Separator />
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Datos del Contratista</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider"><User className="w-3.5 h-3.5 inline mr-1" />Contratista</p>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2 space-y-1.5">
-                <label className="text-sm font-medium">Nombre</label>
-                <Input value={newForm.contratista_nombre}
-                  onChange={e => setNewForm({ ...newForm, contratista_nombre: e.target.value })} />
+            {contratistaSel ? (
+              <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                <div>
+                  <p className="font-semibold text-emerald-800">{contratistaSel.nombre}</p>
+                  <p className="text-sm text-emerald-600">CC: {contratistaSel.identificacion}</p>
+                </div>
+                <Button type="button" variant="ghost" size="sm" onClick={limpiarContratista}>Cambiar</Button>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Cédula</label>
-                <Input value={newForm.contratista_identificacion}
-                  onChange={e => setNewForm({ ...newForm, contratista_identificacion: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Expedida en</label>
-                <Input value={newForm.contratista_expedida_en}
-                  onChange={e => setNewForm({ ...newForm, contratista_expedida_en: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Teléfono</label>
-                <Input value={newForm.contratista_telefono}
-                  onChange={e => setNewForm({ ...newForm, contratista_telefono: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Correo</label>
-                <Input type="email" value={newForm.contratista_correo}
-                  onChange={e => setNewForm({ ...newForm, contratista_correo: e.target.value })} />
-              </div>
-              <div className="col-span-2 space-y-1.5">
-                <label className="text-sm font-medium">Dirección</label>
-                <Input value={newForm.contratista_direccion}
-                  onChange={e => setNewForm({ ...newForm, contratista_direccion: e.target.value })} />
-              </div>
-            </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <label className="text-sm font-medium">Buscar contratista existente</label>
+                  <div className="flex gap-2 mt-1">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input className="pl-9" placeholder="Escriba CC/NIT o nombre..." value={busquedaCont}
+                        onChange={e => setBusquedaCont(e.target.value)} />
+                    </div>
+                    {buscando && <Loader2 className="w-5 h-5 animate-spin mt-2" />}
+                  </div>
+                  {showDropdown && resultadosCont.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {resultadosCont.map((c: any) => (
+                        <div key={c.id} className="p-2 hover:bg-gray-50 cursor-pointer border-b"
+                          onClick={() => seleccionarContratista(c)}>
+                          <p className="font-medium text-sm">{c.nombre}</p>
+                          <p className="text-xs text-gray-400">{c.identificacion} - {c.telefono || ""}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-xs text-gray-400 text-center">— O crea uno nuevo —</div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2 space-y-1.5">
+                    <label className="text-sm font-medium">Nombre*</label>
+                    <Input value={newForm.contratista_nombre}
+                      onChange={e => setNewForm({ ...newForm, contratista_nombre: e.target.value })}
+                      placeholder="Nombre completo" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">CC/NIT*</label>
+                    <Input value={newForm.contratista_identificacion}
+                      onChange={e => setNewForm({ ...newForm, contratista_identificacion: e.target.value })}
+                      placeholder="Identificación" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Expedida en</label>
+                    <Input value={newForm.contratista_expedida_en}
+                      onChange={e => setNewForm({ ...newForm, contratista_expedida_en: e.target.value })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Teléfono</label>
+                    <Input value={newForm.contratista_telefono}
+                      onChange={e => setNewForm({ ...newForm, contratista_telefono: e.target.value })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Correo</label>
+                    <Input type="email" value={newForm.contratista_correo}
+                      onChange={e => setNewForm({ ...newForm, contratista_correo: e.target.value })}
+                      placeholder="correo@ejemplo.com" />
+                  </div>
+                  <div className="col-span-2 space-y-1.5">
+                    <label className="text-sm font-medium">Dirección</label>
+                    <Input value={newForm.contratista_direccion}
+                      onChange={e => setNewForm({ ...newForm, contratista_direccion: e.target.value })} />
+                  </div>
+                </div>
+              </>
+            )}
 
             <Separator />
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Datos del Contrato</p>
@@ -878,6 +991,11 @@ export default function ResolucionDetailPage() {
                 <label className="text-sm font-medium">Cuotas</label>
                 <Input placeholder="Ej: 2 o DOS (2)" value={newForm.cuotas}
                   onChange={e => setNewForm({ ...newForm, cuotas: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Fecha Contrato</label>
+                <Input type="date" value={newForm.fecha_contrato}
+                  onChange={e => setNewForm({ ...newForm, fecha_contrato: e.target.value })} />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Fecha Inicio</label>

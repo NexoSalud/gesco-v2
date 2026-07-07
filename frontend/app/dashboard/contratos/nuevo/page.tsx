@@ -1,19 +1,19 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { getPerfiles, getResoluciones, buscarContratistas, createPago } from "@/lib/api"
+import {
+  getPerfiles, getResoluciones, buscarContratistas,
+  createContrato, type Contrato,
+} from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
 import { User, Search, ChevronLeft, Plus, Loader2 } from "lucide-react"
 import { toast } from "sonner"
-
-const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
-const fmt = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 })
 
 export default function NuevoContratoPage() {
   const router = useRouter()
@@ -34,11 +34,20 @@ export default function NuevoContratoPage() {
     numero_contrato: "",
     resolucion_id: 0,
     perfil: "",
+    objeto: "",
     monto_total: 0,
+    monto_transporte: 0,
+    no_cdp: "",
+    cuotas: "1",
     fecha_inicio: "",
     fecha_fin: "",
+    fecha_contrato: "",
     supervisor: "",
-    objeto: "",
+    cedula_supervisor: "",
+    cargo_supervisor: "",
+    unidad_atencion: "",
+    lugar_ejecucion: "",
+    costo_tipo: "DIRECTO",
   })
 
   const [contratistaForm, setContratistaForm] = useState({
@@ -47,6 +56,7 @@ export default function NuevoContratoPage() {
     expedida_en: "",
     telefono: "",
     direccion: "",
+    correo: "",
   })
 
   useEffect(() => {
@@ -82,6 +92,7 @@ export default function NuevoContratoPage() {
       expedida_en: c.expedida_en || "",
       telefono: c.telefono || "",
       direccion: c.direccion || "",
+      correo: c.correo || "",
     })
     setShowDropdown(false)
     setBusquedaCont("")
@@ -89,33 +100,41 @@ export default function NuevoContratoPage() {
 
   const limpiarContratista = () => {
     setContratistaSel(null)
-    setContratistaForm({ nombre: "", identificacion: "", expedida_en: "", telefono: "", direccion: "" })
+    setContratistaForm({ nombre: "", identificacion: "", expedida_en: "", telefono: "", direccion: "", correo: "" })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.numero_contrato.trim() || !form.perfil) {
-      toast.error("Completa los campos requeridos")
+    if (!form.numero_contrato.trim()) {
+      toast.error("El número de contrato es obligatorio")
+      return
+    }
+    if (!form.resolucion_id) {
+      toast.error("Debes seleccionar una resolución")
       return
     }
     setSubmitting(true)
     try {
-      if (!form.resolucion_id) {
-        toast.error("Debes seleccionar una resolución")
-        setSubmitting(false)
-        return
-      }
-
       const body: any = {
         numero_contrato: form.numero_contrato.trim(),
         resolucion_id: form.resolucion_id,
-        perfil: form.perfil,
+        perfil: form.perfil || null,
         estado: "ACTIVO",
+        objeto: form.objeto || null,
         monto_total: form.monto_total || 0,
-        supervisor: form.supervisor || "",
-        objeto: form.objeto || "",
+        monto_transporte: form.monto_transporte || 0,
+        no_cdp: form.no_cdp || null,
+        cuotas: form.cuotas || "1",
+        cuotas_total: 1,
         fecha_inicio: form.fecha_inicio || null,
         fecha_fin: form.fecha_fin || null,
+        fecha_contrato: form.fecha_contrato || null,
+        supervisor: form.supervisor || null,
+        cedula_supervisor: form.cedula_supervisor || null,
+        cargo_supervisor: form.cargo_supervisor || null,
+        unidad_atencion: form.unidad_atencion || null,
+        lugar_ejecucion: form.lugar_ejecucion || null,
+        costo_tipo: form.costo_tipo || "DIRECTO",
       }
 
       if (contratistaSel) {
@@ -126,19 +145,14 @@ export default function NuevoContratoPage() {
         body.contratista_expedida_en = contratistaForm.expedida_en
         body.contratista_telefono = contratistaForm.telefono
         body.contratista_direccion = contratistaForm.direccion
+        body.contratista_correo = contratistaForm.correo
       } else {
         toast.error("Debes seleccionar o crear un contratista")
         setSubmitting(false)
         return
       }
 
-      const res = await fetch(`${API}/api/v1/contratos`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-      if (!res.ok) throw new Error((await res.text()).slice(0, 200))
-      const contrato = await res.json()
+      const contrato = await createContrato(body)
       toast.success("Contrato creado exitosamente")
       router.push(`/dashboard/contratos/${encodeURIComponent(contrato.numero_contrato)}`)
     } catch (e: any) {
@@ -153,7 +167,7 @@ export default function NuevoContratoPage() {
       </button>
       <h1 className="text-2xl font-bold text-gray-900">Nuevo Contrato</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl">
+      <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
         {/* ─── CONTRATISTA ─── */}
         <Card>
           <CardHeader><CardTitle className="text-base"><User className="w-4 h-4 inline mr-2" />Contratista</CardTitle></CardHeader>
@@ -212,6 +226,11 @@ export default function NuevoContratoPage() {
                     <label className="text-xs font-medium text-gray-500">Teléfono</label>
                     <Input value={contratistaForm.telefono} onChange={e => setContratistaForm({ ...contratistaForm, telefono: e.target.value })} />
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-500">Correo</label>
+                    <Input type="email" value={contratistaForm.correo} onChange={e => setContratistaForm({ ...contratistaForm, correo: e.target.value })}
+                      placeholder="correo@ejemplo.com" />
+                  </div>
                   <div className="col-span-2 space-y-1">
                     <label className="text-xs font-medium text-gray-500">Dirección</label>
                     <Input value={contratistaForm.direccion} onChange={e => setContratistaForm({ ...contratistaForm, direccion: e.target.value })} />
@@ -242,19 +261,49 @@ export default function NuevoContratoPage() {
               </Select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-500">Perfil*</label>
+              <label className="text-xs font-medium text-gray-500">Perfil</label>
               <Select value={form.perfil} onChange={e => setForm({ ...form, perfil: e.target.value })}>
                 <option value="">Seleccionar...</option>
                 {perfiles.map((p: any) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
               </Select>
             </div>
+            <div className="col-span-2 space-y-1">
+              <label className="text-xs font-medium text-gray-500">Objeto del Contrato</label>
+              <Textarea rows={3} value={form.objeto} onChange={e => setForm({ ...form, objeto: e.target.value })} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ─── DATOS ECONÓMICOS ─── */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">Datos Económicos</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-500">Valor Total</label>
               <Input type="number" value={form.monto_total} onChange={e => setForm({ ...form, monto_total: parseFloat(e.target.value) || 0 })} />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-500">Supervisor</label>
-              <Input value={form.supervisor} onChange={e => setForm({ ...form, supervisor: e.target.value })} />
+              <label className="text-xs font-medium text-gray-500">Valor Transporte</label>
+              <Input type="number" value={form.monto_transporte} onChange={e => setForm({ ...form, monto_transporte: parseFloat(e.target.value) || 0 })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">No. CDP</label>
+              <Input value={form.no_cdp} onChange={e => setForm({ ...form, no_cdp: e.target.value })} placeholder="Ej: 046" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Costo</label>
+              <Select value={form.costo_tipo} onChange={e => setForm({ ...form, costo_tipo: e.target.value })}>
+                <option value="DIRECTO">DIRECTO</option>
+                <option value="INDIRECTO">INDIRECTO</option>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Cuotas</label>
+              <Input placeholder="Ej: 2 o DOS (2)" value={form.cuotas} onChange={e => setForm({ ...form, cuotas: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Fecha Contrato</label>
+              <Input type="date" value={form.fecha_contrato} onChange={e => setForm({ ...form, fecha_contrato: e.target.value })} />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-500">Fecha Inicio</label>
@@ -264,9 +313,32 @@ export default function NuevoContratoPage() {
               <label className="text-xs font-medium text-gray-500">Fecha Fin</label>
               <Input type="date" value={form.fecha_fin} onChange={e => setForm({ ...form, fecha_fin: e.target.value })} />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* ─── SUPERVISIÓN ─── */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">Supervisión</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Supervisor</label>
+              <Input value={form.supervisor} onChange={e => setForm({ ...form, supervisor: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Cédula Supervisor</label>
+              <Input value={form.cedula_supervisor} onChange={e => setForm({ ...form, cedula_supervisor: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Cargo Supervisor</label>
+              <Input value={form.cargo_supervisor} onChange={e => setForm({ ...form, cargo_supervisor: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Unidad Atención</label>
+              <Input value={form.unidad_atencion} onChange={e => setForm({ ...form, unidad_atencion: e.target.value })} />
+            </div>
             <div className="col-span-2 space-y-1">
-              <label className="text-xs font-medium text-gray-500">Objeto</label>
-              <Textarea rows={3} value={form.objeto} onChange={e => setForm({ ...form, objeto: e.target.value })} />
+              <label className="text-xs font-medium text-gray-500">Lugar Ejecución</label>
+              <Input value={form.lugar_ejecucion} onChange={e => setForm({ ...form, lugar_ejecucion: e.target.value })} />
             </div>
           </CardContent>
         </Card>
