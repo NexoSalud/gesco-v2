@@ -386,7 +386,7 @@ export default function ContratoDetailPage() {
       </div>
 
       {/* Info Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -422,6 +422,16 @@ export default function ContratoDetailPage() {
             <p className="text-sm">
               {contrato.fecha_inicio || "—"} → {contrato.fecha_fin || "—"}
             </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <MapPin className="w-4 h-4 text-gray-400" />
+              <p className="text-xs font-medium text-gray-500 uppercase">Unidad de Atención</p>
+            </div>
+            <p className="font-medium">{contrato.unidad_atencion || "—"}</p>
           </CardContent>
         </Card>
 
@@ -467,10 +477,6 @@ export default function ContratoDetailPage() {
             <div>
               <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">CDP</p>
               <p className="font-medium">{contrato.no_cdp || "—"}</p>
-            </div>
-            <div>
-              <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Unidad</p>
-              <p className="font-medium">{contrato.unidad_atencion || "—"}</p>
             </div>
             <div className="col-span-2 md:col-span-3">
               <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Objeto</p>
