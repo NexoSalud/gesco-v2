@@ -65,6 +65,9 @@ class ContratoUpdate(BaseModel):
     rubro: str | None = None
     rp: str | None = None
     lugar_ejecucion: str | None = None
+    costo_tipo: str | None = None
+    sub_tipo: str | None = None
+    clasificacion: str | None = None
 
 
 class PagoResumen(BaseModel):

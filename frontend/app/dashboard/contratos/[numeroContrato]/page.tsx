@@ -469,7 +469,7 @@ export default function ContratoDetailPage() {
       {/* More info */}
       <Card>
         <CardContent className="p-5">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Supervisor</p>
               <p className="font-medium">{contrato.supervisor || "—"}</p>
@@ -478,7 +478,18 @@ export default function ContratoDetailPage() {
               <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">CDP</p>
               <p className="font-medium">{contrato.no_cdp || "—"}</p>
             </div>
-            <div className="col-span-2 md:col-span-3">
+            <div>
+              <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Tipología</p>
+              <p className="font-medium">
+                {contrato.costo_tipo || "—"}
+                {contrato.sub_tipo ? ` — ${contrato.sub_tipo.replace("_", " ")}` : ""}
+              </p>
+            </div>
+            <div>
+              <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Cédula Supervisor</p>
+              <p className="font-medium">{contrato.cedula_supervisor || "—"}</p>
+            </div>
+            <div className="col-span-2 md:col-span-4">
               <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Objeto</p>
               <p className="font-medium">{contrato.objeto || "—"}</p>
             </div>

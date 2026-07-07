@@ -83,6 +83,9 @@ export interface Contrato {
   cedula_supervisor: string | null
   cargo_supervisor: string | null
   unidad_atencion: string | null
+  costo_tipo: string | null
+  sub_tipo: string | null
+  clasificacion: string | null
   cuotas: string | null
   cuotas_total: number
   cuotas_pagadas: number

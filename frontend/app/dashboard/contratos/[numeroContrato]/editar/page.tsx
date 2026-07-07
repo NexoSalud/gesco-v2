@@ -40,6 +40,7 @@ export default function EditarContratoPage() {
     rubro: "",
     rp: "",
     lugar_ejecucion: "",
+    costo_tipo: "DIRECTO",
   })
 
   useEffect(() => {
@@ -65,6 +66,7 @@ export default function EditarContratoPage() {
         rubro: c.rubro || "",
         rp: c.rp || "",
         lugar_ejecucion: c.lugar_ejecucion || "",
+        costo_tipo: c.costo_tipo || "DIRECTO",
       })
     }).catch(() => {
       toast.error("Error cargando contrato")
@@ -181,7 +183,14 @@ export default function EditarContratoPage() {
               <label className="text-xs font-medium text-gray-500">Rubro</label>
               <Input value={form.rubro} onChange={e => setForm({ ...form, rubro: e.target.value })} />
             </div>
-            <div className="col-span-2 space-y-1">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Tipología</label>
+              <Select value={form.costo_tipo} onChange={e => setForm({ ...form, costo_tipo: e.target.value })}>
+                <option value="DIRECTO">DIRECTO</option>
+                <option value="INDIRECTO">INDIRECTO</option>
+              </Select>
+            </div>
+            <div className="space-y-1">
               <label className="text-xs font-medium text-gray-500">Lugar de Ejecución</label>
               <Input value={form.lugar_ejecucion} onChange={e => setForm({ ...form, lugar_ejecucion: e.target.value })} />
             </div>
