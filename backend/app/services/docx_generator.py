@@ -9,6 +9,33 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from app.services.numero_letras import numero_a_letras
 
+MESES_ESPANOL = [
+    "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+]
+
+
+def formatear_fecha(valor: str | date | None, default: str = "_________") -> str:
+    """Convierte fecha a formato español: '11 de Julio del 2026'.
+    Acepta string ISO, date object, o None."""
+    if not valor:
+        return default
+    if isinstance(valor, str):
+        try:
+            partes = valor.split("-")
+            if len(partes) == 3:
+                d = date(int(partes[0]), int(partes[1]), int(partes[2]))
+            else:
+                return valor
+        except (ValueError, IndexError):
+            return valor
+    elif isinstance(valor, date):
+        d = valor
+    else:
+        return str(valor)
+    return f"{d.day} de {MESES_ESPANOL[d.month]} del {d.year}"
+
+
 TEMPLATE_PATH = os.path.normpath(os.path.join(
     os.path.dirname(__file__), "..", "templates", "plantilla_contrato.docx"))
 
@@ -157,12 +184,11 @@ def _make_paragraph_xml(text, bold=False, size=11):
 def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None) -> bytes:
     valor = float(data.get("valor_contrato", 0))
     valor_letras = data.get("valor_letras", "") or numero_a_letras(valor)
-    fecha_inicio = str(data.get("fecha_inicio", str(date.today())))
 
     placeholders = {
         "<<NO. DE CONTRATO>>": data.get("numero_contrato", "_________"),
-        "<<FECHA DEL CONTRATO>>": str(data.get("fecha_contrato", data.get("fecha_inicio", "_________"))),
-        "<<fecha del contrato>>": str(data.get("fecha_contrato", data.get("fecha_inicio", "_________"))),
+        "<<FECHA DEL CONTRATO>>": formatear_fecha(data.get("fecha_contrato", data.get("fecha_inicio", "_________"))),
+        "<<fecha del contrato>>": formatear_fecha(data.get("fecha_contrato", data.get("fecha_inicio", "_________"))),
         "<<CONTRATISTA>>": data.get("nombre_contratista", "___________________"),
         "<<CEDULA DEL CONTRATISTA>>": data.get("cedula", "_________"),
         "<<CÉDULA DEL CONTRATISTA>>": data.get("cedula", "_________"),
@@ -172,15 +198,15 @@ def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None)
         "<<TELÉFONO>>": data.get("telefono", "_________"),
         "<<CORREO>>": data.get("correo", "_________"),
         "<<OBJETO DEL CONTRATO>>": data.get("objeto", "_________"),
-        "<<FECHA DE TERMINACIÓN>>": str(data.get("fecha_fin", "_________")),
-        "<<fecha de terminación>>": str(data.get("fecha_fin", "_________")),
+        "<<FECHA DE TERMINACIÓN>>": formatear_fecha(data.get("fecha_fin", "_________")),
+        "<<fecha de terminación>>": formatear_fecha(data.get("fecha_fin", "_________")),
         "<<VALOR DEL CONTRATO>>": f"${valor:,.0f} ({valor_letras})",
         "<<CDP>>": data.get("no_cdp", "_________"),
-        "<<FECHA DEL CDP>>": str(data.get("fecha_cdp", "") or ""),
-        "<<fecha del CDP>>": str(data.get("fecha_cdp", "") or ""),
+        "<<FECHA DEL CDP>>": formatear_fecha(data.get("fecha_cdp", "") or ""),
+        "<<fecha del CDP>>": formatear_fecha(data.get("fecha_cdp", "") or ""),
         "<<VALOR DEL CDP>>": str(data.get("valor_cdp", "") or ""),
         "<<LUGAR DE EJECUCIÓN>>": data.get("lugar_ejecucion", "Puerto Tejada - Cauca"),
-        "<<fecha del acta>>": fecha_inicio,
+        "<<fecha del acta>>": formatear_fecha(data.get("fecha_inicio", str(date.today()))),
         "<<SUPERVISOR>>": data.get("supervisor", "_________"),
         "<<CEDULA DE SUPERVISOR>>": data.get("cedula_supervisor", "_________"),
         "<<CÉDULA DE SUPERVISOR>>": data.get("cedula_supervisor", "_________"),
@@ -275,20 +301,17 @@ def generar_documento_contrato(tipo: str, data: dict) -> bytes:
     doc = Document(template_path)
 
     # Mapa de placeholders comun para todos los documentos
-    fecha_inicio = str(data.get("fecha_inicio", str(date.today())))
     valor = float(data.get("monto_total", 0))
     from app.services.numero_letras import numero_a_letras
     valor_letras = data.get("valor_letras", "") or numero_a_letras(valor)
 
-    MESES = ["", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
-             "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
     hoy = date.today()
 
     placeholders = {
         "<<NO. DE CONTRATO>>": data.get("numero_contrato", "_________"),
         "<<No. DE CONTRATO>>": data.get("numero_contrato", "_________"),
-        "<<FECHA DEL CONTRATO>>": str(data.get("fecha_contrato", data.get("fecha_inicio", str(hoy)))),
-        "<<fecha del contrato>>": str(data.get("fecha_contrato", data.get("fecha_inicio", str(hoy)))),
+        "<<FECHA DEL CONTRATO>>": formatear_fecha(data.get("fecha_contrato", data.get("fecha_inicio", str(hoy)))),
+        "<<fecha del contrato>>": formatear_fecha(data.get("fecha_contrato", data.get("fecha_inicio", str(hoy)))),
         "<<CONTRATISTA>>": data.get("nombre_contratista", "___________________"),
         "<<CEDULA DEL CONTRATISTA>>": data.get("cedula", "_________"),
         "<<CÉDULA DEL CONTRATISTA>>": data.get("cedula", "_________"),
@@ -301,11 +324,11 @@ def generar_documento_contrato(tipo: str, data: dict) -> bytes:
         "<<PERFIL>>": data.get("perfil", "_________"),
         "<<VALOR DEL CONTRATO>>": f"${valor:,.0f} ({valor_letras})",
         "<<VALOR DE CDP>>": f"${valor:,.0f}",
-        "<<fecha de terminación>>": str(data.get("fecha_fin", "_________")),
-        "<<fecha de finalización>>": str(data.get("fecha_fin", "_________")),
-        "<<FECHA DE TERMINACIÓN>>": str(data.get("fecha_fin", "_________")),
+        "<<fecha de terminación>>": formatear_fecha(data.get("fecha_fin", "_________")),
+        "<<fecha de finalización>>": formatear_fecha(data.get("fecha_fin", "_________")),
+        "<<FECHA DE TERMINACIÓN>>": formatear_fecha(data.get("fecha_fin", "_________")),
         "<<día>>": str(hoy.day),
-        "<<mes>>": MESES[hoy.month],
+        "<<mes>>": MESES_ESPANOL[hoy.month].upper(),
         "<<año>>": str(hoy.year),
         "<<Unidad de Atención>>": data.get("unidad_atencion", "_________"),
         "<<unidad de atención>>": data.get("unidad_atencion", "_________"),
@@ -316,8 +339,8 @@ def generar_documento_contrato(tipo: str, data: dict) -> bytes:
         "<<TELÉFONO>>": data.get("telefono", "_________"),
         "<<CORREO>>": data.get("correo", "_________"),
         "<<CDP>>": data.get("no_cdp", "_________"),
-        "<<FECHA DEL CDP>>": str(data.get("fecha_cdp", "") or ""),
-        "<<fecha del CDP>>": str(data.get("fecha_cdp", "") or ""),
+        "<<FECHA DEL CDP>>": formatear_fecha(data.get("fecha_cdp", "") or ""),
+        "<<fecha del CDP>>": formatear_fecha(data.get("fecha_cdp", "") or ""),
         "<<VALOR DEL CDP>>": str(data.get("valor_cdp", "") or ""),
         "<<LUGAR DE EJECUCIÓN>>": data.get("lugar_ejecucion", "Puerto Tejada - Cauca"),
         "<<OBLIGACIONES>>": "Ver cláusula SEGUNDA del contrato.",

@@ -25,6 +25,33 @@ def _fmt_money(val) -> str:
     return "{:,.0f}".format(float(val)).replace(",", ".")
 
 
+MESES_FECHA = [
+    "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+]
+
+
+def _formatear_fecha(valor, default=""):
+    """Convierte '2026-07-09' o date → '9 de Julio del 2026'."""
+    if not valor:
+        return default
+    if isinstance(valor, str):
+        try:
+            partes = valor.split("-")
+            if len(partes) == 3:
+                from datetime import date as _d
+                d = _d(int(partes[0]), int(partes[1]), int(partes[2]))
+            else:
+                return valor
+        except (ValueError, IndexError):
+            return valor
+    elif hasattr(valor, "day"):
+        d = valor
+    else:
+        return str(valor)
+    return f"{d.day} de {MESES_FECHA[d.month]} del {d.year}"
+
+
 def generar_supervision_pdf(contrato: dict, pago: dict, planillas: list,
                              actividades_supervision: list | None = None) -> bytes:
     """Genera PDF con el formato oficial de supervisión."""
@@ -45,8 +72,8 @@ def generar_supervision_pdf(contrato: dict, pago: dict, planillas: list,
         "logo_b64": contrato.get("logo_b64", ""),
         "numero_contrato": contrato.get("numero_contrato", "_____"),
         "tipo_informe": tipo_informe,
-        "periodo_desde": pago.get("periodo_desde", "_________"),
-        "periodo_hasta": pago.get("periodo_hasta", "_________"),
+        "periodo_desde": _formatear_fecha(pago.get("periodo_desde"), "_________"),
+        "periodo_hasta": _formatear_fecha(pago.get("periodo_hasta"), "_________"),
         "contratante": "EMPRESA SOCIAL DEL ESTADO NORTE 3 - E.S.E.",
         "contratista": contrato.get("nombre_contratista", "_____"),
         "identificacion": contrato.get("identificacion", "_____"),
@@ -63,8 +90,8 @@ def generar_supervision_pdf(contrato: dict, pago: dict, planillas: list,
         "crp": contrato.get("rp", ""),
         "imputacion": contrato.get("rubro", ""),
         "valor_contrato": valor_contrato,
-        "fecha_inicio": contrato.get("fecha_inicio", "_________"),
-        "fecha_fin": contrato.get("fecha_fin", "_________"),
+        "fecha_inicio": _formatear_fecha(contrato.get("fecha_inicio"), "_________"),
+        "fecha_fin": _formatear_fecha(contrato.get("fecha_fin"), "_________"),
         "tiempo_adicion": contrato.get("tiempo_adicion", "NINGUNA"),
         "valor_final": valor_final,
         "forma_pago": contrato.get("forma_pago", "SEGÚN CLÁUSULA DE FORMA DE PAGO DEL CONTRATO."),
