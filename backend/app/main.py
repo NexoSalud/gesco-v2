@@ -16,6 +16,7 @@ from app.routers import (
     pagos_router,
     perfiles_router,
     plantillas_router,
+    plantillas_objeto_router,
     export_router,
     import_router,
     actividades_router,
@@ -77,6 +78,7 @@ app.include_router(contratistas_router)
 app.include_router(pagos_router)
 app.include_router(perfiles_router)
 app.include_router(plantillas_router)
+app.include_router(plantillas_objeto_router)
 app.include_router(export_router)
 app.include_router(import_router)
 app.include_router(actividades_router)

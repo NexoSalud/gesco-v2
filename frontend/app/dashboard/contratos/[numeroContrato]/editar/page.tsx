@@ -22,6 +22,7 @@ export default function EditarContratoPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [perfiles, setPerfiles] = useState<any[]>([])
+  const [plantillasObj, setPlantillasObj] = useState<any[]>([])
   const [contrato, setContrato] = useState<Contrato | null>(null)
 
   const [form, setForm] = useState({
@@ -48,9 +49,11 @@ export default function EditarContratoPage() {
     Promise.all([
       getContrato(numero),
       getPerfiles(),
-    ]).then(([c, p]) => {
+      fetch(`${API}/api/v1/plantillas-objeto`).then(r => r.json()).catch(() => []),
+    ]).then(([c, p, po]) => {
       setContrato(c)
       setPerfiles(p)
+      setPlantillasObj(po || [])
       setForm({
         estado: c.estado || "",
         perfil: c.perfil || "",
@@ -130,7 +133,7 @@ export default function EditarContratoPage() {
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-500">Perfil</label>
-              <Select value={form.perfil} onChange={e => setForm({ ...form, perfil: e.target.value })}>
+              <Select value={form.perfil} onChange={e => { const p = e.target.value; const pf = perfiles.find(x => x.nombre === p); setForm({ ...form, perfil: p, objeto: pf?.objeto || form.objeto }) }}>
                 <option value="">Seleccionar...</option>
                 {perfiles.map((p: any) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
               </Select>
@@ -220,6 +223,21 @@ export default function EditarContratoPage() {
                   <option key={p.id} value={p.id}>{p.nombre}</option>
                 ))}
               </select>
+              {plantillasObj.length > 0 && (
+                <select
+                  className="flex-1 h-9 rounded-lg border border-gray-200 bg-white px-3 text-xs text-gray-500"
+                  value=""
+                  onChange={e => {
+                    const sel = plantillasObj.find(p => String(p.id) === e.target.value)
+                    if (sel?.contenido) setForm({ ...form, objeto: sel.contenido })
+                  }}
+                >
+                  <option value="">— Cargar de plantilla —</option>
+                  {plantillasObj.map(p => (
+                    <option key={p.id} value={p.id}>{p.titulo}</option>
+                  ))}
+                </select>
+              )}
             </div>
             <Textarea rows={5} value={form.objeto} onChange={e => setForm({ ...form, objeto: e.target.value })} className="resize-y" />
           </CardContent>

@@ -5,6 +5,7 @@ from app.models.perfil import Perfil, ActividadPerfil
 from app.models.pago import Pago
 from app.models.planilla import Planilla
 from app.models.plantilla import PlantillaObservacion
+from app.models.plantilla_objeto import PlantillaObjeto
 
 __all__ = [
     "Resolucion",
@@ -15,4 +16,5 @@ __all__ = [
     "Pago",
     "Planilla",
     "PlantillaObservacion",
+    "PlantillaObjeto",
 ]

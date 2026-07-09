@@ -15,10 +15,13 @@ import { Separator } from "@/components/ui/separator"
 import { User, Search, ChevronLeft, Plus, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
+const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
+
 export default function NuevoContratoPage() {
   const router = useRouter()
   const [perfiles, setPerfiles] = useState<any[]>([])
   const [resoluciones, setResoluciones] = useState<any[]>([])
+  const [plantillasObj, setPlantillasObj] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
@@ -64,9 +67,11 @@ export default function NuevoContratoPage() {
     Promise.all([
       getPerfiles(),
       getResoluciones(),
-    ]).then(([p, r]) => {
+      fetch(`${API}/api/v1/plantillas-objeto`).then(r => r.json()).catch(() => []),
+    ]).then(([p, r, po]) => {
       setPerfiles(p)
       setResoluciones(r || [])
+      setPlantillasObj(po || [])
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
@@ -264,7 +269,7 @@ export default function NuevoContratoPage() {
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-500">Perfil</label>
-              <Select value={form.perfil} onChange={e => setForm({ ...form, perfil: e.target.value })}>
+              <Select value={form.perfil} onChange={e => { const p = e.target.value; const pf = perfiles.find(x => x.nombre === p); setForm({ ...form, perfil: p, objeto: pf?.objeto || "" }) }}>
                 <option value="">Seleccionar...</option>
                 {perfiles.map((p: any) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
               </Select>
@@ -285,6 +290,21 @@ export default function NuevoContratoPage() {
                     <option key={p.id} value={p.id}>{p.nombre}</option>
                   ))}
                 </select>
+                {plantillasObj.length > 0 && (
+                  <select
+                    className="flex-1 h-9 rounded-lg border border-gray-200 bg-white px-3 text-xs text-gray-500"
+                    value=""
+                    onChange={e => {
+                      const sel = plantillasObj.find(p => String(p.id) === e.target.value)
+                      if (sel?.contenido) setForm({ ...form, objeto: sel.contenido })
+                    }}
+                  >
+                    <option value="">— Cargar de plantilla —</option>
+                    {plantillasObj.map(p => (
+                      <option key={p.id} value={p.id}>{p.titulo}</option>
+                    ))}
+                  </select>
+                )}
               </div>
               <Textarea rows={3} value={form.objeto} onChange={e => setForm({ ...form, objeto: e.target.value })} />
             </div>

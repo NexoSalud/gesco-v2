@@ -52,6 +52,11 @@ const NAV_ITEMS = [
     icon: FileSpreadsheet,
   },
   {
+    label: "Obj. Plantillas",
+    href: "/dashboard/plantillas-objeto",
+    icon: FileText,
+  },
+  {
     label: "Importar",
     href: "/dashboard/importar",
     icon: Upload,
