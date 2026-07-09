@@ -47,8 +47,8 @@ async def lifespan(app: FastAPI):
                 )
             """))
             logger.info("Migración OK: tabla plantillas_objeto creada/verificada")
-        except Exception as e:
-            logger.info(f"Tabla plantillas_objeto: {e}")
+        except Exception:
+            logger.warning("Tabla plantillas_objeto ya existe, saltando creación")
         # Migración: agregar columna activa a resoluciones si no existe
         try:
             await conn.execute(text("ALTER TABLE resoluciones ADD COLUMN activa BOOLEAN DEFAULT FALSE NOT NULL"))
