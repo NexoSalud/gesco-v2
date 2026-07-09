@@ -477,6 +477,7 @@ export default function ContratoDetailPage() {
             <div>
               <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">CDP</p>
               <p className="font-medium">{contrato.no_cdp || "—"}</p>
+              {contrato.fecha_cdp && <p className="text-xs text-gray-500 mt-0.5">Fecha: {contrato.fecha_cdp}</p>}
             </div>
             <div>
               <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Tipología</p>

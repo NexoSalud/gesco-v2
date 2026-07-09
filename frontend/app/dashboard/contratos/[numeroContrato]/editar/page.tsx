@@ -37,6 +37,7 @@ export default function EditarContratoPage() {
     cargo_supervisor: "",
     unidad_atencion: "",
     no_cdp: "",
+    fecha_cdp: "",
     rubro: "",
     rp: "",
     lugar_ejecucion: "",
@@ -63,6 +64,7 @@ export default function EditarContratoPage() {
         cargo_supervisor: c.cargo_supervisor || "",
         unidad_atencion: c.unidad_atencion || "",
         no_cdp: c.no_cdp || "",
+        fecha_cdp: c.fecha_cdp || "",
         rubro: c.rubro || "",
         rp: c.rp || "",
         lugar_ejecucion: c.lugar_ejecucion || "",
@@ -174,6 +176,10 @@ export default function EditarContratoPage() {
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-500">CDP No.</label>
               <Input value={form.no_cdp} onChange={e => setForm({ ...form, no_cdp: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Fecha CDP</label>
+              <Input type="date" value={form.fecha_cdp} onChange={e => setForm({ ...form, fecha_cdp: e.target.value })} />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-500">CRP No.</label>

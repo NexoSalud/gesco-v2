@@ -62,6 +62,7 @@ class ContratoUpdate(BaseModel):
     cargo_supervisor: str | None = None
     unidad_atencion: str | None = None
     no_cdp: str | None = None
+    fecha_cdp: date | None = None
     rubro: str | None = None
     rp: str | None = None
     lugar_ejecucion: str | None = None

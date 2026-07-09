@@ -76,6 +76,7 @@ export interface Contrato {
   fecha_fin: string | null
   fecha_contrato: string | null
   no_cdp: string | null
+  fecha_cdp: string | null
   rubro: string | null
   rp: string | null
   lugar_ejecucion: string | null
