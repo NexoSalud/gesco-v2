@@ -100,15 +100,14 @@ async def health():
 
 @app.get("/api/debug/create-table")
 async def debug_create_table():
-    """Crea la tabla con raw SQL."""
     from app.database import async_session_factory
+    from sqlalchemy import text as _st
     async with async_session_factory() as session:
         try:
-            from sqlalchemy import text
-            await session.execute(text("SELECT 1 FROM plantillas_objeto LIMIT 1"))
-            return {"status": "exists", "tables": list(Base.metadata.tables.keys())}
-        except Exception:
-            await session.execute(text("CREATE TABLE plantillas_objeto (id SERIAL PRIMARY KEY, titulo VARCHAR(200) NOT NULL, contenido TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())"))
+            await session.execute(_st("SELECT 1 FROM plantillas_objeto LIMIT 1"))
+            return {"status": "exists"}
+        except Exception as e1:
+            await session.execute(_st("DROP TABLE IF EXISTS plantillas_objeto CASCADE"))
+            await session.execute(_st("CREATE TABLE plantillas_objeto (id SERIAL PRIMARY KEY, titulo VARCHAR(200) NOT NULL, contenido TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())"))
             await session.commit()
-            import sys
-            return {"status": "created", "error": str(sys.exc_info()[1])}
+            return {"status": "recreated", "select_error": str(e1)[:200]}
