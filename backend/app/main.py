@@ -36,7 +36,9 @@ async def lifespan(app: FastAPI):
     """Startup: create tables, run migrations & seed data."""
     logger.info("Inicializando base de datos...")
     async with engine.begin() as conn:
+        logger.info(f"Tablas registradas en metadata: {list(Base.metadata.tables.keys())}")
         await conn.run_sync(Base.metadata.create_all)
+        logger.info("create_all completado")
 
         # Migración: agregar columna activa a resoluciones si no existe
         try:
@@ -94,3 +96,19 @@ app.add_exception_handler(HTTPException, http_exception_handler)
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "app": settings.app_name}
+
+
+@app.get("/api/debug/create-table")
+async def debug_create_table():
+    """Crea la tabla con raw SQL."""
+    from app.database import async_session_factory
+    async with async_session_factory() as session:
+        try:
+            from sqlalchemy import text
+            await session.execute(text("SELECT 1 FROM plantillas_objeto LIMIT 1"))
+            return {"status": "exists", "tables": list(Base.metadata.tables.keys())}
+        except Exception:
+            await session.execute(text("CREATE TABLE plantillas_objeto (id SERIAL PRIMARY KEY, titulo VARCHAR(200) NOT NULL, contenido TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())"))
+            await session.commit()
+            import sys
+            return {"status": "created", "error": str(sys.exc_info()[1])}
