@@ -205,7 +205,22 @@ export default function EditarContratoPage() {
 
         <Card>
           <CardHeader><CardTitle className="text-base">Objeto del Contrato</CardTitle></CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
+            <div className="flex gap-2">
+              <select
+                className="flex-1 h-9 rounded-lg border border-gray-200 bg-white px-3 text-xs text-gray-500"
+                value=""
+                onChange={e => {
+                  const selected = perfiles.find(p => String(p.id) === e.target.value)
+                  if (selected?.objeto) setForm({ ...form, objeto: selected.objeto })
+                }}
+              >
+                <option value="">— Cargar objeto de perfil —</option>
+                {perfiles.filter(p => p.objeto).map(p => (
+                  <option key={p.id} value={p.id}>{p.nombre}</option>
+                ))}
+              </select>
+            </div>
             <Textarea rows={5} value={form.objeto} onChange={e => setForm({ ...form, objeto: e.target.value })} className="resize-y" />
           </CardContent>
         </Card>

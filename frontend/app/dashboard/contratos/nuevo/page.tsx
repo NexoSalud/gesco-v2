@@ -271,6 +271,21 @@ export default function NuevoContratoPage() {
             </div>
             <div className="col-span-2 space-y-1">
               <label className="text-xs font-medium text-gray-500">Objeto del Contrato</label>
+              <div className="flex gap-2 mb-2">
+                <select
+                  className="flex-1 h-9 rounded-lg border border-gray-200 bg-white px-3 text-xs text-gray-500"
+                  value=""
+                  onChange={e => {
+                    const selected = perfiles.find(p => String(p.id) === e.target.value)
+                    if (selected?.objeto) setForm({ ...form, objeto: selected.objeto })
+                  }}
+                >
+                  <option value="">— Cargar objeto de perfil —</option>
+                  {perfiles.filter(p => p.objeto).map(p => (
+                    <option key={p.id} value={p.id}>{p.nombre}</option>
+                  ))}
+                </select>
+              </div>
               <Textarea rows={3} value={form.objeto} onChange={e => setForm({ ...form, objeto: e.target.value })} />
             </div>
           </CardContent>
