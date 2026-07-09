@@ -343,7 +343,7 @@ def generar_documento_contrato(tipo: str, data: dict) -> bytes:
         "<<fecha del CDP>>": formatear_fecha(data.get("fecha_cdp", "") or ""),
         "<<VALOR DEL CDP>>": f"${valor:,.0f}",
         "<<LUGAR DE EJECUCIÓN>>": data.get("lugar_ejecucion", "Puerto Tejada - Cauca"),
-        "<<OBLIGACIONES>>": "Ver cláusula SEGUNDA del contrato.",
+        "<<OBLIGACIONES>>": data.get("obligaciones", "Ver cláusula SEGUNDA del contrato."),
     }
 
     # Reemplazar usando el mismo enfoque que en _replace_all

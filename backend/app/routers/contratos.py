@@ -630,6 +630,29 @@ async def descargar_documento_contrato(
         "lugar_ejecucion": contrato.lugar_ejecucion or "Puerto Tejada - Cauca",
         "valor_letras": contrato.valor_letras or "",
     }
+
+    # Cargar actividades del perfil para llenar <<OBLIGACIONES>> en invitación
+    actividades_obligaciones = []
+    if contrato.perfil:
+        result_perf = await db.execute(
+            select(Perfil).where(Perfil.nombre == contrato.perfil)
+        )
+        perfil_obj = result_perf.scalar_one_or_none()
+        if perfil_obj:
+            result_acts = await db.execute(
+                select(ActividadPerfil)
+                .where(ActividadPerfil.perfil_id == perfil_obj.id)
+                .order_by(ActividadPerfil.orden)
+            )
+            for ap in result_acts.scalars().all():
+                actividades_obligaciones.append(ap.descripcion)
+    if actividades_obligaciones:
+        formatted = []
+        for i, act in enumerate(actividades_obligaciones, 1):
+            formatted.append(f"{i}. {act}")
+        data["obligaciones"] = "\n".join(formatted)
+    else:
+        data["obligaciones"] = "Ver cláusula SEGUNDA del contrato."
     
     try:
         docx_bytes = generar_documento_contrato(tipo, data)
