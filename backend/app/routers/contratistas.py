@@ -9,7 +9,7 @@ from sqlalchemy.future import select
 from app.database import get_db
 from app.models.contratista import Contratista
 from app.models.contrato import Contrato
-from app.schemas.contratista import ContratistaCreate, ContratistaOut
+from app.schemas.contratista import ContratistaCreate, ContratistaUpdate, ContratistaOut
 from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix="/api/v1/contratistas", tags=["Contratistas"])
@@ -60,7 +60,7 @@ async def crear_contratista(data: ContratistaCreate, db: AsyncSession = Depends(
 
 @router.put("/{identificacion}", response_model=ContratistaOut)
 async def actualizar_contratista(
-    identificacion: str, data: ContratistaCreate, db: AsyncSession = Depends(get_db)
+    identificacion: str, data: ContratistaUpdate, db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(
         select(Contratista).where(Contratista.identificacion == identificacion)
@@ -68,7 +68,7 @@ async def actualizar_contratista(
     contratista = result.scalar_one_or_none()
     if not contratista:
         raise HTTPException(404, "Contratista no encontrado")
-    for field, value in data.model_dump().items():
+    for field, value in data.model_dump(exclude_unset=True).items():
         setattr(contratista, field, value)
     await db.commit()
     await db.refresh(contratista)

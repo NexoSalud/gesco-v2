@@ -23,3 +23,13 @@ class ContratistaOut(ContratistaBase):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ContratistaUpdate(BaseModel):
+    """Para actualización parcial — todos los campos opcionales."""
+    nombre: str | None = None
+    tipo_persona: str | None = None
+    expedida_en: str | None = None
+    telefono: str | None = None
+    direccion: str | None = None
+    correo: str | None = None
