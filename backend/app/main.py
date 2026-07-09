@@ -21,6 +21,7 @@ from app.routers import (
     import_router,
     actividades_router,
 )
+from app.models.plantilla_objeto import PlantillaObjeto
 from app.seed_data import seed_database
 from app.error_handlers import global_exception_handler, validation_exception_handler, http_exception_handler
 from fastapi.exceptions import RequestValidationError
@@ -36,14 +37,7 @@ async def lifespan(app: FastAPI):
     logger.info("Inicializando base de datos...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Migración: forzar creación de la tabla plantillas_objeto si create_all no la creó
-        try:
-            await conn.execute(text("SELECT 1 FROM plantillas_objeto LIMIT 1"))
-            logger.info("Tabla plantillas_objeto ya existe")
-        except Exception:
-            logger.warning("Creando tabla plantillas_objeto manualmente...")
-            from app.models.plantilla_objeto import PlantillaObjeto
-            await conn.run_sync(PlantillaObjeto.__table__.create)
+
         # Migración: agregar columna activa a resoluciones si no existe
         try:
             await conn.execute(text("ALTER TABLE resoluciones ADD COLUMN activa BOOLEAN DEFAULT FALSE NOT NULL"))
@@ -114,5 +108,6 @@ async def debug_create_table():
                 await session.execute(text("SELECT 1 FROM plantillas_objeto LIMIT 1"))
                 return {"status": "already_exists"}
             except Exception:
-                await session.run_sync(PlantillaObjeto.__table__.create)
+                await session.execute(text('CREATE TABLE IF NOT EXISTS plantillas_objeto (id SERIAL PRIMARY KEY, titulo VARCHAR(200) NOT NULL, contenido TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())'))
+                await session.commit()
                 return {"status": "created"}
