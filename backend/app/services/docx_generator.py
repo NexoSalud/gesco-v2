@@ -323,7 +323,7 @@ def generar_documento_contrato(tipo: str, data: dict) -> bytes:
         "<<OBJETO DEL CONTRATO>>": data.get("objeto", "_________"),
         "<<PERFIL>>": data.get("perfil", "_________"),
         "<<VALOR DEL CONTRATO>>": f"{valor_letras} (${valor:,.0f})",
-        "<<VALOR DE CDP>>": f"${valor:,.0f}",
+        "<<VALOR DE CDP>>": f"{valor:,.0f}",
         "<<fecha de terminación>>": formatear_fecha(data.get("fecha_fin", "_________")),
         "<<fecha de finalización>>": formatear_fecha(data.get("fecha_fin", "_________")),
         "<<FECHA DE TERMINACIÓN>>": formatear_fecha(data.get("fecha_fin", "_________")),
