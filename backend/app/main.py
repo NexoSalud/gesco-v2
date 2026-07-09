@@ -102,8 +102,9 @@ async def health():
 async def debug_create_table():
     from app.database import engine
     from sqlalchemy import text as _st
-    async with engine.begin() as conn:
-        await conn.execute(_st("CREATE TABLE IF NOT EXISTS plantillas_objeto (id SERIAL PRIMARY KEY, titulo VARCHAR(200) NOT NULL, contenido TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())"))
+    async with engine.connect() as conn:
+        result = await conn.execute(_st("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename"))
+        tables = [r[0] for r in result.fetchall()]
         from app.models.plantilla_objeto import PlantillaObjeto
-        logger.info(f"Tables in metadata: {list(Base.metadata.tables.keys())}")
-    return {"status": "ok"}
+        in_meta = "plantillas_objeto" in Base.metadata.tables
+        return {"tables": tables, "in_metadata": in_meta}
