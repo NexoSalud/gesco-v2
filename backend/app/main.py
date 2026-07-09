@@ -94,20 +94,3 @@ app.add_exception_handler(HTTPException, http_exception_handler)
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "app": settings.app_name}
-
-
-@app.get("/api/debug/create-table")
-async def debug_create_table():
-    """Crea la tabla plantillas_objeto si no existe."""
-    from app.database import async_session_factory
-    from app.models.plantilla_objeto import PlantillaObjeto
-    async with async_session_factory() as session:
-        async with session.begin():
-            try:
-                from sqlalchemy import text
-                await session.execute(text("SELECT 1 FROM plantillas_objeto LIMIT 1"))
-                return {"status": "already_exists"}
-            except Exception:
-                await session.execute(text('CREATE TABLE IF NOT EXISTS plantillas_objeto (id SERIAL PRIMARY KEY, titulo VARCHAR(200) NOT NULL, contenido TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())'))
-                await session.commit()
-                return {"status": "created"}
