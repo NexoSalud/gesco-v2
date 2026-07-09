@@ -395,7 +395,16 @@ export default function ContratoDetailPage() {
             </div>
             <p className="font-medium">{contrato.contratista_rel?.nombre || "—"}</p>
             {contrato.contratista_rel?.identificacion && (
-              <p className="text-xs text-gray-400">CC {contrato.contratista_rel.identificacion}</p>
+              <p className="text-xs text-gray-400">{contrato.contratista_rel.identificacion}</p>
+            )}
+            {contrato.contratista_rel?.correo && (
+              <p className="text-xs text-gray-400 mt-1">📧 {contrato.contratista_rel.correo}</p>
+            )}
+            {contrato.contratista_rel?.telefono && (
+              <p className="text-xs text-gray-400">📞 {contrato.contratista_rel.telefono}</p>
+            )}
+            {contrato.contratista_rel?.direccion && (
+              <p className="text-xs text-gray-400">📍 {contrato.contratista_rel.direccion}</p>
             )}
           </CardContent>
         </Card>
