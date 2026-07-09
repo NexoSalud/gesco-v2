@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
   getPerfiles, getResoluciones, buscarContratistas,
-  createContrato, type Contrato,
+  createContrato, getPlantillasObjeto, type Contrato,
 } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -14,8 +14,6 @@ import { Select } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { User, Search, ChevronLeft, Plus, Loader2 } from "lucide-react"
 import { toast } from "sonner"
-
-const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
 
 export default function NuevoContratoPage() {
   const router = useRouter()
@@ -67,7 +65,7 @@ export default function NuevoContratoPage() {
     Promise.all([
       getPerfiles(),
       getResoluciones(),
-      fetch(`${API}/api/v1/plantillas-objeto`).then(r => r.json()).catch(() => []),
+      getPlantillasObjeto().catch(() => []),
     ]).then(([p, r, po]) => {
       setPerfiles(p)
       setResoluciones(r || [])

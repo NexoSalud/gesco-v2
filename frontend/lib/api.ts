@@ -185,6 +185,31 @@ export const updatePlantilla = (id: number, data: { titulo: string; contenido: s
 export const deletePlantilla = (id: number) =>
   request<void>(`/api/v1/plantillas/${id}`, { method: "DELETE" })
 
+// ─── Plantillas de Objeto ────────────────────────────────────────────────────────
+
+export interface PlantillaObjeto {
+  id: number
+  titulo: string
+  contenido: string
+  created_at: string
+}
+
+export const getPlantillasObjeto = () =>
+  request<PlantillaObjeto[]>("/api/v1/plantillas-objeto")
+
+export const createPlantillaObjeto = (data: { titulo: string; contenido: string }) =>
+  request<PlantillaObjeto>("/api/v1/plantillas-objeto", {
+    method: "POST", body: JSON.stringify(data),
+  })
+
+export const updatePlantillaObjeto = (id: number, data: { titulo: string; contenido: string }) =>
+  request<PlantillaObjeto>(`/api/v1/plantillas-objeto/${id}`, {
+    method: "PUT", body: JSON.stringify(data),
+  })
+
+export const deletePlantillaObjeto = (id: number) =>
+  request<void>(`/api/v1/plantillas-objeto/${id}`, { method: "DELETE" })
+
 export const createPago = (data: any) =>
   request<Pago>("/api/v1/pagos", { method: "POST", body: JSON.stringify(data) })
 

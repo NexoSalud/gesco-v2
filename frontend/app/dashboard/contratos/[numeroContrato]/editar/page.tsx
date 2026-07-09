@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { getContrato, getPerfiles, type Contrato } from "@/lib/api"
+import { getContrato, getPerfiles, getPlantillasObjeto, type Contrato } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,7 +49,7 @@ export default function EditarContratoPage() {
     Promise.all([
       getContrato(numero),
       getPerfiles(),
-      fetch(`${API}/api/v1/plantillas-objeto`).then(r => r.json()).catch(() => []),
+      getPlantillasObjeto().catch(() => []),
     ]).then(([c, p, po]) => {
       setContrato(c)
       setPerfiles(p)
