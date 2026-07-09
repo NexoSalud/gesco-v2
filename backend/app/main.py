@@ -111,16 +111,3 @@ async def health():
     return {"status": "ok", "app": settings.app_name}
 
 
-@app.get("/api/debug/create-table")
-async def debug_create_table():
-    from app.database import engine
-    from sqlalchemy import text as _st
-    async with engine.begin() as conn:
-        await conn.execute(_st("CREATE TABLE IF NOT EXISTS plantillas_objeto (id SERIAL PRIMARY KEY, titulo VARCHAR(200) NOT NULL, contenido TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())"))
-    from app.database import get_db, async_session_factory
-    from app.models.plantilla_objeto import PlantillaObjeto
-    async with async_session_factory() as session:
-        result = await session.execute(_st("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename"))
-        tables = [r[0] for r in result.fetchall()]
-        in_meta = "plantillas_objeto" in Base.metadata.tables
-        return {"tables": tables, "in_metadata": in_meta}
