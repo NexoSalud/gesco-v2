@@ -53,6 +53,19 @@ async def lifespan(app: FastAPI):
             logger.info("Resolución más reciente marcada como activa")
         except Exception:
             logger.info("Columna 'activa' ya existe, saltando migración")
+    # Migración: crear tabla plantillas_objeto (create_all no la creó automáticamente)
+    try:
+        async with engine.begin() as conn:
+            from app.models.plantilla_objeto import PlantillaObjeto
+            import sqlalchemy as sa
+            if "plantillas_objeto" not in Base.metadata.tables:
+                logger.warning("PlantillaObjeto no está en metadata, forzando import...")
+            # Crear usando CREATE TABLE IF NOT EXISTS raw
+            await conn.execute(text("CREATE TABLE IF NOT EXISTS plantillas_objeto (id SERIAL PRIMARY KEY, titulo VARCHAR(200) NOT NULL, contenido TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())"))
+            logger.info("Migración OK: tabla plantillas_objeto creada/verificada")
+    except Exception as e:
+        logger.warning(f"Migración plantillas_objeto: {e}")
+
     await seed_database()
     logger.info("Gesco V2 listo!")
     yield
@@ -102,9 +115,12 @@ async def health():
 async def debug_create_table():
     from app.database import engine
     from sqlalchemy import text as _st
-    async with engine.connect() as conn:
-        result = await conn.execute(_st("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename"))
+    async with engine.begin() as conn:
+        await conn.execute(_st("CREATE TABLE IF NOT EXISTS plantillas_objeto (id SERIAL PRIMARY KEY, titulo VARCHAR(200) NOT NULL, contenido TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())"))
+    from app.database import get_db, async_session_factory
+    from app.models.plantilla_objeto import PlantillaObjeto
+    async with async_session_factory() as session:
+        result = await session.execute(_st("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename"))
         tables = [r[0] for r in result.fetchall()]
-        from app.models.plantilla_objeto import PlantillaObjeto
         in_meta = "plantillas_objeto" in Base.metadata.tables
         return {"tables": tables, "in_metadata": in_meta}
