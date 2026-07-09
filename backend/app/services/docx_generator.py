@@ -249,7 +249,7 @@ def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None)
                                 part = part.strip()
                                 if not part:
                                     continue
-                                new_p = _make_paragraph_xml(part, bold=es_header, size=11)
+                                new_p = _make_paragraph_xml(part, bold=False, size=11)
                                 last_element.addnext(new_p)
                                 last_element = new_p
                 break
