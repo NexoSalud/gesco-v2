@@ -36,19 +36,14 @@ async def lifespan(app: FastAPI):
     logger.info("Inicializando base de datos...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Migración: crear tabla plantillas_objeto si no existe
+        # Migración: forzar creación de la tabla plantillas_objeto si create_all no la creó
         try:
-            await conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS plantillas_objeto (
-                    id SERIAL PRIMARY KEY,
-                    titulo VARCHAR(200) NOT NULL,
-                    contenido TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT NOW()
-                )
-            """))
-            logger.info("Migración OK: tabla plantillas_objeto creada/verificada")
+            await conn.execute(text("SELECT 1 FROM plantillas_objeto LIMIT 1"))
+            logger.info("Tabla plantillas_objeto ya existe")
         except Exception:
-            logger.warning("Tabla plantillas_objeto ya existe, saltando creación")
+            logger.warning("Creando tabla plantillas_objeto manualmente...")
+            from app.models.plantilla_objeto import PlantillaObjeto
+            await conn.run_sync(PlantillaObjeto.__table__.create)
         # Migración: agregar columna activa a resoluciones si no existe
         try:
             await conn.execute(text("ALTER TABLE resoluciones ADD COLUMN activa BOOLEAN DEFAULT FALSE NOT NULL"))
