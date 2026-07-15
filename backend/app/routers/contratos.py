@@ -667,3 +667,27 @@ async def descargar_documento_contrato(
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.post("/admin/regenerar-letras")
+async def regenerar_valor_letras(db: AsyncSession = Depends(get_db)):
+    """Regenera el campo valor_letras de todos los contratos usando la
+    función actualizada numero_a_letras (formato 'DE PESOS M/CTE')."""
+    result = await db.execute(select(Contrato))
+    contratos = result.scalars().all()
+    actualizados = 0
+    errores = 0
+    for c in contratos:
+        try:
+            nuevo = numero_a_letras(c.monto_total or 0)
+            c.valor_letras = nuevo
+            actualizados += 1
+        except Exception:
+            errores += 1
+    await db.commit()
+    return {
+        "total": len(contratos),
+        "actualizados": actualizados,
+        "errores": errores,
+        "mensaje": "Valor en letras regenerado para todos los contratos"
+    }
