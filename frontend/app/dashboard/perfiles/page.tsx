@@ -42,6 +42,8 @@ export default function PerfilesPage() {
   const [showNewForm, setShowNewForm] = useState(false)
   const [newName, setNewName] = useState("")
   const [newObj, setNewObj] = useState("")
+  const [newUnspsc, setNewUnspsc] = useState("")
+  const [newUnspscDesc, setNewUnspscDesc] = useState("")
   const [creating, setCreating] = useState(false)
 
   // Actividades
@@ -85,6 +87,8 @@ export default function PerfilesPage() {
         objeto: selectedPerfil.objeto || "",
         obligaciones_json: selectedPerfil.obligaciones_json || "[]",
         notas_internas: selectedPerfil.notas_internas || "",
+        codigo_unspsc: selectedPerfil.codigo_unspsc || "",
+        descripcion_unspsc: selectedPerfil.descripcion_unspsc || "",
       })
       toast.success("Perfil actualizado")
       loadPerfiles()
@@ -111,15 +115,19 @@ export default function PerfilesPage() {
         nombre: newName.trim().toUpperCase(),
         objeto: newObj || "",
         obligaciones_json: "[]",
+        codigo_unspsc: newUnspsc || "",
+        descripcion_unspsc: newUnspscDesc || "",
       })
       toast.success("Perfil creado")
       setShowNewForm(false)
       setNewName("")
       setNewObj("")
+      setNewUnspsc("")
+      setNewUnspscDesc("")
       loadPerfiles()
     } catch { toast.error("Error al crear perfil") }
     finally { setCreating(false) }
-  }, [newName, newObj, loadPerfiles])
+  }, [newName, newObj, newUnspsc, newUnspscDesc, loadPerfiles])
 
   const handleAddAct = useCallback(async () => {
     if (!nuevaActividad.trim() || !selectedPerfil) return
@@ -222,11 +230,19 @@ export default function PerfilesPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 truncate">{p.nombre || `Perfil #${i + 1}`}</h3>
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
                       <Badge variant="default" className="flex items-center gap-1">
                         <Activity className="w-3 h-3" />{(p.actividades?.length ?? 0)} actividades
                       </Badge>
+                      {p.codigo_unspsc && (
+                        <Badge variant="info" className="text-[10px]">
+                          UNSPSC {p.codigo_unspsc}
+                        </Badge>
+                      )}
                     </div>
+                    {p.descripcion_unspsc && (
+                      <p className="text-xs text-gray-400 mt-1 truncate">{p.descripcion_unspsc}</p>
+                    )}
                   </div>
                 </div>
                 {p.actividades?.length > 0 && (
@@ -274,6 +290,24 @@ export default function PerfilesPage() {
               </TabsList>
 
               <TabsContent value="objeto" className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-600">Código UNSPSC</label>
+                    <Input
+                      value={selectedPerfil.codigo_unspsc || ""}
+                      onChange={e => setSelectedPerfil({...selectedPerfil, codigo_unspsc: e.target.value})}
+                      placeholder="Ej: 85111600"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-600">Descripción UNSPSC</label>
+                    <Input
+                      value={selectedPerfil.descripcion_unspsc || ""}
+                      onChange={e => setSelectedPerfil({...selectedPerfil, descripcion_unspsc: e.target.value})}
+                      placeholder="Ej: SERVICIOS DE PERSONAL TEMPORAL"
+                    />
+                  </div>
+                </div>
                 <Textarea value={selectedPerfil.objeto || ""} onChange={handleObjChange} rows={8} className="resize-y" />
               </TabsContent>
 
@@ -377,6 +411,16 @@ export default function PerfilesPage() {
             <div className="space-y-1">
               <label className="text-sm font-medium">Nombre del perfil</label>
               <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ej: MEDICINA" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Código UNSPSC</label>
+                <Input value={newUnspsc} onChange={e => setNewUnspsc(e.target.value)} placeholder="Ej: 85111600" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Descripción UNSPSC</label>
+                <Input value={newUnspscDesc} onChange={e => setNewUnspscDesc(e.target.value)} placeholder="Ej: SERVICIOS DE PERSONAL TEMPORAL" />
+              </div>
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Objeto contractual</label>

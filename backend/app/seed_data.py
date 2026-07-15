@@ -26,6 +26,8 @@ PERFILES_REF = [
     ("ENFERMERIA", "ENFERMERIA"),
     ("PSICOLOGIA", "PSICOLOGIA"),
     ("SALUD ORAL", "SALUD ORAL"),
+    ("HIGIENISTA ORAL", "HIGIENISTA ORAL"),
+    ("FONOAUDIOLOGIA", "FONOAUDIOLOGIA"),
     ("AUXILIAR ENFERMERIA", "AUXILIAR ENFERMERIA"),
     ("AUXILIAR VACUNACION", "AUXILIAR VACUNACION"),
     ("GESTOR COMUNITARIO", "GESTOR COMUNITARIO"),
@@ -50,6 +52,8 @@ for nombre, ref_key in PERFILES_REF:
         "ENFERMERIA": "Prestar servicios profesionales como Enfermero(a) en los Equipos Básicos en Salud (EBS), desarrollando actividades de cuidado integral, promoción de la salud, prevención de la enfermedad.",
         "PSICOLOGIA": "Prestar servicios profesionales como Psicólogo en los programas de salud mental de la ESE Norte 3.",
         "SALUD ORAL": "Prestar servicios profesionales como Odontólogo en los puntos de atención de la ESE Norte 3.",
+        "HIGIENISTA ORAL": "Prestar servicios profesionales como Higienista Oral en los puntos de atención de la ESE Norte 3, desarrollando actividades de promoción de la salud oral y prevención de enfermedades bucodentales.",
+        "FONOAUDIOLOGIA": "Prestar servicios profesionales como Fonoaudiólogo en los Equipos Básicos en Salud (EBS), desarrollando actividades de evaluación, diagnóstico, intervención y seguimiento en el área de la fonoaudiología para la población asignada.",
         "AUXILIAR ENFERMERIA": "Prestar servicios de apoyo como Auxiliar de Enfermería en los Equipos Básicos en Salud.",
         "AUXILIAR VACUNACION": "Prestar servicios de apoyo como Auxiliar de Vacunación en los Equipos Básicos en Salud.",
         "GESTOR COMUNITARIO": "Prestar servicios como Gestor Comunitario en los Equipos Básicos en Salud, promoviendo la participación comunitaria.",
@@ -80,6 +84,31 @@ for nombre, ref_key in PERFILES_REF:
             "Registrar adecuadamente la información clínica en los sistemas.",
             "Participar en jornadas de salud extramurales.",
         ],
+        "HIGIENISTA ORAL": [
+            "Realizar actividades de promoción de la salud oral y prevención de enfermedades bucodentales.",
+            "Aplicar sellantes, flúor y demás medidas preventivas según lineamientos institucionales.",
+            "Educar a pacientes y cuidadores sobre técnicas de higiene oral y autocuidado.",
+            "Registrar adecuadamente la información de las atenciones realizadas.",
+            "Participar en jornadas de salud extramurales programadas.",
+        ],
+        "FONOAUDIOLOGIA": [
+            "Realizar evaluación, diagnóstico e intervención fonoaudiológica a la población asignada.",
+            "Desarrollar actividades de promoción y prevención en el área de la comunicación humana.",
+            "Educar a pacientes y familias sobre estrategias de comunicación y lenguaje.",
+            "Diligenciar los registros clínicos y RIPS correspondientes.",
+            "Cumplir con los protocolos de bioseguridad y seguridad del paciente.",
+        ],
+    }
+    
+    unspsc_map = {
+        "MEDICINA": ("85111600", "SERVICIOS DE PERSONAL TEMPORAL"),
+        "ENFERMERIA": ("85101601", "SERVICIOS DE ENFERMERÍA"),
+        "PSICOLOGIA": ("85121608", "SERVICIOS DE PSICOLOGÍA"),
+        "SALUD ORAL": ("85122001", "SERVICIOS DE ODONTÓLOGOS"),
+        "HIGIENISTA ORAL": ("85122002", "SERVICIOS DE HIGIENISTAS ORALES"),
+        "FONOAUDIOLOGIA": ("85111600", "SERVICIOS DE PERSONAL TEMPORAL"),
+        "GESTOR COMUNITARIO": ("85111600", "SERVICIOS DE PERSONAL TEMPORAL"),
+        "AUXILIAR ENFERMERIA": ("85101601", "SERVICIOS DE ENFERMERÍA"),
     }
     
     PERFILES_DATA.append({
@@ -92,6 +121,8 @@ for nombre, ref_key in PERFILES_REF:
             "Cumplir con los protocolos y procedimientos institucionales.",
         ]),
         "actividades": actividades,
+        "codigo_unspsc": unspsc_map.get(nombre, (None, None))[0],
+        "descripcion_unspsc": unspsc_map.get(nombre, (None, None))[1],
     })
 
 PLANTILLAS_OBSERVACION = [
@@ -142,8 +173,12 @@ PERFIL_NORMALIZATION = {
     "TECNICO AMBIENTAL": "OTRO",
     "TECNÓLOGO EN SISTEMAS": "OTRO",
     "TECNOLOGO SISTEMAS": "OTRO",
-    "HIGIENISTA": "AUXILIAR ENFERMERIA",
+    "HIGIENISTA ORAL": "HIGIENISTA ORAL",
+    "HIGIENISTA": "HIGIENISTA ORAL",
     "AUXILIAR ENFERMERIA HIGIENISTA": "AUXILIAR ENFERMERIA",
+    "FONOAUDIOLOGIA": "FONOAUDIOLOGIA",
+    "FONOAUDIÓLOGO": "FONOAUDIOLOGIA",
+    "FONOAUDIOLOGO": "FONOAUDIOLOGIA",
     "CONDUCTOR": "TRANSPORTE",
     "TRANSPORTE": "TRANSPORTE",
 }
@@ -188,6 +223,8 @@ async def seed_database():
                     nombre=pdata["nombre"],
                     objeto=pdata["objeto"],
                     obligaciones_json=obligaciones_json,
+                    codigo_unspsc=pdata.get("codigo_unspsc"),
+                    descripcion_unspsc=pdata.get("descripcion_unspsc"),
                 )
                 db.add(perfil)
                 await db.flush()

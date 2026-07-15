@@ -24,6 +24,8 @@ class PerfilBase(BaseModel):
     objeto: str | None = None
     obligaciones_json: str | None = None
     notas_internas: str | None = None
+    codigo_unspsc: str | None = Field(None, max_length=20)
+    descripcion_unspsc: str | None = Field(None, max_length=300)
 
 
 class PerfilCreate(PerfilBase):

@@ -358,6 +358,30 @@ ACTIVIDADES_POR_PERFIL = {
         "Actualizar el registro fotográfico cuando se realice cambio de vehículo durante la ejecución contractual, previa autorización de la supervisión.<br>",
         "Presentar, cuando sea requerido por la supervisión, la documentación actualizada de los vehículos y conductores asignados al contrato, como soporte de la ejecución contractual.<br>"
     ],
+    "HIGIENISTA ORAL": [
+        "Realizar actividades de promoción de la salud oral y prevención de enfermedades bucodentales.",
+        "Aplicar sellantes, flúor y demás medidas preventivas según lineamientos institucionales.",
+        "Educar a pacientes, familias y cuidadores sobre técnicas de higiene oral y autocuidado.",
+        "Registrar adecuadamente la información de las atenciones realizadas en los sistemas definidos.",
+        "Participar en jornadas de salud extramurales programadas por la institución.",
+        "Apoyar las actividades de los odontólogos en los puntos de atención de la ESE Norte 3.",
+        "Realizar tamizajes y detección temprana de enfermedades bucodentales.",
+        "Cumplir con los protocolos de bioseguridad y seguridad del paciente.",
+        "Participar en reuniones de seguimiento y coordinación del equipo EBS.",
+        "Cumplir con el plan de capacitaciones definido por la E.S.E. NORTE 3.",
+    ],
+    "FONOAUDIOLOGIA": [
+        "Realizar evaluación, diagnóstico e intervención fonoaudiológica a la población asignada.",
+        "Desarrollar actividades de promoción y prevención en el área de la comunicación humana.",
+        "Identificar y gestionar oportunamente alteraciones del lenguaje, habla y audición.",
+        "Educar a pacientes y familias sobre estrategias de comunicación, lenguaje y estimulación.",
+        "Diligenciar los registros clínicos y RIPS correspondientes a las atenciones realizadas.",
+        "Cumplir con los protocolos de bioseguridad y seguridad del paciente.",
+        "Realizar canalización oportuna a servicios especializados según necesidad.",
+        "Participar en acciones de trabajo colaborativo con el equipo EBS.",
+        "Cumplir con el plan de capacitaciones definido por la E.S.E. NORTE 3.",
+        "Presentar informes periódicos de las actividades realizadas.",
+    ],
 }
 
 
@@ -367,6 +391,9 @@ PROFILE_MAP = {
     "ENFERMERIA": "ENFERMERIA",
     "PSICOLOGIA": "PSICOLOGIA",
     "SALUD ORAL": "SALUD ORAL",
+    "HIGIENISTA ORAL": "HIGIENISTA ORAL",
+    "FONOAUDIOLOGIA": "FONOAUDIOLOGIA",
+    "FONOAUDIÓLOGO": "FONOAUDIOLOGIA",
     "GESTOR COMUNITARIO": "GESTOR COMUNITARIO",
     "AUXILIAR VACUNACION": "AUXILIAR VACUNACION",
     "AUXILIAR ENFERMERIA": "AUXILIAR ENFERMERIA",

@@ -15,6 +15,8 @@ class Perfil(Base):
     objeto: Mapped[str | None] = mapped_column(Text, comment="Objeto contractual default")
     obligaciones_json: Mapped[str | None] = mapped_column(Text, comment="JSON array de obligaciones específicas")
     notas_internas: Mapped[str | None] = mapped_column(Text)
+    codigo_unspsc: Mapped[str | None] = mapped_column(String(20), comment="Código UNSPSC del perfil")
+    descripcion_unspsc: Mapped[str | None] = mapped_column(String(300), comment="Descripción UNSPSC del perfil")
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
 
     actividades = relationship("ActividadPerfil", back_populates="perfil", cascade="all, delete-orphan")
