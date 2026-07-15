@@ -10,13 +10,22 @@ from docx.oxml import OxmlElement
 from app.services.numero_letras import numero_a_letras
 
 MESES_ESPANOL = [
-    "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+    "", "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ]
 
 
+def _formatear_numero(valor: float | int) -> str:
+    """Formatea un número al estilo colombiano: $20.000.000.00
+    Usa punto como separador de miles y dos decimales."""
+    entero = int(valor)
+    decimales = int(round((valor - entero) * 100))
+    s = f"{entero:,}".replace(",", ".")
+    return f"${s}.{decimales:02d}"
+
+
 def formatear_fecha(valor: str | date | None, default: str = "_________") -> str:
-    """Convierte fecha a formato español: '11 de Julio del 2026'.
+    """Convierte fecha a formato español: '06 de julio de 2026'.
     Acepta string ISO, date object, o None."""
     if not valor:
         return default
@@ -33,7 +42,7 @@ def formatear_fecha(valor: str | date | None, default: str = "_________") -> str
         d = valor
     else:
         return str(valor)
-    return f"{d.day} de {MESES_ESPANOL[d.month]} del {d.year}"
+    return f"{d.day:02d} de {MESES_ESPANOL[d.month].lower()} de {d.year}"
 
 
 TEMPLATE_PATH = os.path.normpath(os.path.join(
@@ -200,11 +209,11 @@ def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None)
         "<<OBJETO DEL CONTRATO>>": data.get("objeto", "_________"),
         "<<FECHA DE TERMINACIÓN>>": formatear_fecha(data.get("fecha_fin", "_________")),
         "<<fecha de terminación>>": formatear_fecha(data.get("fecha_fin", "_________")),
-        "<<VALOR DEL CONTRATO>>": f"{valor_letras} (${valor:,.0f})",
+        "<<VALOR DEL CONTRATO>>": f"{valor_letras} ({_formatear_numero(valor)})",
         "<<CDP>>": data.get("no_cdp", "_________"),
         "<<FECHA DEL CDP>>": formatear_fecha(data.get("fecha_cdp", "") or ""),
         "<<fecha del CDP>>": formatear_fecha(data.get("fecha_cdp", "") or ""),
-        "<<VALOR DEL CDP>>": f"${valor:,.0f}",
+        "<<VALOR DEL CDP>>": _formatear_numero(valor),
         "<<LUGAR DE EJECUCIÓN>>": data.get("lugar_ejecucion", "Puerto Tejada - Cauca"),
         "<<fecha del acta>>": formatear_fecha(data.get("fecha_inicio", str(date.today()))),
         "<<SUPERVISOR>>": data.get("supervisor", "_________"),
@@ -322,8 +331,8 @@ def generar_documento_contrato(tipo: str, data: dict) -> bytes:
         "<<CÉDULA DE SUPERVISOR>>": data.get("cedula_supervisor", "_________"),
         "<<OBJETO DEL CONTRATO>>": data.get("objeto", "_________"),
         "<<PERFIL>>": data.get("perfil", "_________"),
-        "<<VALOR DEL CONTRATO>>": f"{valor_letras} (${valor:,.0f})",
-        "<<VALOR DE CDP>>": f"{valor:,.0f}",
+        "<<VALOR DEL CONTRATO>>": f"{valor_letras} ({_formatear_numero(valor)})",
+        "<<VALOR DE CDP>>": _formatear_numero(valor).lstrip("$"),
         "<<fecha de terminación>>": formatear_fecha(data.get("fecha_fin", "_________")),
         "<<fecha de finalización>>": formatear_fecha(data.get("fecha_fin", "_________")),
         "<<FECHA DE TERMINACIÓN>>": formatear_fecha(data.get("fecha_fin", "_________")),
@@ -341,7 +350,9 @@ def generar_documento_contrato(tipo: str, data: dict) -> bytes:
         "<<CDP>>": data.get("no_cdp", "_________"),
         "<<FECHA DEL CDP>>": formatear_fecha(data.get("fecha_cdp", "") or ""),
         "<<fecha del CDP>>": formatear_fecha(data.get("fecha_cdp", "") or ""),
-        "<<VALOR DEL CDP>>": f"${valor:,.0f}",
+        "<<VALOR DEL CDP>>": _formatear_numero(valor),
+        "<<UNSPSC>>": data.get("codigo_unspsc", ""),
+        "<<DESCRIPCIÓN>>": data.get("descripcion_unspsc", ""),
         "<<LUGAR DE EJECUCIÓN>>": data.get("lugar_ejecucion", "Puerto Tejada - Cauca"),
         "<<OBLIGACIONES>>": data.get("obligaciones", "Ver cláusula SEGUNDA del contrato."),
     }

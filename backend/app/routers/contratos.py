@@ -628,6 +628,8 @@ async def descargar_documento_contrato(
         "fecha_cdp": str(contrato.fecha_cdp) if contrato.fecha_cdp else "",
         "valor_cdp": contrato.valor_cdp or "",
         "lugar_ejecucion": contrato.lugar_ejecucion or "Puerto Tejada - Cauca",
+        "codigo_unspsc": contrato.codigo_unspsc or "",
+        "descripcion_unspsc": contrato.descripcion_unspsc or "",
         "valor_letras": contrato.valor_letras or "",
     }
 

@@ -73,6 +73,11 @@ def numero_a_letras(numero: float | int | str) -> str:
             partes.append(menos_mil(miles) + " MIL")
         if centavos_n > 0:
             partes.append(menos_mil(centavos_n))
-        return " ".join(partes) + " PESOS M/CTE"
+        texto = " ".join(partes)
+        # "DE" solo cuando el último componente es MILLÓN/MILLONES
+        ultimo = partes[-1] if partes else ""
+        if ultimo.endswith("MILLÓN") or ultimo.endswith("MILLONES"):
+            texto += " DE"
+        return texto + " PESOS M/CTE"
     except Exception:
         return str(numero) + " PESOS M/CTE"
