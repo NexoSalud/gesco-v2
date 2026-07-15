@@ -357,23 +357,37 @@ def generar_documento_contrato(tipo: str, data: dict) -> bytes:
         "<<OBLIGACIONES>>": data.get("obligaciones", "Ver cláusula SEGUNDA del contrato."),
     }
 
-    # Reemplazar usando el mismo enfoque que en _replace_all
+    # Reemplazar placeholders (recursivo para tablas anidadas)
+    def _replace_in_element(element, ph, val):
+        """Busca y reemplaza un placeholder en paragraphs y tablas anidadas."""
+        for p in element.paragraphs:
+            if ph in p.text:
+                full_new = p.text.replace(ph, val)
+                for i, run in enumerate(p.runs):
+                    run.text = full_new if i == 0 else ""
+        # Buscar en tablas anidadas (recursivo)
+        from docx.oxml.ns import qn
+        for tbl_elem in element._element.findall(qn('w:tbl')):
+            from docx.table import Table
+            nested_table = Table(tbl_elem, element)
+            for row in nested_table.rows:
+                for cell in row.cells:
+                    _replace_in_element(cell, ph, val)
+
     import re as _re
     for ph, val in placeholders.items():
         val = str(val) if val is not None else ""
+        # 1. Body paragraphs
         for p in doc.paragraphs:
             if ph in p.text:
                 full_new = p.text.replace(ph, val)
                 for i, run in enumerate(p.runs):
                     run.text = full_new if i == 0 else ""
+        # 2. Top-level tables (con recursión para anidadas)
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
-                    for p in cell.paragraphs:
-                        if ph in p.text:
-                            full_new = p.text.replace(ph, val)
-                            for i, run in enumerate(p.runs):
-                                run.text = full_new if i == 0 else ""
+                    _replace_in_element(cell, ph, val)
 
     buf = io.BytesIO()
     doc.save(buf)
