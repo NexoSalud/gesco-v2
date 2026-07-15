@@ -66,6 +66,19 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Migración plantillas_objeto: {e}")
 
+    # Migración: agregar columnas UNSPSC a perfiles y contratos
+    for table, column, coltype in [
+        ("perfiles", "codigo_unspsc", "VARCHAR(20)"),
+        ("perfiles", "descripcion_unspsc", "VARCHAR(300)"),
+        ("contratos", "codigo_unspsc", "VARCHAR(20)"),
+        ("contratos", "descripcion_unspsc", "VARCHAR(300)"),
+    ]:
+        try:
+            await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}"))
+            logger.info(f"Migración OK: columna '{column}' agregada a {table}")
+        except Exception:
+            logger.info(f"Columna '{column}' ya existe en {table}, saltando")
+
     await seed_database()
     logger.info("Gesco V2 listo!")
     yield
