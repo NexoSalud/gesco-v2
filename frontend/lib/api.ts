@@ -236,6 +236,36 @@ export const descargarPdfSupervision = (pagoId: number) => {
 export const buscarContratistas = (q: string) =>
   request<any[]>(`/api/v1/contratistas?buscar=${encodeURIComponent(q)}`)
 
+// ─── Supervisores ────────────────────────────────────────────────────────────
+
+export interface Supervisor {
+  id: number
+  nombre: string
+  identificacion: string
+  cargo: string | null
+  nivel_profesional: string | null
+  telefono: string | null
+  correo: string | null
+  created_at: string
+}
+
+export const getSupervisores = (buscar?: string) => {
+  const q = buscar ? `?buscar=${encodeURIComponent(buscar)}` : ""
+  return request<Supervisor[]>(`/api/v1/supervisores${q}`)
+}
+
+export const getSupervisor = (id: number) =>
+  request<Supervisor>(`/api/v1/supervisores/${id}`)
+
+export const createSupervisor = (data: any) =>
+  request<Supervisor>("/api/v1/supervisores", { method: "POST", body: JSON.stringify(data) })
+
+export const updateSupervisor = (id: number, data: any) =>
+  request<Supervisor>(`/api/v1/supervisores/${id}`, { method: "PUT", body: JSON.stringify(data) })
+
+export const deleteSupervisor = (id: number) =>
+  request<void>(`/api/v1/supervisores/${id}`, { method: "DELETE" })
+
 // ─── Perfiles ────────────────────────────────────────────────────────────────
 
 export const getPerfiles = () => request<any[]>("/api/v1/perfiles")

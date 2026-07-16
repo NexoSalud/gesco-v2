@@ -56,6 +56,7 @@ export default function NuevoContratoPage() {
   const [contratistaForm, setContratistaForm] = useState({
     nombre: "",
     identificacion: "",
+    tipo_persona: "NATURAL",
     expedida_en: "",
     telefono: "",
     direccion: "",
@@ -94,6 +95,7 @@ export default function NuevoContratoPage() {
     setContratistaForm({
       nombre: c.nombre || "",
       identificacion: c.identificacion || "",
+      tipo_persona: c.tipo_persona || "NATURAL",
       expedida_en: c.expedida_en || "",
       telefono: c.telefono || "",
       direccion: c.direccion || "",
@@ -105,7 +107,7 @@ export default function NuevoContratoPage() {
 
   const limpiarContratista = () => {
     setContratistaSel(null)
-    setContratistaForm({ nombre: "", identificacion: "", expedida_en: "", telefono: "", direccion: "", correo: "" })
+    setContratistaForm({ nombre: "", identificacion: "", tipo_persona: "NATURAL", expedida_en: "", telefono: "", direccion: "", correo: "" })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -149,6 +151,7 @@ export default function NuevoContratoPage() {
       } else if (contratistaForm.identificacion) {
         body.contratista_identificacion = contratistaForm.identificacion
         body.contratista_nombre = contratistaForm.nombre
+        body.contratista_tipo_persona = contratistaForm.tipo_persona
         body.contratista_expedida_en = contratistaForm.expedida_en
         body.contratista_telefono = contratistaForm.telefono
         body.contratista_direccion = contratistaForm.direccion
@@ -224,6 +227,14 @@ export default function NuevoContratoPage() {
                     <label className="text-xs font-medium text-gray-500">CC/NIT*</label>
                     <Input value={contratistaForm.identificacion} onChange={e => setContratistaForm({ ...contratistaForm, identificacion: e.target.value })}
                       placeholder="Identificación" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-500">Tipo de Persona</label>
+                    <Select value={contratistaForm.tipo_persona}
+                      onChange={e => setContratistaForm({ ...contratistaForm, tipo_persona: e.target.value })}>
+                      <option value="NATURAL">NATURAL</option>
+                      <option value="JURIDICA">JURIDICA</option>
+                    </Select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-gray-500">Expedida en</label>

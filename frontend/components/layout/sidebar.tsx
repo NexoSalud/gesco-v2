@@ -13,6 +13,7 @@ import {
   Scale,
   Upload,
   User,
+  BadgeCheck,
 } from "lucide-react"
 import { useState } from "react"
 
@@ -40,6 +41,11 @@ const NAV_ITEMS = [
     label: "Contratistas",
     href: "/dashboard/contratistas",
     icon: User,
+  },
+  {
+    label: "Supervisores",
+    href: "/dashboard/supervisores",
+    icon: BadgeCheck,
   },
   {
     label: "Perfiles",
