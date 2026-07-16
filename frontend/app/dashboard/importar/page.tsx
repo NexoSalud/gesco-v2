@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react"
-import { getResoluciones, uploadImportExcel, type Resolucion } from "@/lib/api"
+import { getResoluciones, uploadImportExcel, API, type Resolucion } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -223,10 +223,13 @@ export default function ImportarPage() {
             </CardHeader>
             <CardContent className="text-sm text-gray-600 space-y-2">
               <p>El archivo Excel debe contener los contratos a importar con los encabezados en la primera fila. Cada fila representa un contrato.</p>
-              <div className="flex items-center gap-2 text-xs text-gray-400 pt-2 border-t">
+              <button
+                onClick={() => window.open(`${API}/api/v1/export/plantilla-importacion`, "_blank")}
+                className="flex items-center gap-2 text-xs font-medium text-emerald-600 hover:text-emerald-700 pt-2 border-t w-full"
+              >
                 <Download className="w-3.5 h-3.5" />
-                <span>Descarga una plantilla desde Exportar &gt; Excel</span>
-              </div>
+                Descargar plantilla Excel para importación
+              </button>
             </CardContent>
           </Card>
 
