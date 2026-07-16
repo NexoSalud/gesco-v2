@@ -358,12 +358,6 @@
       <td class="label uppercase" style="height: 60px; vertical-align: bottom; padding-bottom: 5px;">FIRMA SUPERVISORAS</td>
       <td class="text-center uppercase font-bold" style="vertical-align: bottom; padding-bottom: 5px;">{{ firmas[0] if firmas|length > 0 else '' }}</td>
     </tr>
-    {% if firmas|length > 1 %}
-    <tr>
-      <td class="label uppercase" style="height: 60px; vertical-align: bottom; padding-bottom: 5px;">FIRMA CONTRATISTA</td>
-      <td class="text-center uppercase font-bold" style="vertical-align: bottom; padding-bottom: 5px;">{{ firmas[1] if firmas|length > 1 else '' }}</td>
-    </tr>
-    {% endif %}
   </table>
 
 </body>
