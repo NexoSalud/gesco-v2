@@ -41,6 +41,7 @@ export default function NuevoContratoPage() {
     no_cdp: "",
     fecha_cdp: "",
     cuotas: "1",
+    rubro: "",
     fecha_inicio: "",
     fecha_fin: "",
     fecha_contrato: "",
@@ -130,6 +131,7 @@ export default function NuevoContratoPage() {
         no_cdp: form.no_cdp || null,
         fecha_cdp: form.fecha_cdp || null,
         cuotas: form.cuotas || "1",
+        rubro: form.rubro || null,
         cuotas_total: 1,
         fecha_inicio: form.fecha_inicio || null,
         fecha_fin: form.fecha_fin || null,
@@ -315,6 +317,10 @@ export default function NuevoContratoPage() {
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-500">Fecha CDP</label>
               <Input type="date" value={form.fecha_cdp} onChange={e => setForm({ ...form, fecha_cdp: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Imputación Presupuestal</label>
+              <Input value={form.rubro} onChange={e => setForm({ ...form, rubro: e.target.value })} placeholder="Ej: 3.1.1.01.002" />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-500">Costo</label>
