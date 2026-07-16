@@ -114,6 +114,25 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Migración UNSPSC: {e}")
 
+    # Migración: crear tabla supervisores si no existe
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS supervisores (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre VARCHAR(300) NOT NULL,
+                    identificacion VARCHAR(20) NOT NULL UNIQUE,
+                    cargo VARCHAR(200),
+                    nivel_profesional VARCHAR(100),
+                    telefono VARCHAR(30),
+                    correo VARCHAR(200),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            logger.info("Migración OK: tabla supervisores creada/verificada")
+    except Exception as e:
+        logger.warning(f"Migración supervisores: {e}")
+
     # Migración: columnas para PDF de supervisión (campos originales)
     try:
         async with engine.begin() as conn:
