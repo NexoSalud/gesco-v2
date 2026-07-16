@@ -396,6 +396,7 @@ async def descargar_docx(numero_contrato: str, db: AsyncSession = Depends(get_db
             "valor_letras": contrato.valor_letras or "",
             "objeto": contrato.objeto or "",
             "unidad_atencion": contrato.unidad_atencion or "N/A",
+            "rubro": contrato.rubro or "",
         },
         obligaciones_esp=todas_obligaciones,
     )
@@ -574,6 +575,7 @@ async def descargar_docx_por_id(contrato_id: int, db: AsyncSession = Depends(get
             "valor_letras": contrato.valor_letras or "",
             "objeto": contrato.objeto or "",
             "unidad_atencion": contrato.unidad_atencion or "N/A",
+            "rubro": contrato.rubro or "",
         },
         obligaciones_esp=todas_obligaciones,
     )
@@ -638,6 +640,7 @@ async def descargar_documento_contrato(
         "codigo_unspsc": contrato.codigo_unspsc or "",
         "descripcion_unspsc": contrato.descripcion_unspsc or "",
         "valor_letras": contrato.valor_letras or "",
+        "rubro": contrato.rubro or "",
     }
 
     # Cargar actividades del perfil para llenar <<OBLIGACIONES>> en invitación

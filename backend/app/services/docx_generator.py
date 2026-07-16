@@ -220,6 +220,7 @@ def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None)
         "<<CEDULA DE SUPERVISOR>>": data.get("cedula_supervisor", "_________"),
         "<<CÉDULA DE SUPERVISOR>>": data.get("cedula_supervisor", "_________"),
         "<<PERFIL>>": data.get("perfil", "_________"),
+        "<<RUBRO>>": data.get("rubro", "") or data.get("imputacion", "") or "_________",
     }
 
     if os.path.exists(TEMPLATE_PATH):
@@ -355,6 +356,7 @@ def generar_documento_contrato(tipo: str, data: dict) -> bytes:
         "<<DESCRIPCIÓN>>": data.get("descripcion_unspsc", ""),
         "<<LUGAR DE EJECUCIÓN>>": data.get("lugar_ejecucion", "Puerto Tejada - Cauca"),
         "<<OBLIGACIONES>>": data.get("obligaciones", "Ver cláusula SEGUNDA del contrato."),
+        "<<RUBRO>>": data.get("rubro", "") or data.get("imputacion", "") or "_________",
     }
 
     # Reemplazar placeholders (recursivo para tablas anidadas)
