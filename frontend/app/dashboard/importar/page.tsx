@@ -177,22 +177,41 @@ export default function ImportarPage() {
 
               <div className="mt-4 p-4 bg-gray-50 rounded-xl">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                  Columnas esperadas
+                  Columnas del Excel (descarga la plantilla para ver el formato exacto)
                 </p>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1">
-                  {[
-                    "NO. CONTRATO", "CONTRATISTA", "CEDULA DE CONTRATISTA",
-                    "LUGAR DE EXPEDICIÓN", "TELEFONO", "DIRECCION",
-                    "CORREO", "TÍTULO", "VALOR DEL CONTRATO",
-                    "CUOTAS", "VIGENCIA DEL CONTRATO", "OBJETO DEL CONTRATO",
-                    "SUPERVISOR", "CEDULA SUPERVISOR", "No. CDP",
-                  ].map((col) => (
-                    <p key={col} className="text-xs text-gray-500 flex items-center gap-1">
-                      <span className="w-1 h-1 rounded-full bg-emerald-400 inline-block" />
-                      {col}
-                    </p>
-                  ))}
-                </div>
+                <details className="text-xs">
+                  <summary className="text-emerald-600 font-medium cursor-pointer hover:text-emerald-700">
+                    Ver todas las columnas soportadas
+                  </summary>
+                  <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1">
+                    {[
+                      "N° DE CONTRATO", "NOMBRE CONTRATISTA", "No. DE IDENTIFICACIÓN",
+                      "EXPEDIDA EN", "No. TELÉFONO y/o CELULAR", "DIRECCION",
+                      "TIPO DE PERSONA", "PERFIL", "VALOR TOTAL DEL CONTRATO",
+                      "VALOR FINAL", "OBJETO DEL CONTRATO", "SUPERVISOR",
+                      "CEDULA SUPERVISOR", "NIVEL SUPERVISOR", "INTERVENTOR",
+                      "NIVEL INTERVENTOR", "CDP No.", "CRP No.",
+                      "IMPUTACIÓN PRESUPUESTAL", "UNIDAD DE ATENCION", "CODIGO CIIU",
+                      "TIEMPO ADICION", "FORMA PAGO", "CODIGO UNSPSC",
+                      "DESCRIPCION UNSPSC", "FECHA DE INICIO DEL CONTRATO", "FECHA TERMINACION DEL CONTRATO",
+                      "ESTADO", "LUGAR DE EXPEDICIÓN", "CORREO",
+                      "TIPO DE INFORME", "PERIODO INFORME DESDE", "PERIODO INFORME HASTA",
+                      "PAGO No", "VALOR A PAGAR", "FECHA FIRMA",
+                      "OTRO SI", "VALOR PAGADO HISTORICO", "N° FOLIOS",
+                      "ANEXA CERTIFICACION", "OBSERVACIONES", "ACTIVIDADES",
+                      "PLANILLA No", "PERIODO COTIZADO", "IBC",
+                      "EPS NOMBRE", "EPS VALOR", "ARL NOMBRE",
+                      "ARL VALOR", "AFP NOMBRE", "AFP VALOR",
+                      "CCF NOMBRE", "CCF VALOR", "SENA VALOR",
+                      "ICBF VALOR",
+                    ].map((col) => (
+                      <p key={col} className="text-xs text-gray-500 flex items-center gap-1">
+                        <span className="w-1 h-1 rounded-full bg-emerald-400 inline-block" />
+                        {col}
+                      </p>
+                    ))}
+                  </div>
+                </details>
               </div>
 
               <Button
