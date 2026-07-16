@@ -255,19 +255,19 @@
       <td class="label">SENA</td>
       <td></td>
       <td class="label">VALOR PAGADO</td>
-      <td><div class="flex-between">{% if informe.tiene_planilla %}<span>$</span><span>{{ informe.sena_valor | fmt_colombia }}</span>{% else %}<span>NO APLICA</span>{% endif %}</div></td>
+      <td><div class="flex-between">{% if informe.tiene_planilla and informe.sena_valor > 0 %}<span>$</span><span>{{ informe.sena_valor | fmt_colombia }}</span>{% else %}<span>NO APLICA</span>{% endif %}</div></td>
     </tr>
     <tr>
       <td class="label">ICBF</td>
       <td></td>
       <td class="label">VALOR PAGADO</td>
-      <td><div class="flex-between">{% if informe.tiene_planilla %}<span>$</span><span>{{ informe.icbf_valor | fmt_colombia }}</span>{% else %}<span>NO APLICA</span>{% endif %}</div></td>
+      <td><div class="flex-between">{% if informe.tiene_planilla and informe.icbf_valor > 0 %}<span>$</span><span>{{ informe.icbf_valor | fmt_colombia }}</span>{% else %}<span>NO APLICA</span>{% endif %}</div></td>
     </tr>
     <tr>
       <td class="label">CCF</td>
       <td></td>
       <td class="label">VALOR PAGADO</td>
-      <td><div class="flex-between">{% if informe.tiene_planilla %}<span>$</span><span>{{ informe.ccf_valor | fmt_colombia }}</span>{% else %}<span>NO APLICA</span>{% endif %}</div></td>
+      <td><div class="flex-between">{% if informe.tiene_planilla and informe.ccf_valor > 0 %}<span>$</span><span>{{ informe.ccf_valor | fmt_colombia }}</span>{% else %}<span>NO APLICA</span>{% endif %}</div></td>
     </tr>
     <tr>
       <td class="label">AFP</td>
