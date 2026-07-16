@@ -100,6 +100,16 @@ async def lifespan(app: FastAPI):
                     logger.info(f"UNSPSC actualizado para perfil '{nombre}'")
                 except Exception as e:
                     logger.warning(f"UNSPSC perfil '{nombre}': {e}")
+            # Poblar UNSPSC en contratos existentes que estén vacíos (heredar del perfil)
+            for nombre, (codigo, descripcion) in unspsc_defaults.items():
+                try:
+                    await conn.execute(text(
+                        "UPDATE contratos SET codigo_unspsc = :cod, descripcion_unspsc = :desc "
+                        "WHERE perfil = :nom AND (codigo_unspsc IS NULL OR codigo_unspsc = '')"
+                    ), {"cod": codigo, "desc": descripcion, "nom": nombre})
+                    logger.info(f"UNSPSC actualizado para contratos con perfil '{nombre}'")
+                except Exception as e:
+                    logger.warning(f"UNSPSC contratos '{nombre}': {e}")
     except Exception as e:
         logger.warning(f"Migración UNSPSC: {e}")
 
