@@ -14,6 +14,7 @@ from app.database import get_db
 from app.models.contrato import Contrato
 from app.models.contratista import Contratista
 from app.models.pago import Pago
+from app.models.planilla import Planilla
 from app.models.perfil import Perfil, ActividadPerfil
 from app.models.actividad_contrato import ActividadContrato
 
@@ -116,6 +117,36 @@ COLUMN_MAP = {
     "OBSERVACIONES": "observaciones",
     "ACTIVIDADES": "actividades",
     "PAGO No": "pago_numero",
+
+    # Nuevas columnas de pago (supervisión)
+    "FECHA FIRMA": "fecha_firma",
+    "OTRO SI": "otro_si",
+    "VALOR PAGADO HISTORICO": "valor_pagado_historico",
+    "ANEXA CERTIFICACION": "anexa_cert",
+
+    # Planilla de seguridad social
+    "PLANILLA No": "planilla_no",
+    "PERIODO COTIZADO": "periodo_cotizado",
+    "IBC": "ibc",
+    "EPS NOMBRE": "eps_nombre",
+    "EPS VALOR": "eps_valor",
+    "ARL NOMBRE": "arl_nombre",
+    "ARL VALOR": "arl_valor",
+    "AFP NOMBRE": "afp_nombre",
+    "AFP VALOR": "afp_valor",
+    "CCF NOMBRE": "ccf_nombre",
+    "CCF VALOR": "ccf_valor",
+    "SENA VALOR": "sena_valor",
+    "ICBF VALOR": "icbf_valor",
+
+    # Nuevas columnas de contrato (supervisión PDF)
+    "CODIGO CIIU": "codigo_ciiu",
+    "NIVEL SUPERVISOR": "nivel_prof_supervisor",
+    "INTERVENTOR": "interventor",
+    "NIVEL INTERVENTOR": "nivel_prof_interventor",
+    "TIEMPO ADICION": "tiempo_adicion",
+    "VALOR FINAL": "valor_final",
+    "FORMA PAGO": "forma_pago",
 }
 
 _TITLE_NORMALIZE_RE = re.compile(r"[^A-Z0-9ÁÉÍÓÚÑ ]")
@@ -316,6 +347,15 @@ async def importar_contratos_excel(
                 rubro = _clean_str(_get_col(col_indices, row, "IMPUTACIÓN PRESUPUESTAL"))
                 unidad_atencion = _clean_str(_get_col(col_indices, row, "UNIDAD DE ATENCION"))
 
+                # Nuevos campos PDF supervisión
+                codigo_ciiu = _clean_str(_get_col(col_indices, row, "CODIGO CIIU")) or ""
+                nivel_prof_supervisor = _clean_str(_get_col(col_indices, row, "NIVEL SUPERVISOR")) or ""
+                interventor = _clean_str(_get_col(col_indices, row, "INTERVENTOR")) or ""
+                nivel_prof_interventor = _clean_str(_get_col(col_indices, row, "NIVEL INTERVENTOR")) or ""
+                tiempo_adicion = _clean_str(_get_col(col_indices, row, "TIEMPO ADICION")) or ""
+                valor_final = _parse_number(_get_col(col_indices, row, "VALOR FINAL")) or 0
+                forma_pago = _clean_str(_get_col(col_indices, row, "FORMA PAGO")) or ""
+
                 # Cuotas: ya no se usan, se deja en 0
                 # El progreso se mide por (total pagado / monto_total)
                 cuotas_txt = None
@@ -382,6 +422,13 @@ async def importar_contratos_excel(
                     unidad_atencion=unidad_atencion or "",
                     fecha_inicio=fecha_inicio,
                     fecha_fin=fecha_fin,
+                    codigo_ciiu=codigo_ciiu,
+                    nivel_prof_supervisor=nivel_prof_supervisor,
+                    interventor=interventor,
+                    nivel_prof_interventor=nivel_prof_interventor,
+                    tiempo_adicion=tiempo_adicion,
+                    valor_final=valor_final,
+                    forma_pago=forma_pago,
                 )
                 db.add(contrato_obj)
                 await db.flush()
@@ -427,6 +474,10 @@ async def importar_contratos_excel(
                 folios = _clean_str(_get_col(col_indices, row, "N° FOLIOS"))
                 observaciones = _clean_str(_get_col(col_indices, row, "OBSERVACIONES"))
                 actividades = _clean_str(_get_col(col_indices, row, "ACTIVIDADES"))
+                fecha_firma = _parse_date(_get_col(col_indices, row, "FECHA FIRMA"))
+                otro_si = _clean_str(_get_col(col_indices, row, "OTRO SI"))
+                valor_pagado_historico = _parse_number(_get_col(col_indices, row, "VALOR PAGADO HISTORICO"))
+                anexa_cert = _clean_str(_get_col(col_indices, row, "ANEXA CERTIFICACION"))
 
                 # Fecha dummy si vacía (para permitir registro)
                 if periodo_desde is None:
@@ -450,13 +501,53 @@ async def importar_contratos_excel(
                     tipo_informe=tipo_informe,
                     periodo_desde=periodo_desde,
                     periodo_hasta=periodo_hasta,
+                    fecha_firma=fecha_firma,
                     valor_a_pagar=valor_a_pagar,
+                    otro_si=otro_si,
+                    valor_pagado=valor_pagado_historico if valor_pagado_historico else None,
+                    anexa_cert=anexa_cert,
                     folios=folios or "",
                     observaciones=observaciones or "",
                     actividades=actividades or "",
                 )
                 db.add(pago)
                 await db.flush()
+
+                # ─── PLANILLA DE SEGURIDAD SOCIAL ──
+                planilla_no = _clean_str(_get_col(col_indices, row, "PLANILLA No"))
+                if planilla_no:  # Solo crear planilla si hay No. de planilla
+                    periodo_cotizado = _clean_str(_get_col(col_indices, row, "PERIODO COTIZADO")) or ""
+                    ibc = str(_parse_number(_get_col(col_indices, row, "IBC")) or 0)
+                    eps_nombre = _clean_str(_get_col(col_indices, row, "EPS NOMBRE")) or ""
+                    eps_valor = _parse_number(_get_col(col_indices, row, "EPS VALOR"))
+                    arl_nombre = _clean_str(_get_col(col_indices, row, "ARL NOMBRE")) or ""
+                    arl_valor = _parse_number(_get_col(col_indices, row, "ARL VALOR"))
+                    afp_nombre = _clean_str(_get_col(col_indices, row, "AFP NOMBRE")) or ""
+                    afp_valor = _parse_number(_get_col(col_indices, row, "AFP VALOR"))
+                    ccf_nombre = _clean_str(_get_col(col_indices, row, "CCF NOMBRE")) or ""
+                    ccf_valor = _parse_number(_get_col(col_indices, row, "CCF VALOR"))
+                    sena_valor = _parse_number(_get_col(col_indices, row, "SENA VALOR"))
+                    icbf_valor = _parse_number(_get_col(col_indices, row, "ICBF VALOR"))
+                    valor_total_planilla = eps_valor + arl_valor + afp_valor + ccf_valor + sena_valor + icbf_valor
+
+                    planilla = Planilla(
+                        pago_id=pago.id,
+                        planilla_no=planilla_no or "",
+                        periodo_cotizado=periodo_cotizado,
+                        ibc=ibc,
+                        eps_nombre=eps_nombre,
+                        eps_valor=eps_valor,
+                        arl_nombre=arl_nombre,
+                        arl_valor=arl_valor,
+                        afp_nombre=afp_nombre,
+                        afp_valor=afp_valor,
+                        ccf_nombre=ccf_nombre,
+                        ccf_valor=ccf_valor,
+                        sena_valor=sena_valor,
+                        icbf_valor=icbf_valor,
+                        valor_total=valor_total_planilla,
+                    )
+                    db.add(planilla)
 
         except Exception as e:
             logger.exception(f"Error procesando fila {fila_idx}")

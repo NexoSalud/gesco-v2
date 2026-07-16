@@ -14,3 +14,5 @@ node_modules/
 .next_build/
 dist/
 plantilla_contrato_backup.docx
+templates_backup_*/
+*.tsbuildinfo
