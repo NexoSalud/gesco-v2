@@ -49,6 +49,7 @@ class ContratoBase(BaseModel):
 class ContratoCreate(ContratoBase):
     contratista_nombre: str | None = None
     contratista_identificacion: str | None = None
+    contratista_tipo_persona: str | None = None
     contratista_expedida_en: str | None = None
     contratista_telefono: str | None = None
     contratista_direccion: str | None = None

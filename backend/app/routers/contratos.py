@@ -95,11 +95,14 @@ async def crear_contrato(data: ContratoCreate, db: AsyncSession = Depends(get_db
                 contratista.correo = data.contratista_correo.lower()
             if data.contratista_expedida_en:
                 contratista.expedida_en = data.contratista_expedida_en.upper()
+            if data.contratista_tipo_persona:
+                contratista.tipo_persona = data.contratista_tipo_persona.upper()
         else:
             # Crear nuevo
             contratista = Contratista(
                 identificacion=data.contratista_identificacion,
                 nombre=(data.contratista_nombre or "").upper(),
+                tipo_persona=(data.contratista_tipo_persona or "NATURAL").upper(),
                 expedida_en=(data.contratista_expedida_en or "").upper(),
                 telefono=data.contratista_telefono or "",
                 direccion=(data.contratista_direccion or "").upper(),

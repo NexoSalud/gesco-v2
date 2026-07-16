@@ -8,3 +8,4 @@ from app.routers.plantillas_objeto import router as plantillas_objeto_router
 from app.routers.export import router as export_router
 from app.routers.import_routes import router as import_router
 from app.routers.actividades import router as actividades_router
+from app.routers.supervisores import router as supervisores_router

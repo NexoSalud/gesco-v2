@@ -10,6 +10,7 @@ from app.models.actividad_contrato import ActividadContrato
 from app.models.contrato import Contrato
 from app.models.plantilla import PlantillaObservacion
 from app.models.plantilla_objeto import PlantillaObjeto
+from app.models.supervisor import Supervisor
 
 __all__ = [
     "Resolucion",
@@ -23,4 +24,5 @@ __all__ = [
     "Contrato",
     "PlantillaObservacion",
     "PlantillaObjeto",
+    "Supervisor",
 ]

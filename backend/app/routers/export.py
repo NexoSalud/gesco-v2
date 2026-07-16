@@ -12,6 +12,9 @@ from sqlalchemy.orm import selectinload
 import zipfile
 import io
 
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
+
 from app.database import get_db
 from app.models.contrato import Contrato
 from app.models.pago import Pago
@@ -386,3 +389,182 @@ async def dashboard_global(db: AsyncSession = Depends(get_db)):
         "cuotas_pagadas_global": s.cuotas_pagadas_global,
         "indirect_percentage": float(s.indirect_percentage),
     }
+
+
+@router.get("/plantilla-importacion")
+async def descargar_plantilla_importacion():
+    """Descarga plantilla Excel para importación masiva de contratos con supervisiones."""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Plantilla Importación"
+
+    encabezados = [
+        "N° DE CONTRATO",
+        "NOMBRE CONTRATISTA",
+        "No. DE IDENTIFICACIÓN",
+        "EXPEDIDA EN",
+        "No. TELÉFONO y/o CELULAR",
+        "DIRECCION",
+        "TIPO DE PERSONA",
+        "PERFIL",
+        "VALOR TOTAL DEL CONTRATO",
+        "VALOR FINAL",
+        "OBJETO DEL CONTRATO",
+        "SUPERVISOR",
+        "CEDULA SUPERVISOR",
+        "NIVEL SUPERVISOR",
+        "INTERVENTOR",
+        "NIVEL INTERVENTOR",
+        "CDP No.",
+        "CRP No.",
+        "IMPUTACIÓN PRESUPUESTAL",
+        "UNIDAD DE ATENCION",
+        "CODIGO CIIU",
+        "TIEMPO ADICION",
+        "FORMA PAGO",
+        "CODIGO UNSPSC",
+        "DESCRIPCION UNSPSC",
+        "FECHA DE INICIO DEL CONTRATO",
+        "FECHA TERMINACION DEL CONTRATO",
+        "ESTADO",
+        "LUGAR DE EXPEDICIÓN",
+        "CORREO",
+        "TIPO DE INFORME",
+        "PERIODO INFORME DESDE",
+        "PERIODO INFORME HASTA",
+        "PAGO No",
+        "VALOR A PAGAR",
+        "FECHA FIRMA",
+        "OTRO SI",
+        "VALOR PAGADO HISTORICO",
+        "N° FOLIOS",
+        "ANEXA CERTIFICACION",
+        "OBSERVACIONES",
+        "ACTIVIDADES",
+        "PLANILLA No",
+        "PERIODO COTIZADO",
+        "IBC",
+        "EPS NOMBRE",
+        "EPS VALOR",
+        "ARL NOMBRE",
+        "ARL VALOR",
+        "AFP NOMBRE",
+        "AFP VALOR",
+        "CCF NOMBRE",
+        "CCF VALOR",
+        "SENA VALOR",
+        "ICBF VALOR",
+    ]
+
+    VERDE = "1A7A4A"
+    header_fill = PatternFill("solid", fgColor=VERDE)
+    header_font = Font(name="Arial", bold=True, size=10, color="FFFFFF")
+    header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    data_font = Font(name="Arial", size=9)
+    data_align = Alignment(vertical="center", wrap_text=True)
+
+    # Escribir encabezados en fila 1
+    for col, header in enumerate(encabezados, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+    ws.row_dimensions[1].height = 30
+
+    # Fila de ejemplo (fila 2)
+    ejemplo = [
+        2025001,                          # N° DE CONTRATO
+        "CARLOS ANDRES MARTINEZ ROJAS",   # NOMBRE CONTRATISTA
+        "1023456789",                     # No. DE IDENTIFICACIÓN
+        "BOGOTÁ",                         # EXPEDIDA EN
+        "3001234567",                     # No. TELÉFONO y/o CELULAR
+        "CARRERA 10 # 15-30",            # DIRECCION
+        "NATURAL",                        # TIPO DE PERSONA
+        "MEDICO",                         # PERFIL
+        50000000,                         # VALOR TOTAL DEL CONTRATO
+        48000000,                         # VALOR FINAL
+        "PRESTACIÓN DE SERVICIOS PROFESIONALES "
+        "EN MEDICINA GENERAL EN EL CENTRO DE SALUD "
+        "DEL MUNICIPIO DURANTE LA VIGENCIA 2025",
+        "MARIA FERNANDA GARCIA",          # SUPERVISOR
+        "523456789",                      # CEDULA SUPERVISOR
+        "PROFESIONAL ESPECIALIZADO",      # NIVEL SUPERVISOR
+        "",                               # INTERVENTOR
+        "",                               # NIVEL INTERVENTOR
+        "CDP-2025-00123",                 # CDP No.
+        "CRP-2025-00456",                 # CRP No.
+        "C-1-3-02-01-001",                # IMPUTACIÓN PRESUPUESTAL
+        "CENTRO DE SALUD MUNICIPAL",      # UNIDAD DE ATENCION
+        "8621",                            # CODIGO CIIU
+        "",                               # TIEMPO ADICION
+        "MENSUAL",                        # FORMA PAGO
+        "85121800",                       # CODIGO UNSPSC
+        "SERVICIOS DE SALUD",             # DESCRIPCION UNSPSC
+        "2025-01-15",                     # FECHA DE INICIO DEL CONTRATO
+        "2025-12-31",                     # FECHA TERMINACION DEL CONTRATO
+        "ACTIVO",                         # ESTADO
+        "BOGOTÁ",                         # LUGAR DE EXPEDICIÓN
+        "carlos.martinez@email.com",      # CORREO
+        "SUPERVISION",                    # TIPO DE INFORME
+        "2025-01-15",                     # PERIODO INFORME DESDE
+        "2025-01-31",                     # PERIODO INFORME HASTA
+        1,                                 # PAGO No
+        4000000,                          # VALOR A PAGAR
+        "2025-01-15",                     # FECHA FIRMA
+        0,                                 # OTRO SI
+        0,                                 # VALOR PAGADO HISTORICO
+        "5",                              # N° FOLIOS
+        "SI",                              # ANEXA CERTIFICACION
+        "PAGO CORRESPONDIENTE AL MES DE ENERO",  # OBSERVACIONES
+        "ACTIVIDADES DE SUPERVISION MEDICA",     # ACTIVIDADES
+        "PL-2025-001",                    # PLANILLA No
+        "ENERO 2025",                     # PERIODO COTIZADO
+        1400000,                          # IBC
+        "NUEVA EPS",                      # EPS NOMBRE
+        133000,                           # EPS VALOR
+        "ARL SURA",                       # ARL NOMBRE
+        9660,                             # ARL VALOR
+        "PORVENIR",                       # AFP NOMBRE
+        224000,                           # AFP VALOR
+        "COMPENSAR",                      # CCF NOMBRE
+        56000,                            # CCF VALOR
+        28000,                            # SENA VALOR
+        14000,                            # ICBF VALOR
+    ]
+
+    # Columnas que deben tener formato numérico
+    columnas_numericas = {9, 10, 35, 38, 45, 47, 49, 51, 53, 54, 55}
+
+    for col, value in enumerate(ejemplo, 1):
+        cell = ws.cell(row=2, column=col, value=value)
+        cell.font = data_font
+        cell.alignment = data_align
+        if col in columnas_numericas and isinstance(value, (int, float)):
+            cell.number_format = '#,##0'
+    ws.row_dimensions[2].height = 40
+
+    # Ancho de columnas
+    anchos = {
+        1: 16, 2: 32, 3: 18, 4: 14, 5: 22, 6: 28, 7: 16, 8: 20,
+        9: 20, 10: 18, 11: 50, 12: 28, 13: 18, 14: 26, 15: 28, 16: 24,
+        17: 14, 18: 14, 19: 24, 20: 28, 21: 14, 22: 16, 23: 18,
+        24: 16, 25: 26, 26: 24, 27: 24, 28: 12, 29: 16, 30: 30,
+        31: 18, 32: 20, 33: 20, 34: 12, 35: 16, 36: 16, 37: 12,
+        38: 20, 39: 12, 40: 18, 41: 40, 42: 40, 43: 16, 44: 18,
+        45: 14, 46: 22, 47: 14, 48: 20, 49: 14, 50: 20, 51: 14,
+        52: 20, 53: 14, 54: 14, 55: 14,
+    }
+    for col, width in anchos.items():
+        col_letter = chr(64 + col) if col <= 26 else "A"  # fallback, no esperamos > 55
+        # Usar número de columna para openpyxl
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = width
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=plantilla_importacion_contratos.xlsx"},
+    )

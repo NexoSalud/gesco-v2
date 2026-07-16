@@ -20,6 +20,7 @@ from app.routers import (
     export_router,
     import_router,
     actividades_router,
+    supervisores_router,
 )
 from app.models.plantilla_objeto import PlantillaObjeto
 from app.seed_data import seed_database
@@ -174,6 +175,7 @@ app.include_router(plantillas_objeto_router)
 app.include_router(export_router)
 app.include_router(import_router)
 app.include_router(actividades_router)
+app.include_router(supervisores_router)
 
 # Error handlers
 app.add_exception_handler(Exception, global_exception_handler)
