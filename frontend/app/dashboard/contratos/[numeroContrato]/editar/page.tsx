@@ -189,7 +189,7 @@ export default function EditarContratoPage() {
               <Input value={form.rp} onChange={e => setForm({ ...form, rp: e.target.value })} />
             </div>
             <div className="col-span-2 space-y-1">
-              <label className="text-xs font-medium text-gray-500">Rubro</label>
+              <label className="text-xs font-medium text-gray-500">Imputación Presupuestal</label>
               <Input value={form.rubro} onChange={e => setForm({ ...form, rubro: e.target.value })} />
             </div>
             <div className="space-y-1">
