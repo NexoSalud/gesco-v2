@@ -112,15 +112,22 @@ async def crear_contrato(data: ContratoCreate, db: AsyncSession = Depends(get_db
     # 2. Generar valor en letras
     valor_letras = numero_a_letras(data.monto_total)
 
-    # 3. Obtener objeto del perfil
+    # 3. Obtener objeto y UNSPSC del perfil
     objeto = data.objeto
-    if not objeto and data.perfil:
+    codigo_unspsc = data.codigo_unspsc
+    descripcion_unspsc = data.descripcion_unspsc
+    if data.perfil:
         result = await db.execute(
             select(Perfil).where(Perfil.nombre == data.perfil)
         )
         perfil = result.scalar_one_or_none()
-        if perfil and perfil.objeto:
-            objeto = perfil.objeto
+        if perfil:
+            if not objeto and perfil.objeto:
+                objeto = perfil.objeto
+            if not codigo_unspsc and perfil.codigo_unspsc:
+                codigo_unspsc = perfil.codigo_unspsc
+            if not descripcion_unspsc and perfil.descripcion_unspsc:
+                descripcion_unspsc = perfil.descripcion_unspsc
 
     # 4. Crear contrato
     contrato = Contrato(
@@ -152,8 +159,8 @@ async def crear_contrato(data: ContratoCreate, db: AsyncSession = Depends(get_db
         cedula_supervisor=data.cedula_supervisor,
         cargo_supervisor=data.cargo_supervisor,
         unidad_atencion=data.unidad_atencion,
-        codigo_unspsc=data.codigo_unspsc,
-        descripcion_unspsc=data.descripcion_unspsc,
+        codigo_unspsc=codigo_unspsc,
+        descripcion_unspsc=descripcion_unspsc,
         cuotas=data.cuotas,
         cuotas_total=data.cuotas_total or 0,
         cuotas_pagadas=0,

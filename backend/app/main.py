@@ -80,6 +80,26 @@ async def lifespan(app: FastAPI):
                     logger.info(f"Migración OK: columna '{column}' agregada a {table}")
                 except Exception as e:
                     logger.warning(f"Columna '{column}' en {table}: {e}")
+            # Poblar UNSPSC en perfiles existentes que estén vacíos
+            unspsc_defaults = {
+                "MEDICINA": ("85111600", "SERVICIOS DE PERSONAL TEMPORAL"),
+                "ENFERMERIA": ("85101601", "SERVICIOS DE ENFERMERÍA"),
+                "PSICOLOGIA": ("85121608", "SERVICIOS DE PSICOLOGÍA"),
+                "SALUD ORAL": ("85122001", "SERVICIOS DE ODONTÓLOGOS"),
+                "HIGIENISTA ORAL": ("85122002", "SERVICIOS DE HIGIENISTAS ORALES"),
+                "FONOAUDIOLOGIA": ("85111600", "SERVICIOS DE PERSONAL TEMPORAL"),
+                "GESTOR COMUNITARIO": ("85111600", "SERVICIOS DE PERSONAL TEMPORAL"),
+                "AUXILIAR ENFERMERIA": ("85101601", "SERVICIOS DE ENFERMERÍA"),
+            }
+            for nombre, (codigo, descripcion) in unspsc_defaults.items():
+                try:
+                    await conn.execute(text(
+                        "UPDATE perfiles SET codigo_unspsc = :cod, descripcion_unspsc = :desc "
+                        "WHERE nombre = :nom AND (codigo_unspsc IS NULL OR codigo_unspsc = '')"
+                    ), {"cod": codigo, "desc": descripcion, "nom": nombre})
+                    logger.info(f"UNSPSC actualizado para perfil '{nombre}'")
+                except Exception as e:
+                    logger.warning(f"UNSPSC perfil '{nombre}': {e}")
     except Exception as e:
         logger.warning(f"Migración UNSPSC: {e}")
 

@@ -147,6 +147,10 @@ COLUMN_MAP = {
     "TIEMPO ADICION": "tiempo_adicion",
     "VALOR FINAL": "valor_final",
     "FORMA PAGO": "forma_pago",
+
+    # UNSPSC
+    "CODIGO UNSPSC": "codigo_unspsc",
+    "DESCRIPCION UNSPSC": "descripcion_unspsc",
 }
 
 _TITLE_NORMALIZE_RE = re.compile(r"[^A-Z0-9ÁÉÍÓÚÑ ]")
@@ -355,6 +359,8 @@ async def importar_contratos_excel(
                 tiempo_adicion = _clean_str(_get_col(col_indices, row, "TIEMPO ADICION")) or ""
                 valor_final = _parse_number(_get_col(col_indices, row, "VALOR FINAL")) or 0
                 forma_pago = _clean_str(_get_col(col_indices, row, "FORMA PAGO")) or ""
+                codigo_unspsc_import = _clean_str(_get_col(col_indices, row, "CODIGO UNSPSC")) or ""
+                descripcion_unspsc_import = _clean_str(_get_col(col_indices, row, "DESCRIPCION UNSPSC")) or ""
 
                 # Cuotas: ya no se usan, se deja en 0
                 # El progreso se mide por (total pagado / monto_total)
@@ -403,6 +409,18 @@ async def importar_contratos_excel(
                     result_summary.skipped += 1
                     continue
 
+                # Heredar UNSPSC del perfil si no se especificó en Excel
+                if not codigo_unspsc_import and perfil_normalized:
+                    result_perf_unspsc = await db.execute(
+                        select(Perfil).where(Perfil.nombre == perfil_normalized)
+                    )
+                    perf_obj = result_perf_unspsc.scalar_one_or_none()
+                    if perf_obj:
+                        if perf_obj.codigo_unspsc:
+                            codigo_unspsc_import = perf_obj.codigo_unspsc
+                        if perf_obj.descripcion_unspsc:
+                            descripcion_unspsc_import = perf_obj.descripcion_unspsc
+
                 # ─── Crear contrato ──
                 valor_letras = numero_a_letras(monto_total)
                 contrato_obj = Contrato(
@@ -423,6 +441,8 @@ async def importar_contratos_excel(
                     fecha_inicio=fecha_inicio,
                     fecha_fin=fecha_fin,
                     codigo_ciiu=codigo_ciiu,
+                    codigo_unspsc=codigo_unspsc_import or None,
+                    descripcion_unspsc=descripcion_unspsc_import or None,
                     nivel_prof_supervisor=nivel_prof_supervisor,
                     interventor=interventor,
                     nivel_prof_interventor=nivel_prof_interventor,
