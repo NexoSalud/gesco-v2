@@ -136,6 +136,7 @@ def generar_supervision_pdf(contrato: dict, pago: dict, planillas: list,
             + float(pl.get("afp_valor", 0)) + float(pl.get("ccf_valor", 0))
             + float(pl.get("sena_valor", 0)) + float(pl.get("icbf_valor", 0)),
         "planilla_no": _no_aplica(pl.get("planilla_no")),
+        "tiene_planilla": bool(pl.get("planilla_no") or pl.get("eps_nombre")),  # False = mostrar NO APLICA en SENA/ICBF/CCF
         "retefuente": (str(pago.get("anexa_cert", "")).upper() == "SI") if pago.get("anexa_cert") else False,
         "objeto_contrato": _no_aplica(contrato.get("objeto")),
         "observaciones": _no_aplica(pago.get("observaciones")),
