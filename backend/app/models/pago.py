@@ -29,6 +29,7 @@ class Pago(Base):
 
     # Documentos
     folios: Mapped[str | None] = mapped_column(String(20))
+    anexa_cert: Mapped[str | None] = mapped_column(String(10), comment="Anexa certificación asalariado: SI / NO")
 
     # Actividades
     actividades: Mapped[str | None] = mapped_column(Text)

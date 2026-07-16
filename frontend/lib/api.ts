@@ -94,6 +94,14 @@ export interface Contrato {
   contratista_rel: { nombre: string; identificacion: string; tipo_persona?: string; expedida_en?: string; telefono?: string; direccion?: string; correo?: string } | null
   pagos: any[]
   created_at: string
+  codigo_ciiu: string | null
+  nivel_prof_supervisor: string | null
+  interventor: string | null
+  nivel_prof_interventor: string | null
+  imputacion: string | null
+  tiempo_adicion: string | null
+  valor_final: number | null
+  forma_pago: string | null
 }
 
 export const getContratos = (params?: { resolucion_id?: number; estado?: string; buscar?: string }) => {

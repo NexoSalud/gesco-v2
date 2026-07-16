@@ -233,7 +233,7 @@
     <tr class="border-bottom-thick border-top-thick">
       <td class="label">IBC al sistema de Seguridad<br>Social (40% del Ingreso<br>mensual)</td>
       <td class="label">
-        <div class="flex-between"><span>$</span><span>{{ "{:,.0f}".format(informe.ibc|float).replace(',', '.') }}</span></div>
+        <div class="flex-between"><span>$</span><span>{{ informe.ibc | fmt_colombia }}</span></div>
       </td>
       <td class="label">PERIODO COTIZADO</td>
       <td class="text-right">{{ informe.periodo_cotizado }}</td>
@@ -243,42 +243,42 @@
       <td class="label">EPS</td>
       <td class="uppercase">{{ informe.eps_nombre }}</td>
       <td class="label">VALOR PAGADO</td>
-      <td><div class="flex-between"><span>$</span><span>{{ "{:,.0f}".format(informe.eps_valor|float).replace(',', '.') }}</span></div></td>
+      <td><div class="flex-between"><span>$</span><span>{{ informe.eps_valor | fmt_colombia }}</span></div></td>
     </tr>
     <tr>
       <td class="label">ARL</td>
       <td class="uppercase">{{ informe.arl_nombre }}</td>
       <td class="label">VALOR PAGADO</td>
-      <td><div class="flex-between"><span>$</span><span>{{ "{:,.0f}".format(informe.arl_valor|float).replace(',', '.') }}</span></div></td>
+      <td><div class="flex-between"><span>$</span><span>{{ informe.arl_valor | fmt_colombia }}</span></div></td>
     </tr>
     <tr>
       <td class="label">SENA</td>
       <td></td>
       <td class="label">VALOR PAGADO</td>
-      <td><div class="flex-between"><span>$</span><span>{{ "{:,.0f}".format(informe.sena_valor|float).replace(',', '.') }}</span></div></td>
+      <td><div class="flex-between"><span>$</span><span>{{ informe.sena_valor | fmt_colombia }}</span></div></td>
     </tr>
     <tr>
       <td class="label">ICBF</td>
       <td></td>
       <td class="label">VALOR PAGADO</td>
-      <td><div class="flex-between"><span>$</span><span>{{ "{:,.0f}".format(informe.icbf_valor|float).replace(',', '.') }}</span></div></td>
+      <td><div class="flex-between"><span>$</span><span>{{ informe.icbf_valor | fmt_colombia }}</span></div></td>
     </tr>
     <tr>
       <td class="label">CCF</td>
       <td></td>
       <td class="label">VALOR PAGADO</td>
-      <td><div class="flex-between"><span>$</span><span>{{ "{:,.0f}".format(informe.ccf_valor|float).replace(',', '.') }}</span></div></td>
+      <td><div class="flex-between"><span>$</span><span>{{ informe.ccf_valor | fmt_colombia }}</span></div></td>
     </tr>
     <tr>
       <td class="label">AFP</td>
       <td class="uppercase">{{ informe.afp_nombre }}</td>
       <td class="label">VALOR PAGADO</td>
-      <td><div class="flex-between"><span>$</span><span>{{ "{:,.0f}".format(informe.afp_valor|float).replace(',', '.') }}</span></div></td>
+      <td><div class="flex-between"><span>$</span><span>{{ informe.afp_valor | fmt_colombia }}</span></div></td>
     </tr>
 
     <tr class="border-top-thick">
       <td class="label">VALOR TOTAL PLANILLA</td>
-      <td class="label"><div class="flex-between"><span>$</span><span>{{ "{:,.0f}".format(informe.total_planilla|float).replace(',', '.') }}</span></div></td>
+      <td class="label"><div class="flex-between"><span>$</span><span>{{ informe.total_planilla | fmt_colombia }}</span></div></td>
       <td class="label">PLANILLA No.</td>
       <td class="text-right">{{ informe.planilla_no }}</td>
     </tr>
@@ -355,7 +355,7 @@
       </td>
     </tr>
     <tr>
-      <td class="label uppercase" style="height: 60px; vertical-align: bottom; padding-bottom: 5px;">FIRMA SUPERVISOR</td>
+      <td class="label uppercase" style="height: 60px; vertical-align: bottom; padding-bottom: 5px;">FIRMA SUPERVISORAS</td>
       <td class="text-center uppercase font-bold" style="vertical-align: bottom; padding-bottom: 5px;">{{ firmas[0] if firmas|length > 0 else '' }}</td>
     </tr>
     {% if firmas|length > 1 %}

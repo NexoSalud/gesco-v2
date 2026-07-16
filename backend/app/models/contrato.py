@@ -59,6 +59,16 @@ class Contrato(Base):
     codigo_unspsc: Mapped[str | None] = mapped_column(String(20))
     descripcion_unspsc: Mapped[str | None] = mapped_column(String(300))
 
+    # PDF Supervisión — campos del proyecto original
+    codigo_ciiu: Mapped[str | None] = mapped_column(String(50))
+    nivel_prof_supervisor: Mapped[str | None] = mapped_column(String(100))
+    interventor: Mapped[str | None] = mapped_column(String(200))
+    nivel_prof_interventor: Mapped[str | None] = mapped_column(String(100))
+    imputacion: Mapped[str | None] = mapped_column(String(100), comment="Imputación presupuestal (antes rubro)")
+    tiempo_adicion: Mapped[str | None] = mapped_column(String(100), comment="Tiempo de adición del contrato")
+    valor_final: Mapped[float | None] = mapped_column(Float, default=None, comment="Valor final (incluye adiciones)")
+    forma_pago: Mapped[str | None] = mapped_column(Text)
+
     # Cuotas
     cuotas: Mapped[str | None] = mapped_column(String(100), comment="Texto ej: '2' o 'DOS (2)'")
     cuotas_total: Mapped[int] = mapped_column(Integer, default=0)

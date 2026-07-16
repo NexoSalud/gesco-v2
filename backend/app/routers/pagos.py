@@ -176,6 +176,17 @@ async def descargar_pdf_supervision(pago_id: int, db: AsyncSession = Depends(get
     contrato = pago.contrato
     contratista = contrato.contratista_rel
 
+    # Calcular valor pagado histórico (suma de pagos anteriores) y saldo
+    result_prev = await db.execute(
+        select(Pago)
+        .where(Pago.contrato_id == contrato.numero_contrato, Pago.id != pago.id)
+    )
+    pagos_previos = result_prev.scalars().all()
+    valor_pagado_historico = sum(float(pg.valor_a_pagar or 0) for pg in pagos_previos)
+    valor_final = float(contrato.valor_final or contrato.monto_total or 0)
+    causado_hasta_hoy = valor_pagado_historico + float(pago.valor_a_pagar or 0)
+    saldo_a_pagar = max(0, valor_final - causado_hasta_hoy)
+
     data_contrato = {
         "numero_contrato": contrato.numero_contrato,
         "perfil": contrato.perfil or "",
@@ -196,6 +207,15 @@ async def descargar_pdf_supervision(pago_id: int, db: AsyncSession = Depends(get
         "fecha_inicio": str(contrato.fecha_inicio) if contrato.fecha_inicio else "",
         "fecha_fin": str(contrato.fecha_fin) if contrato.fecha_fin else "",
         "objeto": contrato.objeto or "",
+        # Nuevos campos PDF supervisión
+        "codigo_ciiu": contrato.codigo_ciiu or "",
+        "nivel_prof_supervisor": contrato.nivel_prof_supervisor or "",
+        "interventor": contrato.interventor or "",
+        "nivel_prof_interventor": contrato.nivel_prof_interventor or "",
+        "imputacion": contrato.imputacion or "",
+        "tiempo_adicion": contrato.tiempo_adicion or "",
+        "valor_final": valor_final,
+        "forma_pago": contrato.forma_pago or "",
     }
     # Cargar actividades de supervisión
     acts_sup = await db.execute(
@@ -215,7 +235,9 @@ async def descargar_pdf_supervision(pago_id: int, db: AsyncSession = Depends(get
         "periodo_hasta": str(pago.periodo_hasta) if pago.periodo_hasta else "",
         "valor_a_pagar": pago.valor_a_pagar,
         "otro_si": pago.otro_si or 0,
-        "valor_pagado": pago.valor_pagado or 0,
+        "valor_pagado_historico": valor_pagado_historico,
+        "saldo_a_pagar": saldo_a_pagar,
+        "anexa_cert": pago.anexa_cert or "",
         "actividades": pago.actividades or "",
         "observaciones": pago.observaciones or "",
         "folios": pago.folios or "",

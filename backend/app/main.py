@@ -83,6 +83,34 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Migración UNSPSC: {e}")
 
+    # Migración: columnas para PDF de supervisión (campos originales)
+    try:
+        async with engine.begin() as conn:
+            contratos_cols = [
+                ("codigo_ciiu", "VARCHAR(50)"),
+                ("nivel_prof_supervisor", "VARCHAR(100)"),
+                ("interventor", "VARCHAR(200)"),
+                ("nivel_prof_interventor", "VARCHAR(100)"),
+                ("imputacion", "VARCHAR(100)"),
+                ("tiempo_adicion", "VARCHAR(100)"),
+                ("valor_final", "FLOAT DEFAULT NULL"),
+                ("forma_pago", "TEXT"),
+            ]
+            for col, coltype in contratos_cols:
+                try:
+                    await conn.execute(text(f"ALTER TABLE contratos ADD COLUMN IF NOT EXISTS {col} {coltype}"))
+                    logger.info(f"Migración OK: columna '{col}' agregada a contratos")
+                except Exception as e:
+                    logger.warning(f"Columna '{col}' en contratos: {e}")
+            # Migración: anexa_cert en pagos
+            try:
+                await conn.execute(text("ALTER TABLE pagos ADD COLUMN IF NOT EXISTS anexa_cert VARCHAR(10)"))
+                logger.info("Migración OK: columna 'anexa_cert' agregada a pagos")
+            except Exception as e:
+                logger.warning(f"Columna 'anexa_cert' en pagos: {e}")
+    except Exception as e:
+        logger.warning(f"Migración PDF supervisión: {e}")
+
     await seed_database()
     logger.info("Gesco V2 listo!")
     yield

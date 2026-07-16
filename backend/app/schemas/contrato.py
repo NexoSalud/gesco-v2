@@ -36,6 +36,14 @@ class ContratoBase(BaseModel):
     descripcion_unspsc: str | None = None
     cuotas: str | None = None
     cuotas_total: int = 0
+    codigo_ciiu: str | None = None
+    nivel_prof_supervisor: str | None = None
+    interventor: str | None = None
+    nivel_prof_interventor: str | None = None
+    imputacion: str | None = None
+    tiempo_adicion: str | None = None
+    valor_final: float | None = None
+    forma_pago: str | None = None
 
 
 class ContratoCreate(ContratoBase):
@@ -69,6 +77,14 @@ class ContratoUpdate(BaseModel):
     costo_tipo: str | None = None
     sub_tipo: str | None = None
     clasificacion: str | None = None
+    codigo_ciiu: str | None = None
+    nivel_prof_supervisor: str | None = None
+    interventor: str | None = None
+    nivel_prof_interventor: str | None = None
+    imputacion: str | None = None
+    tiempo_adicion: str | None = None
+    valor_final: float | None = None
+    forma_pago: str | None = None
 
 
 class PagoResumen(BaseModel):
