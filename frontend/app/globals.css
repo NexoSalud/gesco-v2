@@ -1,35 +1,88 @@
 @import "tailwindcss";
 
-@theme {
-  --color-primary-50: #eef2ff;
-  --color-primary-100: #e0e7ff;
-  --color-primary-200: #c7d2fe;
-  --color-primary-300: #a5b4fc;
-  --color-primary-400: #818cf8;
-  --color-primary-500: #6366f1;
-  --color-primary-600: #4f46e5;
-  --color-primary-700: #4338ca;
-  --color-primary-800: #3730a3;
-  --color-primary-900: #312e81;
+:root {
+  --color-white-theme: #ffffff;
+  --color-gray-50-theme: #f9fafb;
+  --color-gray-100-theme: #f3f4f6;
+  --color-gray-200-theme: #e5e7eb;
+  --color-gray-300-theme: #d1d5db;
+  --color-gray-400-theme: #9ca3af;
+  --color-gray-500-theme: #6b7280;
+  --color-gray-600-theme: #4b5563;
+  --color-gray-700-theme: #374151;
+  --color-gray-800-theme: #1f2937;
+  --color-gray-900-theme: #111827;
+}
 
-  --color-sidebar: #1a1a2e;
-  --color-sidebar-hover: #16213e;
-  --color-sidebar-active: #0f3460;
-  --color-sidebar-text: #a0aec0;
+.dark {
+  --color-white-theme: #0f172a;
+  --color-gray-50-theme: #090d16;
+  --color-gray-100-theme: #1e293b;
+  --color-gray-200-theme: #334155;
+  --color-gray-300-theme: #475569;
+  --color-gray-400-theme: #64748b;
+  --color-gray-500-theme: #94a3b8;
+  --color-gray-600-theme: #cbd5e1;
+  --color-gray-700-theme: #e2e8f0;
+  --color-gray-800-theme: #f1f5f9;
+  --color-gray-900-theme: #f8fafc;
+}
+
+@theme {
+  --color-white: var(--color-white-theme);
+  --color-gray-50: var(--color-gray-50-theme);
+  --color-gray-100: var(--color-gray-100-theme);
+  --color-gray-200: var(--color-gray-200-theme);
+  --color-gray-300: var(--color-gray-300-theme);
+  --color-gray-400: var(--color-gray-400-theme);
+  --color-gray-500: var(--color-gray-500-theme);
+  --color-gray-600: var(--color-gray-600-theme);
+  --color-gray-700: var(--color-gray-700-theme);
+  --color-gray-800: var(--color-gray-800-theme);
+  --color-gray-900: var(--color-gray-900-theme);
+
+  --color-primary-50: #eef6fc;
+  --color-primary-100: #d8eaf6;
+  --color-primary-200: #b8daf0;
+  --color-primary-300: #88c2e7;
+  --color-primary-400: #50a3db;
+  --color-primary-500: #005696;
+  --color-primary-600: #004884;
+  --color-primary-700: #003766;
+  --color-primary-800: #00274a;
+  --color-primary-900: #041b31;
+  --color-primary-950: #020f1c;
+
+  --color-sidebar: #061424;
+  --color-sidebar-hover: #0c233c;
+  --color-sidebar-active: #004884;
+  --color-sidebar-text: #9eb3c2;
   --color-sidebar-text-active: #ffffff;
 
-  --color-gesco-50: #eff6ff;
-  --color-gesco-100: #dbeafe;
-  --color-gesco-200: #bfdbfe;
-  --color-gesco-300: #93c5fd;
-  --color-gesco-400: #60a5fa;
-  --color-gesco-500: #3b82f6;
-  --color-gesco-600: #1a365d;
-  --color-gesco-700: #1e40af;
-  --color-gesco-800: #1e3a5f;
-  --color-gesco-900: #172554;
+  --color-gesco-50: #eef6fc;
+  --color-gesco-100: #d8eaf6;
+  --color-gesco-200: #b8daf0;
+  --color-gesco-300: #88c2e7;
+  --color-gesco-400: #50a3db;
+  --color-gesco-500: #005696;
+  --color-gesco-600: #004884;
+  --color-gesco-700: #003766;
+  --color-gesco-800: #00274a;
+  --color-gesco-900: #041b31;
 
-  --color-emerald: #059669;
+  --color-emerald: #004884;
+  --color-emerald-50: #eef6fc;
+  --color-emerald-100: #d8eaf6;
+  --color-emerald-200: #b8daf0;
+  --color-emerald-300: #88c2e7;
+  --color-emerald-400: #50a3db;
+  --color-emerald-500: #005696;
+  --color-emerald-600: #004884;
+  --color-emerald-700: #003766;
+  --color-emerald-800: #00274a;
+  --color-emerald-900: #041b31;
+  --color-emerald-950: #020f1c;
+
   --color-amber: #d97706;
 
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;

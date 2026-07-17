@@ -12,7 +12,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-gesco}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gesco123}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gesco}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-gesco} -d $${POSTGRES_DB:-gesco_v2}"]
       interval: 5s
       timeout: 5s
       retries: 5

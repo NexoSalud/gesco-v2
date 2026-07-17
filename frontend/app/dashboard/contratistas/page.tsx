@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { TableSkeleton } from "@/components/ui/skeleton"
-import { Search, User, Phone, MapPin, FileText, Plus } from "lucide-react"
+import { Search, User, Phone, MapPin, FileText, Plus, ArrowRight } from "lucide-react"
 
 export default function ContratistasPage() {
   const router = useRouter()
@@ -76,10 +76,10 @@ export default function ContratistasPage() {
           {contratistas.map((c: any) => (
             <Card
               key={c.id}
-              className="hover:shadow-md transition-shadow cursor-pointer"
+              className="hover:shadow-md transition-shadow cursor-pointer group"
               onClick={() => router.push(`/dashboard/contratistas/${encodeURIComponent(c.identificacion)}`)}
             >
-              <CardContent className="p-4">
+              <CardContent className="p-4 flex flex-col justify-between h-full min-h-[135px]">
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
                     <User className="w-5 h-5 text-emerald-600" />
@@ -98,6 +98,12 @@ export default function ContratistasPage() {
                       )}
                     </div>
                   </div>
+                </div>
+                <div className="flex justify-end mt-3 pt-3 border-t border-gray-100">
+                  <span className="text-[10px] font-semibold text-emerald-600 flex items-center gap-1 group-hover:text-emerald-700">
+                    Gestionar Contrato e Inventario
+                    <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                  </span>
                 </div>
               </CardContent>
             </Card>

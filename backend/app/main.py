@@ -21,6 +21,9 @@ from app.routers import (
     import_router,
     actividades_router,
     supervisores_router,
+    inventario_router,
+    auth_router,
+    seguridad_router,
 )
 from app.models.plantilla_objeto import PlantillaObjeto
 from app.seed_data import seed_database
@@ -41,8 +44,9 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
         logger.info("create_all completado")
 
-        # Migración: agregar columna activa a resoluciones si no existe
-        try:
+    # Migración: agregar columna activa a resoluciones si no existe
+    try:
+        async with engine.begin() as conn:
             await conn.execute(text("ALTER TABLE resoluciones ADD COLUMN activa BOOLEAN DEFAULT FALSE NOT NULL"))
             logger.info("Migración OK: columna 'activa' agregada a resoluciones")
             # Activar la resolución más reciente
@@ -52,8 +56,8 @@ async def lifespan(app: FastAPI):
                 )
             """))
             logger.info("Resolución más reciente marcada como activa")
-        except Exception:
-            logger.info("Columna 'activa' ya existe, saltando migración")
+    except Exception:
+        logger.info("Columna 'activa' ya existe o resoluciones no tiene registros, saltando migración")
     # Migración: crear tabla plantillas_objeto (create_all no la creó automáticamente)
     try:
         async with engine.begin() as conn:
@@ -160,6 +164,28 @@ async def lifespan(app: FastAPI):
                 logger.warning(f"Columna 'anexa_cert' en pagos: {e}")
     except Exception as e:
         logger.warning(f"Migración PDF supervisión: {e}")
+    # Migración: agregar columna usuario_id a actas_inventario
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("ALTER TABLE actas_inventario ADD COLUMN usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL"))
+            logger.info("Migración OK: columna 'usuario_id' agregada a actas_inventario")
+    except Exception as e:
+        logger.info("Columna 'usuario_id' ya existe en actas_inventario o error al crearla, saltando: %s", e)
+
+    # Migración: agregar columna resolucion_id a articulos y unidades_inventario
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("ALTER TABLE articulos ADD COLUMN resolucion_id INTEGER REFERENCES resoluciones(id) ON DELETE SET NULL"))
+            logger.info("Migración OK: columna 'resolucion_id' agregada a articulos")
+    except Exception as e:
+        logger.info("Columna 'resolucion_id' ya existe en articulos o error al crearla, saltando: %s", e)
+
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("ALTER TABLE unidades_inventario ADD COLUMN resolucion_id INTEGER REFERENCES resoluciones(id) ON DELETE SET NULL"))
+            logger.info("Migración OK: columna 'resolucion_id' agregada a unidades_inventario")
+    except Exception as e:
+        logger.info("Columna 'resolucion_id' ya existe en unidades_inventario o error al crearla, saltando: %s", e)
 
     await seed_database()
     logger.info("Gesco V2 listo!")
@@ -195,6 +221,9 @@ app.include_router(export_router)
 app.include_router(import_router)
 app.include_router(actividades_router)
 app.include_router(supervisores_router)
+app.include_router(inventario_router)
+app.include_router(auth_router)
+app.include_router(seguridad_router)
 
 # Error handlers
 app.add_exception_handler(Exception, global_exception_handler)

@@ -16,3 +16,5 @@ dist/
 plantilla_contrato_backup.docx
 templates_backup_*/
 *.tsbuildinfo
+guide_inventory/
+comandos.txt
