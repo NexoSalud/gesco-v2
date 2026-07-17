@@ -3,6 +3,27 @@
 
 ---
 
+## Índice
+
+1. [¿Qué es Gesco V2?](#1-qué-es-gesco-v2)
+2. [Acceso y navegación](#2-acceso-y-navegación)
+3. [Panel Principal (Dashboard)](#3-panel-principal-dashboard)
+4. [Resoluciones](#4-resoluciones)
+5. [Contratos](#5-contratos)
+6. [Contratistas](#6-contratistas)
+7. [Supervisores](#7-supervisores)
+8. [Perfiles](#8-perfiles)
+9. [Plantillas de Observación](#9-plantillas-de-observación)
+10. [Plantillas de Objeto](#10-plantillas-de-objeto)
+11. [Importar desde Excel](#11-importar-desde-excel)
+12. [Pagos y Supervisiones](#12-pagos-y-supervisiones)
+13. [Configuración — Logos](#13-configuración--logos)
+14. [Progreso de pago](#14-progreso-de-pago)
+15. [Consejos útiles](#15-consejos-útiles)
+16. [Solución de problemas comunes](#16-solución-de-problemas-comunes)
+
+---
+
 ## 1. ¿Qué es Gesco V2?
 
 Gesco V2 es un sistema web para gestionar los contratos de prestación de servicios de la **ESE Norte 3**. Permite:
@@ -12,22 +33,57 @@ Gesco V2 es un sistema web para gestionar los contratos de prestación de servic
 - Descargar **documentos legales** (contrato, actas, certificados)
 - Importar datos desde **archivos Excel**
 - Administrar **perfiles profesionales** con sus actividades
+- Gestionar **supervisores** y asignarlos a contratos
+- Personalizar **logos** en los encabezados de documentos
+- Usar **plantillas** reutilizables para objetos del contrato y observaciones
 
 ---
 
-## 2. Cómo acceder
+## 2. Acceso y navegación
+
+### Cómo acceder
 
 Abre tu navegador (Chrome, Edge, Firefox) y ve a:
 
 **https://contratos.esenorte3.lat**
 
-![Dashboard](manual_screenshots/dashboard.png)
+El sistema carga directamente el **Dashboard** — no requiere inicio de sesión.
 
-Verás el panel principal con el resumen de contratos, resoluciones y alertas de vencimiento.
+### Barra lateral (menú principal)
+
+![Menú lateral](manual_screenshots/sidebar.png)
+
+La barra lateral izquierda contiene todas las secciones del sistema:
+
+| Icono | Sección | Descripción |
+|-------|---------|-------------|
+| 📊 | Dashboard | Panel principal con indicadores |
+| 📄 | Resoluciones | Gestionar resoluciones presupuestales |
+| ⚖️ | Contratos | Listar, crear y gestionar contratos |
+| 👤 | Contratistas | Ver y editar datos de contratistas |
+| ✅ | Supervisores | Gestionar supervisores asignables |
+| 👥 | Perfiles | Administrar perfiles profesionales |
+| 📋 | Plantillas | Plantillas de observación para supervisiones |
+| 📄 | Obj. Plantillas | Plantillas reutilizables para el objeto del contrato |
+| 📤 | Importar | Cargar datos desde Excel |
+
+Algunas secciones como **Resoluciones** tienen un menú desplegable con sub-opciones (ej. "Todas las resoluciones" / "Nueva resolución").
+
+### Barra superior (Navbar)
+
+![Barra superior](manual_screenshots/navbar.png)
+
+En la parte superior verás:
+
+- **Migas de pan (breadcrumbs)**: muestra tu ubicación actual dentro del sistema. Ej: `Dashboard / Contratos / 001 del 01/02/2026`. Puedes hacer clic en cualquier nivel para volver atrás.
+- **Icono de búsqueda**: acceso rápido a búsqueda (próximamente).
+- **Indicador de conexión**: muestra "Conectado" (🟢) o "Sin conexión" (🔴) según el estado de tu internet.
 
 ---
 
 ## 3. Panel Principal (Dashboard)
+
+![Dashboard](manual_screenshots/dashboard.png)
 
 Cuando ingresas, lo primero que ves es el **Dashboard** con:
 
@@ -37,19 +93,6 @@ Cuando ingresas, lo primero que ves es el **Dashboard** con:
 - **Alertas**: contratos próximos a vencer en los próximos 30 días
 
 > 📌 El dashboard solo muestra información de la **resolución activa**. Para ver datos de otra resolución, actívala desde su detalle.
-- **Navegación lateral**: menú para acceder a todas las secciones
-
-### Menú lateral
-
-| Sección | Descripción |
-|---------|-------------|
-| Dashboard | Panel principal con indicadores |
-| Resoluciones | Gestionar resoluciones presupuestales |
-| Contratos | Listar, crear y gestionar contratos |
-| Contratistas | Ver y editar datos de contratistas |
-| Perfiles | Administrar perfiles profesionales |
-| Plantillas | Plantillas de observación para supervisiones |
-| Importar | Cargar datos desde Excel |
 
 ---
 
@@ -61,10 +104,19 @@ Una **Resolución** es el acto administrativo que autoriza un presupuesto para c
 
 ![Lista de resoluciones](manual_screenshots/resoluciones.png)
 
+Cada resolución se muestra como una **tarjeta** con:
+- Código y título
+- Badge **Activa** si es la resolución vigente
+- Año de vigencia y total de contratos asociados
+- **Barra de progreso** de ejecución presupuestal
+- Presupuesto, comprometido y saldo disponibles
+
+Puedes **buscar** resoluciones escribiendo en el campo de búsqueda (filtra por código o título en tiempo real).
+
 ### Crear una resolución
 
 1. Ve a **Resoluciones** en el menú lateral
-2. Haz clic en **Nueva Resolución**
+2. Haz clic en **Nueva Resolución** (o ve a `Resoluciones > Nueva resolución` en el menú desplegable)
 3. Completa:
    - **Código**: ej. "RES-001-2026"
    - **Vigencia**: año (ej. 2026)
@@ -124,6 +176,8 @@ En **Contratos** del menú lateral verás todos los contratos registrados. Puede
 - **Filtrar por estado**: ACTIVO, FINALIZADO, ANULADO
 - **Filtrar por resolución**: selecciona una resolución específica
 
+La lista se muestra en formato de **tabla** con columnas: N° de Contrato, Contratista, Perfil, Valor, Estado, Fechas.
+
 ### Crear un contrato nuevo
 
 ![Nuevo contrato](manual_screenshots/nuevo_contrato.png)
@@ -135,9 +189,9 @@ En **Contratos** del menú lateral verás todos los contratos registrados. Puede
    - **Resolución**: selecciona la resolución (opcional)
    - **Perfil**: selecciona el perfil profesional
    - **Valor Total**: monto del contrato
-   - **Supervisor**: nombre del supervisor
+   - **Supervisor**: selecciona un supervisor de la lista
    - **Fecha inicio / Fecha fin**: período de vigencia
-   - **Objeto**: descripción del servicio
+   - **Objeto**: descripción del servicio (puedes cargarlo desde una **Plantilla de Objeto**)
 4. Haz clic en **Crear Contrato**
 
 ### Detalle del contrato
@@ -157,6 +211,8 @@ Desde el detalle, haz clic en **Editar**. Puedes modificar:
 - Estado, perfil, valor, fechas
 - Supervisor, CDP, rubro
 - Objeto del contrato
+
+También puedes cargar el **objeto del contrato** desde una **Plantilla de Objeto** precargada.
 
 ### Descargar documentos
 
@@ -192,7 +248,7 @@ Los documentos disponibles son:
 
 1. Ve a **Contratistas** en el menú lateral
 2. Escribe el nombre o número de cédula en el buscador
-3. Los resultados aparecen automáticamente
+3. Los resultados aparecen automáticamente mientras escribes
 
 ### Ver detalle / Editar
 
@@ -206,7 +262,54 @@ Para editar, haz clic en **Editar** y modifica los campos necesarios.
 
 ---
 
-## 7. Perfiles
+## 7. Supervisores
+
+Los **Supervisores** son las personas asignadas para supervisar los contratos. Puedes gestionar su información de forma independiente y luego asignarlos a los contratos.
+
+### Lista de supervisores
+
+En **Supervisores** del menú lateral verás todos los supervisores registrados como **tarjetas**. Cada tarjeta muestra:
+
+- Nombre completo
+- Número de identificación (CC)
+- Cargo
+- Teléfono
+
+Puedes **buscar** por nombre o identificación usando el campo de búsqueda.
+
+### Crear un nuevo supervisor
+
+1. Ve a **Supervisores** → haz clic en **Nuevo Supervisor**
+2. Completa los campos:
+   - **Nombre ***: nombre completo del supervisor (obligatorio)
+   - **Identificación ***: número de cédula (obligatorio)
+   - **Cargo**: ej. "COORDINADOR EBS", "JEFE DE ENFERMERÍA"
+   - **Nivel Profesional**: UNIVERSITARIO, TECNÓLOGO, TÉCNICO, ESPECIALISTA o MAESTRÍA
+   - **Teléfono**: número de contacto
+   - **Correo**: dirección de correo electrónico
+3. Haz clic en **Crear Supervisor**
+
+### Detalle del supervisor
+
+Haz clic en cualquier supervisor de la lista. Verás:
+
+- **Datos personales**: identificación, nombre, cargo, nivel profesional, teléfono, correo
+- **Botón Editar**: permite modificar los datos
+- **Botón Eliminar**: elimina el supervisor del sistema
+
+### Editar un supervisor
+
+Desde el detalle, haz clic en **Editar** (o en el botón **Guardar** que cambia según el modo). Puedes modificar todos los campos excepto la identificación.
+
+### Eliminar un supervisor
+
+1. Desde el detalle, haz clic en **Eliminar**
+2. Confirma la acción en el diálogo de confirmación
+3. El supervisor se elimina permanentemente
+
+---
+
+## 8. Perfiles
 
 Los **Perfiles** son los cargos profesionales (MEDICINA, ENFERMERIA, PSICOLOGIA, etc.). Cada perfil tiene:
 
@@ -283,7 +386,109 @@ OBLIGACIONES ESPECÍFICAS:
 
 ---
 
-## 8. Pagos y Supervisiones
+## 9. Plantillas de Observación
+
+Las **Plantillas de Observación** son textos predefinidos que se pueden cargar en el campo de **Observaciones** al registrar un pago. Ahorran tiempo al evitar escribir evaluaciones repetitivas.
+
+### Lista de plantillas
+
+![Lista de plantillas](manual_screenshots/plantillas.png)
+
+### Crear una plantilla
+
+1. Ve a **Plantillas** en el menú lateral
+2. Haz clic en **Nueva Plantilla**
+3. Completa el nombre y el contenido de la plantilla
+4. Haz clic en **Crear Plantilla**
+
+### Editar / Eliminar
+
+- Haz clic en el ícono de **lápiz** ✏️ en una tarjeta para editar
+- Haz clic en **Vista** para ver el contenido completo en un modal
+- Haz clic en el ícono de **basurero** 🗑️ para eliminar (requiere confirmación)
+
+### Usar plantilla en un pago
+
+1. Ve al detalle del contrato y haz clic en **Pago**
+2. En el campo **Observaciones**, despliega el selector "— Cargar desde plantilla —"
+3. Selecciona la plantilla deseada
+4. Haz clic en **Cargar**
+5. El contenido de la plantilla se agrega al texto existente
+
+---
+
+## 10. Plantillas de Objeto
+
+Las **Plantillas de Objeto** son textos reutilizables que describen el **objeto del contrato** (el servicio a prestar). Se usan al crear o editar contratos para precargar la descripción, ahorrando tiempo y asegurando consistencia.
+
+### Lista de plantillas de objeto
+
+En **Obj. Plantillas** del menú lateral verás todas las plantillas registradas como tarjetas. Cada tarjeta muestra:
+
+- **Título**: nombre de la plantilla (ej. "Medicina General", "Enfermería")
+- **Contenido**: vista previa del texto (limitado a 4 líneas)
+- **Botones**: Editar y Eliminar
+
+### Crear una plantilla de objeto
+
+1. Ve a **Obj. Plantillas** → haz clic en **Nueva Plantilla**
+2. Completa:
+   - **Título**: nombre descriptivo (ej. "Medicina General")
+   - **Contenido**: texto completo del objeto del contrato
+3. Haz clic en **Crear**
+
+### Editar / Eliminar
+
+- Haz clic en **Editar** para modificar título o contenido
+- Haz clic en el icono 🗑️ para eliminar (requiere confirmación)
+
+### Usar plantilla de objeto en un contrato
+
+1. Ve a **Contratos** → **Nuevo Contrato**
+2. En el campo **Objeto**, verás un selector desplegable con las plantillas disponibles
+3. Selecciona una y el contenido se cargará automáticamente
+4. Puedes editar el texto después de cargarlo
+
+---
+
+## 11. Importar desde Excel
+
+![Página de importación](manual_screenshots/importar.png)
+
+### Preparar el archivo
+
+El Excel debe tener los siguientes encabezados (columnas):
+
+| Columna | Descripción |
+|---------|-------------|
+| TIPO DE INFORME | PARCIAL o FINAL |
+| N° DE CONTRATO | Número único del contrato |
+| PERIODO INFORME DESDE | Fecha inicio del período |
+| PERIODO INFORME HASTA | Fecha fin del período |
+| NOMBRE CONTRATISTA | Nombre completo |
+| No. DE IDENTIFICACIÓN | CC o NIT |
+| EXPEDIDA EN | Lugar de expedición |
+| PERFIL | Nombre del perfil |
+| VALOR A PAGAR | Monto del pago |
+| PAGO No | Número del pago |
+
+### Importar
+
+1. Ve a **Importar** en el menú lateral
+2. Selecciona la **resolución** a la que pertenecerán los contratos
+3. Selecciona el archivo Excel (.xlsx)
+4. Haz clic en **Importar**
+5. El sistema te mostrará cuántos contratos y pagos se crearon
+
+**Notas importantes:**
+- Si un contrato ya existe, solo se crea el pago (no se duplica el contrato)
+- Los perfiles se normalizan automáticamente (ej. "MÉDICO GRAL" → "MEDICINA")
+- Si el valor a pagar es $0, no se registra el pago (el contrato sí se crea)
+- Las actividades del perfil se asignan automáticamente al contrato
+
+---
+
+## 12. Pagos y Supervisiones
 
 ### Registrar un pago
 
@@ -295,7 +500,7 @@ OBLIGACIONES ESPECÍFICAS:
    - **Tipo de Informe**: PARCIAL o FINAL
    - **Período Desde / Hasta**: fechas del período evaluado
    - **Valor a Pagar**: monto del pago
-   - **Observaciones**: notas relevantes (puedes cargar desde una plantilla, ver abajo)
+   - **Observaciones**: notas relevantes (puedes cargar desde una plantilla, ver sección [Plantillas de Observación](#9-plantillas-de-observación))
 
 4. **Evaluación de Actividades**: cada actividad del contrato aparece como una **tarjeta** con:
    - Número de actividad en un círculo con color
@@ -335,78 +540,39 @@ En la tabla de pagos, haz clic en el ícono de **impresora** 🖨️ para descar
 
 ---
 
-## 9. Plantillas de Observación
+## 13. Configuración — Logos
 
-Las **Plantillas** son textos predefinidos que se pueden cargar en el campo de **Observaciones** al registrar un pago. Ahorran tiempo al evitar escribir evaluaciones repetitivas.
+La sección **Configuración** te permite subir los logos que aparecerán en los encabezados de los documentos legales (contratos DOCX).
 
-### Lista de plantillas
+### Acceder
 
-![Lista de plantillas](manual_screenshots/plantillas.png)
+Ve a **Configuración** desde el menú lateral (icono ⚙️ en la parte inferior).
 
-Ve a **Plantillas** en el menú lateral. Verás tarjetas con el título, una vista previa del contenido y la fecha de creación.
+### Subir logos
 
-### Crear una plantilla
+La página muestra dos zonas:
 
-1. Haz clic en **Nueva Plantilla**
-2. Completa:
-   - **Título**: nombre descriptivo (ej. "Cumplimiento total")
-   - **Contenido**: texto de la observación
-3. Haz clic en **Crear Plantilla**
+| Posición | Descripción |
+|----------|-------------|
+| **Logo Izquierdo** | Aparece en la esquina superior izquierda del documento |
+| **Logo Derecho** | Aparece en la esquina superior derecha del documento |
 
-### Editar / Eliminar
+Para cada logo:
 
-- Haz clic en el ícono de **lápiz** ✏️ en una tarjeta para editar
-- Haz clic en **Vista** para ver el contenido completo en un modal
-- Haz clic en el ícono de **basurero** 🗑️ para eliminar (requiere confirmación)
+1. Haz clic en la zona de carga o arrastra una imagen
+2. Formatos aceptados: **PNG, JPEG, WebP**
+3. La imagen se sube automáticamente y se muestra la previsualización
 
-### Usar plantilla en un pago
+### Cambiar / Eliminar logos
 
-1. Ve al detalle del contrato y haz clic en **Pago**
-2. En el campo **Observaciones**, despliega el selector "— Cargar desde plantilla —"
-3. Selecciona la plantilla deseada
-4. Haz clic en **Cargar**
-5. El contenido de la plantilla se agrega al texto existente
+- **Cambiar**: haz clic en "Cambiar imagen" y selecciona un nuevo archivo
+- **Eliminar**: haz clic en el icono 🗑️ para eliminar el logo
+
+> 📌 Los logos se insertan automáticamente en el encabezado de los contratos DOCX al descargarlos. Si no hay logos subidos, el documento se genera con el texto de encabezado estándar.
 
 ---
 
-## 10. Importar desde Excel
-
-![Página de importación](manual_screenshots/importar.png)
-
-### Preparar el archivo
-
-El Excel debe tener los siguientes encabezados (columnas):
-
-| Columna | Descripción |
-|---------|-------------|
-| TIPO DE INFORME | PARCIAL o FINAL |
-| N° DE CONTRATO | Número único del contrato |
-| PERIODO INFORME DESDE | Fecha inicio del período |
-| PERIODO INFORME HASTA | Fecha fin del período |
-| NOMBRE CONTRATISTA | Nombre completo |
-| No. DE IDENTIFICACIÓN | CC o NIT |
-| EXPEDIDA EN | Lugar de expedición |
-| PERFIL | Nombre del perfil |
-| VALOR A PAGAR | Monto del pago |
-| PAGO No | Número del pago |
-
-### Importar
-
-1. Ve a **Importar** en el menú lateral
-2. Selecciona la **resolución** a la que pertenecerán los contratos
-3. Selecciona el archivo Excel (.xlsx)
-4. Haz clic en **Importar**
-5. El sistema te mostrará cuántos contratos y pagos se crearon
-
-**Notas importantes:**
-- Si un contrato ya existe, solo se crea el pago (no se duplica el contrato)
-- Los perfiles se normalizan automáticamente (ej. "MÉDICO GRAL" → "MEDICINA")
-- Si el valor a pagar es $0, no se registra el pago (el contrato sí se crea)
-- Las actividades del perfil se asignan automáticamente al contrato
-
----
-
-## 11. Progreso de pago
+## 14. Progreso de pago
 
 Cada contrato muestra una tarjeta de **Progreso de Pago** con:
 
@@ -418,20 +584,24 @@ El progreso se calcula automáticamente: no necesitas hacer nada, solo registrar
 
 ---
 
-## 12. Consejos útiles
+## 15. Consejos útiles
 
 - ✅ **Revisa el perfil** del contratista antes de importar — las actividades del perfil determinan lo que se evalúa en las supervisiones
 - ✅ **Contratos con slashes**: los números como "022 del 02/02/2026" se manejan solos
 - ✅ **Para ver contratos de un contratista**: ve a Contratistas, busca, y en su detalle verás todos sus contratos
-- ✅ **Actividades en PDF**: al descargar el contrato DOCX, las actividades aparecen numeradas con su tipo (GENERAL/ESPECÍFICA)
+- ✅ **Supervisores**: crea primero los supervisores y luego asígnalos a los contratos. Así mantienes un registro centralizado
+- ✅ **Plantillas de Objeto**: úsalas para estandarizar la descripción de los servicios por perfil. Evita escribir el mismo texto una y otra vez
+- ✅ **Actividades en DOCX**: al descargar el contrato, las actividades aparecen numeradas con su tipo (GENERAL/ESPECÍFICA)
 - ✅ **Evaluar actividades**: el modal de pago muestra cada actividad con botones Cumple/No Cumple. Usa **"Marcar todas como Cumple"** para agilizar
 - ✅ **Tablas en actividades**: usa el editor WYSIWYG para crear tablas dentro de las actividades (ej. grupos etarios por atención)
 - ✅ **Plantillas de observaciones**: crea textos predefinidos en Plantillas y cárgalos en el campo de observaciones del pago
 - ✅ **Finalizar contrato**: marca la casilla al hacer el último pago
+- ✅ **Logos en documentos**: sube los logos de la ESE en Configuración para que aparezcan automáticamente en los contratos DOCX
+- ✅ **Navegación con breadcrumbs**: usa las migas de pan en la barra superior para navegar rápidamente entre secciones
 
 ---
 
-## 13. Solución de problemas comunes
+## 16. Solución de problemas comunes
 
 | Problema | Causa posible | Solución |
 |----------|--------------|----------|
@@ -442,7 +612,9 @@ El progreso se calcula automáticamente: no necesitas hacer nada, solo registrar
 | El contrato no aparece en la lista | Está filtrado por estado o resolución | Limpia los filtros |
 | Error al guardar perfil | Actividad con tipo inválido | Solo usa GENERAL o ESPECÍFICA |
 | Los documentos se descargan con `<< >>` | Placeholder sin reemplazar | Verifica que el contrato tenga todos los datos completos |
+| No aparece la sección Supervisores | Menú no visible en tu sesión | Recarga la página |
+| El logo subido no aparece en el DOCX | El documento se generó antes de subir el logo | Descarga el contrato nuevamente después de subir el logo |
 
 ---
 
-*Documento actualizado el 03 de julio de 2026 (v2.1) — Gesco V2 ESE Norte 3*
+*Documento actualizado el 17 de julio de 2026 (v2.2) — Gesco V2 ESE Norte 3*
