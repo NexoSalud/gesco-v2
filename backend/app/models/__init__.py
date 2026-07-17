@@ -11,6 +11,9 @@ from app.models.contrato import Contrato
 from app.models.plantilla import PlantillaObservacion
 from app.models.plantilla_objeto import PlantillaObjeto
 from app.models.supervisor import Supervisor
+from app.models.almacen import Almacen
+from app.models.inventario import Articulo, UnidadInventario, MovimientoInventario, Acta
+from app.models.auth import Role, Usuario, Acceso
 
 __all__ = [
     "Resolucion",
@@ -25,4 +28,12 @@ __all__ = [
     "PlantillaObservacion",
     "PlantillaObjeto",
     "Supervisor",
+    "Almacen",
+    "Articulo",
+    "UnidadInventario",
+    "MovimientoInventario",
+    "Acta",
+    "Role",
+    "Usuario",
+    "Acceso",
 ]

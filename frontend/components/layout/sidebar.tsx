@@ -14,19 +14,24 @@ import {
   Upload,
   User,
   BadgeCheck,
+  Package,
+  Shield,
 } from "lucide-react"
 import { useState } from "react"
+import { useAuth } from "@/components/providers/auth-provider"
 
 const NAV_ITEMS = [
   {
     label: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
+    permission: "dashboard"
   },
   {
     label: "Resoluciones",
     icon: FileText,
     href: "/dashboard/resoluciones",
+    permission: "resoluciones",
     children: [
       { label: "Todas las resoluciones", href: "/dashboard/resoluciones" },
       { label: "Nueva resolución", href: "/dashboard/resoluciones/nuevo" },
@@ -36,11 +41,19 @@ const NAV_ITEMS = [
     label: "Contratos",
     href: "/dashboard/contratos",
     icon: Scale,
+    permission: "contratos"
   },
   {
     label: "Contratistas",
     href: "/dashboard/contratistas",
     icon: User,
+    permission: "contratistas"
+  },
+  {
+    label: "Inventario",
+    href: "/dashboard/inventario",
+    icon: Package,
+    permission: "inventario"
   },
   {
     label: "Supervisores",
@@ -51,22 +64,32 @@ const NAV_ITEMS = [
     label: "Perfiles",
     href: "/dashboard/perfiles",
     icon: Users,
+    permission: "perfiles"
   },
   {
     label: "Plantillas",
     href: "/dashboard/plantillas",
     icon: FileSpreadsheet,
+    permission: "plantillas"
   },
   {
     label: "Obj. Plantillas",
     href: "/dashboard/plantillas-objeto",
     icon: FileText,
+    permission: "plantillas"
   },
   {
     label: "Importar",
     href: "/dashboard/importar",
     icon: Upload,
+    permission: "importar"
   },
+  {
+    label: "Seguridad",
+    href: "/dashboard/usuarios",
+    icon: Shield,
+    permission: "usuarios"
+  }
 ]
 
 export default function Sidebar() {
@@ -74,11 +97,21 @@ export default function Sidebar() {
   const [resolucionesOpen, setResolucionesOpen] = useState(
     pathname.startsWith("/dashboard/resoluciones")
   )
+  const { hasPermission, user } = useAuth()
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard"
     return pathname.startsWith(href)
   }
+
+  // Filtrar ítems de navegación según permisos
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    if (!item.permission) return true
+    if (item.permission === "usuarios") {
+      return user?.role?.nombre === "SUPER_ADMIN"
+    }
+    return hasPermission(item.permission, "leer")
+  })
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-60 bg-sidebar text-sidebar-text z-40 flex flex-col">
@@ -95,7 +128,7 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-        {NAV_ITEMS.map((item) => {
+        {visibleItems.map((item) => {
           if (item.children) {
             const isExpanded = resolucionesOpen
             return (

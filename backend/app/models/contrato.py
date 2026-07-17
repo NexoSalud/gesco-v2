@@ -89,3 +89,8 @@ class Contrato(Base):
                          order_by="Pago.numero_pago")
     actividades_contrato = relationship("ActividadContrato", back_populates="contrato",
                                         cascade="all, delete-orphan", order_by="ActividadContrato.orden")
+    
+    # Inventario Relationships
+    equipos_asignados = relationship("UnidadInventario", back_populates="contrato_actual")
+    movimientos_inventario = relationship("MovimientoInventario", back_populates="contrato", cascade="all, delete-orphan")
+    actas_inventario = relationship("Acta", back_populates="contrato", cascade="all, delete-orphan")

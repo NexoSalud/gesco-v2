@@ -185,3 +185,41 @@ def generar_supervision_pdf(contrato: dict, pago: dict, planillas: list,
 
     pdf_bytes = HTML(string=html).write_pdf()
     return pdf_bytes
+
+
+def generar_acta_pdf(
+    acta_tipo: str,
+    categoria: str,
+    contratista: dict,
+    contrato: dict,
+    items: list,
+    fecha_acta,
+    recibido_entregado_por: str = None,
+    logo_b64: str = "",
+) -> bytes:
+    """Genera el PDF del acta usando WeasyPrint."""
+    from datetime import date
+    if not fecha_acta:
+        fecha_acta = date.today()
+
+    mes_letras = MESES_FECHA[fecha_acta.month]
+    fecha_formateada = f"{fecha_acta.day} de {mes_letras} de {fecha_acta.year}"
+
+    resolucion_codigo = contrato.get("resolucion_codigo") or ""
+
+    plantilla = env.get_template("acta_inventario_pdf.html")
+    html = plantilla.render(
+        tipo=acta_tipo,
+        categoria=categoria,
+        contratista=contratista,
+        contrato=contrato,
+        items=items,
+        fecha_acta=fecha_acta,
+        fecha_formateada=fecha_formateada,
+        mes_letras=mes_letras,
+        recibido_entregado_por=recibido_entregado_por,
+        logo_b64=logo_b64,
+        resolucion_codigo=resolucion_codigo
+    )
+    return HTML(string=html).write_pdf()
+

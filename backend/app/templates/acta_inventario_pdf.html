@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Acta de {{ tipo }} de Inventario - {{ contrato.numero_contrato }}</title>
+<style>
+  @page {
+    size: letter;
+    margin: 2.2cm 2.4cm 2.2cm 2.4cm;
+    @bottom-right {
+      content: "Página " counter(page) " de " counter(pages);
+      font-size: 8pt;
+      font-family: Arial, sans-serif;
+      color: #555;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #222;
+    background: #fff;
+    padding: 10px;
+  }
+  .header-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    border: 2px solid #333;
+  }
+  .header-table td {
+    border: 1px solid #333;
+    padding: 8px 12px;
+    vertical-align: middle;
+  }
+  .header-logo {
+    text-align: center;
+    width: 25%;
+  }
+  .header-title-box {
+    text-align: center;
+    background-color: #f4f6f8;
+    font-weight: bold;
+    font-size: 13px;
+    color: #1a365d;
+    text-transform: uppercase;
+  }
+  .info-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: #1a365d;
+    border-bottom: 2px solid #2b6cb0;
+    padding-bottom: 4px;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .info-p {
+    text-align: justify;
+    font-size: 11px;
+    margin-bottom: 15px;
+    text-indent: 20px;
+  }
+  .details-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+  }
+  .details-table td {
+    padding: 5px 8px;
+    border: 1px solid #ddd;
+    font-size: 11px;
+  }
+  .details-table td.label {
+    font-weight: bold;
+    background-color: #f7fafc;
+    width: 25%;
+    color: #4a5568;
+    text-transform: uppercase;
+  }
+  .items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    margin-bottom: 20px;
+  }
+  .items-table th {
+    background-color: #2b6cb0;
+    color: #fff;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 9px;
+    padding: 6px 8px;
+    border: 1px solid #2b6cb0;
+    text-align: left;
+  }
+  .items-table td {
+    padding: 6px 8px;
+    border: 1px solid #e2e8f0;
+    font-size: 10px;
+  }
+  .items-table tr:nth-child(even) {
+    background-color: #f7fafc;
+  }
+  .text-center { text-align: center !important; }
+  .text-right { text-align: right !important; }
+  .uppercase { text-transform: uppercase; }
+  
+  .signature-section {
+    margin-top: 40px;
+    page-break-inside: avoid;
+  }
+  .signature-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .signature-table td {
+    width: 50%;
+    padding: 20px 15px;
+    vertical-align: top;
+    border: none;
+  }
+  .signature-line {
+    border-top: 1.5px solid #4a5568;
+    margin-top: 50px;
+    padding-top: 6px;
+    font-size: 11px;
+  }
+  .signature-name {
+    font-weight: bold;
+    color: #1a365d;
+    text-transform: uppercase;
+  }
+  .signature-role {
+    font-size: 10px;
+    color: #718096;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Encabezado Oficial -->
+  <table class="header-table">
+    <tr>
+      <td class="header-logo">
+        {% if logo_b64 %}
+        <img src="{{ logo_b64 }}" alt="ESE Norte 3" style="max-height: 45px;">
+        {% else %}
+        <span style="font-weight: bold; font-size: 14px; color: #2b6cb0;">ESE NORTE 3</span>
+        {% endif %}
+      </td>
+      <td class="header-title-box">
+        ACTA DE {{ tipo }} DE INVENTARIO<br>
+        <span style="font-size: 11px; font-weight: normal; color: #4a5568;">Área de Inventario y Almacén - Subcategoría: {{ categoria }}</span>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Información General -->
+  <div class="info-title">Información General</div>
+  <table class="details-table">
+    <tr>
+      <td class="label">Contratista</td>
+      <td class="uppercase font-bold">{{ contratista.nombre }}</td>
+      <td class="label">Identificación</td>
+      <td>C.C. {{ contratista.identificacion }}</td>
+    </tr>
+    <tr>
+      <td class="label">No. Contrato</td>
+      <td class="font-bold">{{ contrato.numero_contrato }}</td>
+      <td class="label">Fecha de Acta</td>
+      <td>{{ fecha_formateada }}</td>
+    </tr>
+    <tr>
+      <td class="label">Perfil / Cargo</td>
+      <td class="uppercase">{{ contrato.perfil or '—' }}</td>
+      <td class="label">Resolución</td>
+      <td>{{ resolucion_codigo or '—' }}</td>
+    </tr>
+  </table>
+
+  <!-- Cuerpo del Acta -->
+  <div class="info-title">Descripción y Suscripción</div>
+  <p class="info-p">
+    En el municipio de Puerto Tejada - Cauca, a los {{ fecha_acta.day }} días del mes de {{ mes_letras }} del año {{ fecha_acta.year }}, se suscribe la presente acta de <strong>{{ tipo }}</strong> de elementos y/o equipos del inventario general de la <strong>EMPRESA SOCIAL DEL ESTADO NORTE 3 - E.S.E.</strong>, asignados en comodato de uso temporal y bajo la exclusiva custodia y responsabilidad de <strong>EL CONTRATISTA</strong> para el correcto desempeño de sus obligaciones contractuales.
+  </p>
+  <p class="info-p">
+    Los elementos que se detallan a continuación son entregados/devueltos en las condiciones físicas indicadas. EL CONTRATISTA se obliga a velar por el buen cuidado, conservación y uso adecuado de los mismos, respondiendo civil y administrativamente por cualquier daño, pérdida o avería debido a negligencia o mal uso de los mismos.
+  </p>
+
+  <!-- Tabla de Elementos -->
+  <div class="info-title">Elementos del Acta</div>
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th style="width: 5%;" class="text-center">No.</th>
+        <th style="width: 25%;">Elemento</th>
+        {% if categoria != 'DOTACION' %}
+        <th style="width: 15%;">Marca / Modelo</th>
+        <th style="width: 15%;">Serial / IMEI 1</th>
+        {% if categoria == 'TECNOLOGICO' %}
+        <th style="width: 15%;">IMEI 2</th>
+        {% endif %}
+        {% else %}
+        <th style="width: 15%;" class="text-center">Cantidad</th>
+        {% endif %}
+        <th style="width: 12%;" class="text-center">Estado</th>
+        <th>Observaciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td class="text-center">{{ loop.index }}</td>
+        <td class="font-bold">{{ item.elemento }}</td>
+        {% if categoria != 'DOTACION' %}
+        <td>{{ item.marca or '—' }} / {{ item.modelo or '—' }}</td>
+        <td class="font-mono">{{ item.serial or '—' }}</td>
+        {% if categoria == 'TECNOLOGICO' %}
+        <td class="font-mono">{{ item.imei2 or 'N/A' }}</td>
+        {% endif %}
+        {% else %}
+        <td class="text-center font-bold">{{ item.cantidad or 1 }} ud</td>
+        {% endif %}
+        <td class="text-center">
+          <span style="font-weight: bold; color: {% if item.estado_declarado in ['DISPONIBLE', 'BUEN_ESTADO', 'EXCELENTE', 'Excelente', 'Bueno'] %}#2f855a{% else %}#c53030{% endif %};">
+            {{ item.estado_declarado }}
+          </span>
+        </td>
+        <td>{{ item.observaciones or 'Sin observaciones.' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Firmas -->
+  <div class="signature-section">
+    <table class="signature-table">
+      <tr>
+        <td>
+          <div class="signature-line">
+            <div class="signature-name">{{ contratista.nombre }}</div>
+            <div class="signature-role">Contratista</div>
+            <div>C.C. {{ contratista.identificacion }}</div>
+          </div>
+        </td>
+        <td>
+          <div class="signature-line">
+            <div class="signature-name">{{ recibido_entregado_por or ESE_FIRMA or 'Área de Inventario' }}</div>
+            <div class="signature-role">Funcionario Responsable / ESE Norte 3</div>
+            <div>EMPRESA SOCIAL DEL ESTADO NORTE 3</div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+</body>
+</html>

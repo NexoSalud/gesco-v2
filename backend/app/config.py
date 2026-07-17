@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     upload_dir: str = "/app/uploads"
 
     class Config:
+        env_file = ".env"
         env_file_encoding = "utf-8"
 
 

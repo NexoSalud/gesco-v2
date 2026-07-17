@@ -9,3 +9,6 @@ from app.routers.export import router as export_router
 from app.routers.import_routes import router as import_router
 from app.routers.actividades import router as actividades_router
 from app.routers.supervisores import router as supervisores_router
+from app.routers.inventario import router as inventario_router
+from app.routers.auth import router as auth_router
+from app.routers.usuarios import router as seguridad_router

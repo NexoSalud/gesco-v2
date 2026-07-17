@@ -16,6 +16,8 @@ from app.models.contrato import Contrato
 from app.models.contratista import Contratista
 from app.models.pago import Pago
 from app.models.planilla import Planilla
+from app.models.auth import Role, Usuario, Acceso
+from app.services.auth_service import hash_password
 
 logger = logging.getLogger(__name__)
 
@@ -187,6 +189,48 @@ PERFIL_NORMALIZATION = {
 async def seed_database():
     async with async_session_factory() as db:
         try:
+            # Seed Roles, Users, and Accesses
+            res_roles = await db.execute(select(Role))
+            if not res_roles.scalars().first():
+                logger.info("Insertando roles, usuarios y accesos por defecto...")
+                super_role = Role(nombre="SUPER_ADMIN", descripcion="Super Administrador con control total del sistema y seguridad")
+                admin_role = Role(nombre="ADMIN", descripcion="Administrador del sistema de gestión contractual, sin gestión de usuarios")
+                db.add(super_role)
+                db.add(admin_role)
+                await db.flush()
+
+                # Crear usuarios por defecto
+                super_user = Usuario(
+                    username="superadmin",
+                    password_hash=hash_password("superadmin123"),
+                    nombre_completo="Super Administrador",
+                    role_id=super_role.id,
+                    activo=True
+                )
+                admin_user = Usuario(
+                    username="admin",
+                    password_hash=hash_password("admin123"),
+                    nombre_completo="Administrador de Sistema",
+                    role_id=admin_role.id,
+                    activo=True
+                )
+                db.add(super_user)
+                db.add(admin_user)
+
+                # Definir accesos por defecto
+                vistas = ["dashboard", "resoluciones", "contratos", "contratistas", "inventario", "perfiles", "plantillas", "importar"]
+                
+                # SUPER_ADMIN tiene acceso a todo, incluyendo "usuarios"
+                for v in vistas + ["usuarios"]:
+                    db.add(Acceso(role_id=super_role.id, vista=v, crear=True, leer=True, actualizar=True, eliminar=True))
+                
+                # ADMIN tiene acceso a todo, excepto a "usuarios"
+                for v in vistas:
+                    db.add(Acceso(role_id=admin_role.id, vista=v, crear=True, leer=True, actualizar=True, eliminar=True))
+                
+                await db.commit()
+                logger.info("Roles, usuarios y accesos inicializados.")
+
             existing = await db.execute(select(Perfil))
             perfiles_existentes = existing.scalars().all()
             if perfiles_existentes:
