@@ -198,7 +198,6 @@ async def seed_database():
                 db.add(super_role)
                 db.add(admin_role)
                 await db.flush()
-
                 # Crear usuarios por defecto
                 super_user = Usuario(
                     username="superadmin",
@@ -207,15 +206,7 @@ async def seed_database():
                     role_id=super_role.id,
                     activo=True
                 )
-                admin_user = Usuario(
-                    username="admin",
-                    password_hash=hash_password("admin123"),
-                    nombre_completo="Administrador de Sistema",
-                    role_id=admin_role.id,
-                    activo=True
-                )
                 db.add(super_user)
-                db.add(admin_user)
 
                 # Definir accesos por defecto
                 vistas = ["dashboard", "resoluciones", "contratos", "contratistas", "inventario", "perfiles", "plantillas", "importar"]
