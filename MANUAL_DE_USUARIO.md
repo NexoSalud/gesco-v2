@@ -11,16 +11,17 @@
 4. [Resoluciones](#4-resoluciones)
 5. [Contratos](#5-contratos)
 6. [Contratistas](#6-contratistas)
-7. [Supervisores](#7-supervisores)
-8. [Perfiles](#8-perfiles)
-9. [Plantillas de Observación](#9-plantillas-de-observación)
-10. [Plantillas de Objeto](#10-plantillas-de-objeto)
-11. [Importar desde Excel](#11-importar-desde-excel)
-12. [Pagos y Supervisiones](#12-pagos-y-supervisiones)
-13. [Configuración — Logos](#13-configuración--logos)
-14. [Progreso de pago](#14-progreso-de-pago)
-15. [Consejos útiles](#15-consejos-útiles)
-16. [Solución de problemas comunes](#16-solución-de-problemas-comunes)
+7. [Inventario](#7-inventario)
+8. [Supervisores](#8-supervisores)
+9. [Perfiles](#9-perfiles)
+10. [Plantillas de Observación](#10-plantillas-de-observación)
+11. [Plantillas de Objeto](#11-plantillas-de-objeto)
+12. [Importar desde Excel](#12-importar-desde-excel)
+13. [Pagos y Supervisiones](#13-pagos-y-supervisiones)
+14. [Configuración — Logos](#14-configuración--logos)
+15. [Progreso de pago](#15-progreso-de-pago)
+16. [Consejos útiles](#16-consejos-útiles)
+17. [Solución de problemas comunes](#17-solución-de-problemas-comunes)
 
 ---
 
@@ -36,6 +37,7 @@ Gesco V2 es un sistema web para gestionar los contratos de prestación de servic
 - Gestionar **supervisores** y asignarlos a contratos
 - Personalizar **logos** en los encabezados de documentos
 - Usar **plantillas** reutilizables para objetos del contrato y observaciones
+- Gestionar el **inventario** de equipos tecnológicos, biomédicos y dotación asignados a contratistas
 
 ---
 
@@ -47,7 +49,17 @@ Abre tu navegador (Chrome, Edge, Firefox) y ve a:
 
 **https://contratos.esenorte3.lat**
 
-El sistema carga directamente el **Dashboard** — no requiere inicio de sesión.
+El sistema te redirigirá a la **página de inicio de sesión**.
+
+### Inicio de sesión
+
+![Login](manual_screenshots/login.png)
+
+1. Ingresa tu **nombre de usuario**
+2. Ingresa tu **contraseña**
+3. Haz clic en **Iniciar Sesión**
+
+Una vez autenticado, accederás al **Dashboard** con todas las funcionalidades del sistema.
 
 ### Barra lateral (menú principal)
 
@@ -61,10 +73,13 @@ La barra lateral izquierda contiene todas las secciones del sistema:
 | 📄 | Resoluciones | Gestionar resoluciones presupuestales |
 | ⚖️ | Contratos | Listar, crear y gestionar contratos |
 | 👤 | Contratistas | Ver y editar datos de contratistas |
+| 📦 | Inventario | Control de equipos tecnológicos, biomédicos y dotación |
 | ✅ | Supervisores | Gestionar supervisores asignables |
 | 👥 | Perfiles | Administrar perfiles profesionales |
 | 📋 | Plantillas | Plantillas de observación para supervisiones |
 | 📄 | Obj. Plantillas | Plantillas reutilizables para el objeto del contrato |
+| ⚙️ | Configuración | Subir logos para documentos |
+| 🔒 | Seguridad | _(próximamente)_ |
 | 📤 | Importar | Cargar datos desde Excel |
 
 Algunas secciones como **Resoluciones** tienen un menú desplegable con sub-opciones (ej. "Todas las resoluciones" / "Nueva resolución").
@@ -262,7 +277,28 @@ Para editar, haz clic en **Editar** y modifica los campos necesarios.
 
 ---
 
-## 7. Supervisores
+## 7. Inventario
+
+La sección **Inventario** permite gestionar los equipos tecnológicos, biomédicos y dotación asignados a los contratistas de los Equipos Básicos de Salud (EBS).
+
+![Inventario](manual_screenshots/inventario.png)
+
+### Acceder
+
+Ve a **Inventario** en el menú lateral. Verás el panel de gestión con las opciones disponibles para:
+
+- **Equipos Tecnológicos**: computadores, tablets, impresoras, etc.
+- **Equipos Biomédicos**: tensiómetros, glucómetros, fonendoscopios, etc.
+- **Dotación**: maletines, uniformes, elementos de bioseguridad, etc.
+
+Cada equipo registrado puede estar asociado a un contratista específico, permitiendo:
+- Controlar qué equipos tiene asignado cada profesional
+- Registrar entregas y devoluciones
+- Llevar trazabilidad del inventario
+
+---
+
+## 8. Supervisores
 
 Los **Supervisores** son las personas asignadas para supervisar los contratos. Puedes gestionar su información de forma independiente y luego asignarlos a los contratos.
 
@@ -309,7 +345,7 @@ Desde el detalle, haz clic en **Editar** (o en el botón **Guardar** que cambia 
 
 ---
 
-## 8. Perfiles
+## 9. Perfiles
 
 Los **Perfiles** son los cargos profesionales (MEDICINA, ENFERMERIA, PSICOLOGIA, etc.). Cada perfil tiene:
 
@@ -386,7 +422,7 @@ OBLIGACIONES ESPECÍFICAS:
 
 ---
 
-## 9. Plantillas de Observación
+## 10. Plantillas de Observación
 
 Las **Plantillas de Observación** son textos predefinidos que se pueden cargar en el campo de **Observaciones** al registrar un pago. Ahorran tiempo al evitar escribir evaluaciones repetitivas.
 
@@ -417,7 +453,7 @@ Las **Plantillas de Observación** son textos predefinidos que se pueden cargar 
 
 ---
 
-## 10. Plantillas de Objeto
+## 11. Plantillas de Objeto
 
 Las **Plantillas de Objeto** son textos reutilizables que describen el **objeto del contrato** (el servicio a prestar). Se usan al crear o editar contratos para precargar la descripción, ahorrando tiempo y asegurando consistencia.
 
@@ -451,7 +487,7 @@ En **Obj. Plantillas** del menú lateral verás todas las plantillas registradas
 
 ---
 
-## 11. Importar desde Excel
+## 12. Importar desde Excel
 
 ![Página de importación](manual_screenshots/importar.png)
 
@@ -488,7 +524,7 @@ El Excel debe tener los siguientes encabezados (columnas):
 
 ---
 
-## 12. Pagos y Supervisiones
+## 13. Pagos y Supervisiones
 
 ### Registrar un pago
 
@@ -500,7 +536,7 @@ El Excel debe tener los siguientes encabezados (columnas):
    - **Tipo de Informe**: PARCIAL o FINAL
    - **Período Desde / Hasta**: fechas del período evaluado
    - **Valor a Pagar**: monto del pago
-   - **Observaciones**: notas relevantes (puedes cargar desde una plantilla, ver sección [Plantillas de Observación](#9-plantillas-de-observación))
+   - **Observaciones**: notas relevantes (puedes cargar desde una plantilla, ver sección [Plantillas de Observación](#10-plantillas-de-observación))
 
 4. **Evaluación de Actividades**: cada actividad del contrato aparece como una **tarjeta** con:
    - Número de actividad en un círculo con color
@@ -540,7 +576,7 @@ En la tabla de pagos, haz clic en el ícono de **impresora** 🖨️ para descar
 
 ---
 
-## 13. Configuración — Logos
+## 14. Configuración — Logos
 
 La sección **Configuración** te permite subir los logos que aparecerán en los encabezados de los documentos legales (contratos DOCX).
 
@@ -572,7 +608,7 @@ Para cada logo:
 
 ---
 
-## 14. Progreso de pago
+## 15. Progreso de pago
 
 Cada contrato muestra una tarjeta de **Progreso de Pago** con:
 
@@ -584,7 +620,7 @@ El progreso se calcula automáticamente: no necesitas hacer nada, solo registrar
 
 ---
 
-## 15. Consejos útiles
+## 16. Consejos útiles
 
 - ✅ **Revisa el perfil** del contratista antes de importar — las actividades del perfil determinan lo que se evalúa en las supervisiones
 - ✅ **Contratos con slashes**: los números como "022 del 02/02/2026" se manejan solos
@@ -601,7 +637,7 @@ El progreso se calcula automáticamente: no necesitas hacer nada, solo registrar
 
 ---
 
-## 16. Solución de problemas comunes
+## 17. Solución de problemas comunes
 
 | Problema | Causa posible | Solución |
 |----------|--------------|----------|
@@ -617,4 +653,4 @@ El progreso se calcula automáticamente: no necesitas hacer nada, solo registrar
 
 ---
 
-*Documento actualizado el 17 de julio de 2026 (v2.2) — Gesco V2 ESE Norte 3*
+*Documento actualizado el 17 de julio de 2026 (v2.3) — Gesco V2 ESE Norte 3*
