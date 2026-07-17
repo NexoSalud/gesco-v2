@@ -117,9 +117,11 @@ export default function Sidebar() {
     <aside className="fixed left-0 top-0 h-screen w-60 bg-sidebar text-sidebar-text z-40 flex flex-col">
       {/* Logo */}
       <div className="h-16 flex items-center gap-3 px-5 border-b border-white/10">
-        <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">
-          <Scale className="w-4 h-4 text-white" />
-        </div>
+        <img
+          src="/logo_es.png"
+          alt="ESE Norte 3"
+          className="w-10 h-10 object-contain rounded-lg bg-white p-1 shadow-sm"
+        />
         <div>
           <h1 className="font-bold text-white text-sm tracking-wide">GESCO V2</h1>
           <p className="text-[10px] text-sidebar-text">Gestión de Contratos</p>

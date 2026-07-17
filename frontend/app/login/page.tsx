@@ -41,8 +41,12 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl flex flex-col items-center">
         {/* Brand Logo */}
-        <div className="w-16 h-16 rounded-2xl bg-emerald-500 flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/20">
-          <Scale className="w-8 h-8 text-white animate-pulse" />
+        <div className="w-20 h-20 rounded-2xl bg-white flex items-center justify-center mb-4 shadow-lg p-2">
+          <img
+            src="/logo_es.png"
+            alt="ESE Norte 3 Logo"
+            className="w-full h-full object-contain"
+          />
         </div>
         
         <h1 className="text-2xl font-bold text-white tracking-wide">GESCO V2</h1>

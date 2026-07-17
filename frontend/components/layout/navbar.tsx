@@ -1,9 +1,10 @@
 "use client"
 
 import { usePathname } from "next/navigation"
-import { Search, Wifi, WifiOff, LogOut, UserCog, X, KeyRound, User, Lock } from "lucide-react"
+import { Search, Wifi, WifiOff, LogOut, UserCog, X, KeyRound, User, Lock, Sun, Moon } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/components/providers/auth-provider"
+import { useTheme } from "@/components/providers/theme-provider"
 import { updateMe } from "@/lib/api"
 import { toast } from "sonner"
 
@@ -22,6 +23,7 @@ export default function Navbar() {
   const [isOnline, setIsOnline] = useState(true)
   const [searchOpen, setSearchOpen] = useState(false)
   const { user, logoutUser, updateUserSession } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [editNombreCompleto, setEditNombreCompleto] = useState("")
   const [editUsername, setEditUsername] = useState("")
@@ -134,6 +136,13 @@ export default function Navbar() {
               title="Editar Perfil"
             >
               {user.nombre_completo ? user.nombre_completo.substring(0, 2) : user.username.substring(0, 2)}
+            </button>
+            <button
+              onClick={toggleTheme}
+              className="text-gray-400 hover:text-emerald-600 transition-colors ml-1 cursor-pointer p-1.5 hover:bg-gray-50 rounded-lg flex items-center justify-center"
+              title={theme === "light" ? "Modo Oscuro" : "Modo Claro"}
+            >
+              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </button>
             <button
               onClick={() => setShowProfileModal(true)}
