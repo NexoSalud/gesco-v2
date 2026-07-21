@@ -799,14 +799,9 @@ export default function InventarioPage() {
     }
 
     try {
-      toast.loading("Registrando entrega y generando actas...", { id: "entrega" })
-      const actas = await registrarEntrega(payload)
+      toast.loading("Registrando entrega...", { id: "entrega" })
+      await registrarEntrega(payload)
       toast.success("Entrega registrada con éxito!", { id: "entrega" })
-      
-      // Auto-download each generated acta
-      actas.forEach((acta: Acta) => {
-        descargarActaDocx(acta.id)
-      })
 
       // Clear states
       setEntregaCart([])
@@ -880,14 +875,9 @@ export default function InventarioPage() {
     }
 
     try {
-      toast.loading("Registrando devolución y generando actas...", { id: "devolucion" })
-      const actas = await registrarDevolucion(payload)
+      toast.loading("Registrando devolución...", { id: "devolucion" })
+      await registrarDevolucion(payload)
       toast.success("Devolución registrada con éxito!", { id: "devolucion" })
-
-      // Auto-download actas
-      actas.forEach((acta: Acta) => {
-        descargarActaDocx(acta.id)
-      })
 
       // Clear states
       setDevolucionesCart([])
@@ -2381,7 +2371,7 @@ export default function InventarioPage() {
                             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm transition-all shadow-md shadow-emerald-100 flex items-center gap-2"
                           >
                             <CheckCircle className="w-4 h-4" />
-                            Confirmar Entrega y Generar Actas (.docx)
+                            Confirmar Entrega
                           </button>
                         </div>
                       )}
@@ -2561,7 +2551,7 @@ export default function InventarioPage() {
                             className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm transition-all shadow-md shadow-blue-100 flex items-center gap-2"
                           >
                             <CheckCircle className="w-4 h-4" />
-                            Confirmar Devolución y Generar Actas (.docx)
+                            Confirmar Devolución
                           </button>
                         </div>
                       )}
