@@ -1684,10 +1684,21 @@ async def historial_unidad(unidad_id: int, db: AsyncSession = Depends(get_db)):
     """Obtiene el historial de movimientos de una unidad específica."""
     res = await db.execute(
         select(MovimientoInventario)
+        .options(
+            selectinload(MovimientoInventario.contrato).selectinload(Contrato.contratista_rel),
+            selectinload(MovimientoInventario.unidad).selectinload(UnidadInventario.articulo),
+            selectinload(MovimientoInventario.articulo)
+        )
         .where(MovimientoInventario.unidad_id == unidad_id)
-        .order_by(MovimientoInventario.fecha.desc())
+        .order_by(MovimientoInventario.fecha.desc(), MovimientoInventario.created_at.desc(), MovimientoInventario.id.desc())
     )
-    return res.scalars().all()
+    movimientos = res.scalars().all()
+    for m in movimientos:
+        if m.contrato:
+            m.numero_contrato = m.contrato.numero_contrato
+            if m.contrato.contratista_rel:
+                m.nombre_contratista = m.contrato.contratista_rel.nombre
+    return movimientos
 
 
 # ─── DASHBOARD DE DISPONIBILIDAD ───

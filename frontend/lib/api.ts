@@ -471,6 +471,8 @@ export interface Movimiento {
   created_at: string
   articulo?: Articulo
   unidad?: UnidadInventario
+  numero_contrato?: string
+  nombre_contratista?: string
 }
 
 export interface Acta {

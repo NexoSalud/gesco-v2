@@ -101,6 +101,8 @@ class MovimientoResponse(BaseModel):
     created_at: datetime
     articulo: Optional[ArticuloResponse] = None
     unidad: Optional[UnidadInventarioResponse] = None
+    numero_contrato: Optional[str] = None
+    nombre_contratista: Optional[str] = None
 
     class Config:
         from_attributes = True
