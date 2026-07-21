@@ -34,6 +34,9 @@ import {
   Sparkles,
   Info,
   Check,
+  Clock,
+  X,
+  Loader2,
 } from "lucide-react"
 
 import {
@@ -62,11 +65,14 @@ import {
   descargarExcelUnidades,
   descargarExcelDisponibilidad,
   getResoluciones,
+  getHistorialUnidad,
   type Almacen,
   type Articulo,
   type UnidadInventario,
   type Acta,
   type Resolucion,
+  type Movimiento,
+  API,
 } from "@/lib/api"
 
 export default function InventarioPage() {
@@ -147,6 +153,33 @@ export default function InventarioPage() {
   
   const [showEditUnidad, setShowEditUnidad] = useState(false)
   const [editingUnidad, setEditingUnidad] = useState<any>(null)
+
+  // Historial y Trazabilidad Modal State
+  const [showHistorialModal, setShowHistorialModal] = useState(false)
+  const [selectedUnidadHistorial, setSelectedUnidadHistorial] = useState<UnidadInventario | null>(null)
+  const [movimientosHistorial, setMovimientosHistorial] = useState<Movimiento[]>([])
+  const [loadingHistorial, setLoadingHistorial] = useState(false)
+
+  const handleOpenHistorialModal = async (u: UnidadInventario) => {
+    setSelectedUnidadHistorial(u)
+    setShowHistorialModal(true)
+    setLoadingHistorial(true)
+    try {
+      const data = await getHistorialUnidad(u.id)
+      const sorted = (data || []).slice().sort((a, b) => {
+        const timeA = new Date(a.fecha || a.created_at).getTime()
+        const timeB = new Date(b.fecha || b.created_at).getTime()
+        if (timeB !== timeA) return timeB - timeA
+        return b.id - a.id
+      })
+      setMovimientosHistorial(sorted)
+    } catch (err: any) {
+      toast.error("Error al cargar el historial de la unidad: " + (err.message || err))
+      setMovimientosHistorial([])
+    } finally {
+      setLoadingHistorial(false)
+    }
+  }
 
   useEffect(() => {
     if (selectedAlmacenDetalle) {
@@ -1784,6 +1817,13 @@ export default function InventarioPage() {
                             </button>
                           )}
                           <button
+                            onClick={() => handleOpenHistorialModal(u)}
+                            className="p-1 hover:bg-purple-100 rounded text-purple-600 transition-colors cursor-pointer"
+                            title="Ver Historial y Trazabilidad"
+                          >
+                            <History className="w-3.5 h-3.5" />
+                          </button>
+                          <button
                             onClick={() => {
                               setEditingUnidad({ ...u })
                               setShowEditUnidad(true)
@@ -3148,12 +3188,13 @@ export default function InventarioPage() {
                           <th className="p-3">Resolución</th>
                           <th className="p-3">Estado</th>
                           <th className="p-3">Asignado a Contrato</th>
+                          <th className="p-3 text-center">Acciones</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100 text-gray-700 bg-white">
                         {paginatedDetalleUnidades.length === 0 ? (
                           <tr>
-                            <td colSpan={6} className="p-8 text-center text-gray-400">
+                            <td colSpan={7} className="p-8 text-center text-gray-400">
                               No hay unidades físicas serializadas con los filtros aplicados.
                             </td>
                           </tr>
@@ -3191,6 +3232,15 @@ export default function InventarioPage() {
                                 ) : (
                                   <span className="text-gray-400 font-medium">NO</span>
                                 )}
+                              </td>
+                              <td className="p-3 text-center">
+                                <button
+                                  onClick={() => handleOpenHistorialModal(u)}
+                                  className="p-1 hover:bg-purple-100 rounded text-purple-600 transition-colors cursor-pointer"
+                                  title="Ver Historial y Trazabilidad"
+                                >
+                                  <History className="w-3.5 h-3.5" />
+                                </button>
                               </td>
                             </tr>
                           ))
@@ -3723,7 +3773,7 @@ export default function InventarioPage() {
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-center justify-between text-xs my-1">
               <span className="text-blue-700 font-medium">¿No tienes la plantilla?</span>
               <a
-                href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/inventario/plantillas/serializado`}
+                href={`${API}/api/v1/inventario/plantillas/serializado`}
                 download
                 className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-lg font-bold transition-colors shadow-sm"
               >
@@ -3803,7 +3853,7 @@ export default function InventarioPage() {
             <div className="bg-purple-50 border border-purple-100 rounded-xl p-3 flex items-center justify-between text-xs my-1">
               <span className="text-purple-700 font-medium">¿No tienes la plantilla?</span>
               <a
-                href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/inventario/plantillas/dotacion`}
+                href={`${API}/api/v1/inventario/plantillas/dotacion`}
                 download
                 className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1.5 rounded-lg font-bold transition-colors shadow-sm"
               >
@@ -3933,7 +3983,7 @@ export default function InventarioPage() {
                 {importResult.error_file && (
                   <div className="pt-1">
                     <a
-                      href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/inventario/import/errores/${importResult.error_file}/download`}
+                      href={`${API}/api/v1/inventario/import/errores/${importResult.error_file}/download`}
                       download
                       className="w-full px-3 py-2 bg-red-50 border border-red-200 text-red-700 rounded-xl hover:bg-red-100 text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
                     >
@@ -3970,6 +4020,237 @@ export default function InventarioPage() {
                   Entendido
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 7. Modal Historial y Trazabilidad de Unidad Física */}
+      {showHistorialModal && selectedUnidadHistorial && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-purple-50 via-white to-indigo-50">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-purple-600 text-white rounded-xl shadow-md shadow-purple-200">
+                  <History className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-gray-900 leading-tight">
+                    Historial y Trazabilidad
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Sustento de asignaciones, entregas y devoluciones del elemento
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowHistorialModal(false)
+                  setSelectedUnidadHistorial(null)
+                  setMovimientosHistorial([])
+                }}
+                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Info Resumen de la Unidad */}
+            <div className="bg-gray-50/80 p-4 border-b border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Elemento</span>
+                <span className="font-bold text-gray-800 text-sm truncate block">
+                  {selectedUnidadHistorial.articulo?.elemento || "—"}
+                </span>
+                <span className="text-[10px] text-gray-400 font-semibold uppercase">
+                  {selectedUnidadHistorial.articulo?.categoria || "—"}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Serial (S/N) / IMEI 1</span>
+                <span className="font-mono font-bold text-indigo-700 block">
+                  {selectedUnidadHistorial.serial || "Sin Serial"}
+                </span>
+                {selectedUnidadHistorial.imei2 && (
+                  <span className="font-mono text-[10px] text-gray-500 block">
+                    IMEI 2: {selectedUnidadHistorial.imei2}
+                  </span>
+                )}
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Estado Actual</span>
+                <span
+                  className={`inline-block mt-0.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    selectedUnidadHistorial.estado === "DISPONIBLE" || selectedUnidadHistorial.estado === "BUEN_ESTADO"
+                      ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                      : selectedUnidadHistorial.estado === "REGULAR"
+                      ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
+                      : selectedUnidadHistorial.estado === "ENTREGADO"
+                      ? "bg-blue-100 text-blue-800 border border-blue-200"
+                      : selectedUnidadHistorial.estado === "EN_MANTENIMIENTO" || selectedUnidadHistorial.estado === "DANADO"
+                      ? "bg-amber-100 text-amber-800 border border-amber-200"
+                      : "bg-red-100 text-red-800 border border-red-200"
+                  }`}
+                >
+                  {selectedUnidadHistorial.estado === "BUEN_ESTADO"
+                    ? "BUEN ESTADO"
+                    : selectedUnidadHistorial.estado === "DANADO"
+                    ? "DAÑADO"
+                    : selectedUnidadHistorial.estado}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Asignado a Contrato</span>
+                {selectedUnidadHistorial.contratista_nombre ? (
+                  <span className="font-semibold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded text-[10px] uppercase truncate block mt-0.5">
+                    {selectedUnidadHistorial.contratista_nombre}
+                  </span>
+                ) : (
+                  <span className="text-gray-500 font-medium italic block mt-0.5">Sin asignación activa</span>
+                )}
+              </div>
+            </div>
+
+            {/* Timeline Content Body */}
+            <div className="p-5 overflow-y-auto max-h-[500px] flex-1 space-y-4 pr-3">
+              {loadingHistorial ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-2 text-gray-400">
+                  <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+                  <p className="text-xs font-semibold">Cargando trazabilidad de la unidad...</p>
+                </div>
+              ) : movimientosHistorial.length === 0 ? (
+                <div className="py-12 text-center space-y-2">
+                  <Clock className="w-10 h-10 text-gray-300 mx-auto" />
+                  <p className="text-sm font-semibold text-gray-600">Sin historial registrado</p>
+                  <p className="text-xs text-gray-400 max-w-xs mx-auto">
+                    Esta unidad física aún no cuenta con movimientos de entrega o devolución registrados en actas.
+                  </p>
+                </div>
+              ) : (
+                <div className="relative border-l-2 border-purple-100 ml-4 pl-6 space-y-6">
+                  {movimientosHistorial.map((m, idx) => {
+                    const isEntrega = m.tipo === "ENTREGA"
+                    return (
+                      <div key={m.id || idx} className="relative group">
+                        {/* Bullet point on timeline */}
+                        <div
+                          className={`absolute -left-[31px] top-1 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center text-white shadow-sm ${
+                            isEntrega ? "bg-blue-600" : "bg-purple-600"
+                          }`}
+                        >
+                          <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                        </div>
+
+                        {/* Card box */}
+                        <div className="bg-white border border-gray-100 hover:border-purple-200 rounded-xl p-4 shadow-sm hover:shadow transition-all space-y-2.5">
+                          {/* Header row of movement */}
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 border-gray-50">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide flex items-center gap-1 ${
+                                  isEntrega
+                                    ? "bg-blue-50 text-blue-700 border border-blue-100"
+                                    : "bg-purple-50 text-purple-700 border border-purple-100"
+                                }`}
+                              >
+                                {isEntrega ? (
+                                  <>
+                                    <Upload className="w-3 h-3 rotate-180 text-blue-600" /> ENTREGA A CONTRATO
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle className="w-3 h-3 text-purple-600" /> DEVOLUCIÓN A INVENTARIO
+                                  </>
+                                )}
+                              </span>
+                              {m.numero_contrato && (
+                                <span className="font-mono text-xs font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded">
+                                  #{m.numero_contrato}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500">
+                              <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                              {m.fecha}
+                            </div>
+                          </div>
+
+                          {/* Details row */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            {m.nombre_contratista && (
+                              <div className="flex items-start gap-1.5 text-gray-700">
+                                <User className="w-3.5 h-3.5 text-purple-500 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <span className="text-[10px] text-gray-400 font-bold block uppercase">
+                                    {isEntrega ? "Asignado a Contratista" : "Devuelto por Contratista"}
+                                  </span>
+                                  <span className="font-semibold text-gray-800">{m.nombre_contratista}</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {m.estado_declarado && (
+                              <div className="flex items-start gap-1.5 text-gray-700">
+                                <Info className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <span className="text-[10px] text-gray-400 font-bold block uppercase">
+                                    Estado Declarado
+                                  </span>
+                                  <span className="font-medium text-gray-700">{m.estado_declarado}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Observaciones */}
+                          {m.observaciones && (
+                            <div className="bg-gray-50 rounded-lg p-2 text-xs text-gray-600 border border-gray-100">
+                              <span className="font-semibold text-gray-700 text-[10px] uppercase block mb-0.5">
+                                Observaciones:
+                              </span>
+                              <p className="whitespace-pre-wrap leading-relaxed">{m.observaciones}</p>
+                            </div>
+                          )}
+
+                          {/* Footer details (recibido_por & Acta link) */}
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-gray-500">
+                            {m.recibido_por && (
+                              <span className="text-gray-400 text-[10px]">
+                                Registrado por / Firma: <strong className="text-gray-600">{m.recibido_por}</strong>
+                              </span>
+                            )}
+
+                            {m.acta_id && (
+                              <button
+                                onClick={() => descargarActaDocx(m.acta_id!)}
+                                className="flex items-center gap-1 text-purple-700 hover:text-purple-900 font-bold bg-purple-50 hover:bg-purple-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer text-[10px] ml-auto"
+                              >
+                                <FileText className="w-3.5 h-3.5 text-purple-600" />
+                                Descargar Acta DOCX
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-100 flex justify-end bg-gray-50">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowHistorialModal(false)
+                  setSelectedUnidadHistorial(null)
+                  setMovimientosHistorial([])
+                }}
+                className="px-5 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-sm"
+              >
+                Cerrar Trazabilidad
+              </button>
             </div>
           </div>
         </div>
