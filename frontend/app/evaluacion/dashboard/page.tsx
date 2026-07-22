@@ -600,9 +600,24 @@ function ActividadRow({
                   </div>
                   {getEstadoBadge(ev.estado)}
                   {ev.observacion_coordinadora && (
-                    <div className="mt-2 text-xs text-gray-500 bg-white rounded p-2 border border-gray-100">
-                      <span className="font-medium text-gray-700">Observación: </span>
-                      {ev.observacion_coordinadora}
+                    <div className={`mt-2 p-3 rounded-lg border text-sm ${
+                      ev.estado === "RECHAZADO"
+                        ? "bg-red-50 border-red-200 text-red-800"
+                        : ev.estado === "APROBADO"
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                        : "bg-gray-50 border-gray-200 text-gray-700"
+                    }`}>
+                      <div className="flex items-start gap-2">
+                        <MessageSquareText className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                          ev.estado === "RECHAZADO" ? "text-red-500" : "text-emerald-500"
+                        }`} />
+                        <div>
+                          <p className="font-semibold text-xs uppercase tracking-wider">
+                            {ev.estado === "RECHAZADO" ? "Observación del coordinador" : "Observación"}
+                          </p>
+                          <p className="mt-1 leading-relaxed">{ev.observacion_coordinadora}</p>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
