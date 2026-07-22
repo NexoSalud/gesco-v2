@@ -552,7 +552,7 @@ function ActividadRow({
           {expanded ? <ChevronDown className="w-3.5 h-3.5 text-gray-400" /> : <ChevronRight className="w-3.5 h-3.5 text-gray-400" />}
         </div>
         <div className="flex-1 min-w-0">
-          <span className="text-sm font-medium text-gray-700">{actividad.descripcion}</span>
+          <span className="text-sm font-medium text-gray-700" dangerouslySetInnerHTML={{ __html: actividad.descripcion }} />
           <span className="ml-2 text-xs text-gray-400">({actividad.tipo})</span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">

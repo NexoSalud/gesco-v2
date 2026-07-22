@@ -322,9 +322,10 @@ export default function EvaluacionDashboardPage() {
                       <div className="flex-shrink-0 mt-0.5">{getTipoIcon(ev.tipo)}</div>
                       <div className="flex-1 min-w-0 overflow-hidden">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-gray-800 truncate max-w-[250px] sm:max-w-md">
-                            {ev.actividad_descripcion || `Actividad #${ev.actividad_contrato_id}`}
-                          </span>
+                          <span
+                            className="font-medium text-gray-800 truncate max-w-[250px] sm:max-w-md"
+                            dangerouslySetInnerHTML={{ __html: ev.actividad_descripcion || `Actividad #${ev.actividad_contrato_id}` }}
+                          />
                           <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded flex-shrink-0">{ev.tipo}</span>
                           {getEstadoBadge(ev.estado)}
                         </div>
@@ -399,9 +400,10 @@ export default function EvaluacionDashboardPage() {
             <div className="p-5 border-b border-gray-100 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1 mr-3">
-                  <h3 className="text-lg font-semibold text-gray-800 truncate">
-                    {selectedEvidencia.actividad_descripcion || `Actividad #${selectedEvidencia.actividad_contrato_id}`}
-                  </h3>
+                  <h3
+                    className="text-lg font-semibold text-gray-800 truncate"
+                    dangerouslySetInnerHTML={{ __html: selectedEvidencia.actividad_descripcion || `Actividad #${selectedEvidencia.actividad_contrato_id}` }}
+                  />
                   <p className="text-xs text-gray-500 mt-0.5 truncate">Contrato {selectedEvidencia.contrato_id}</p>
                 </div>
                 <button onClick={() => { setSelectedEvidencia(null); setObservacion("") }} className="p-1.5 hover:bg-gray-100 rounded-lg flex-shrink-0">
