@@ -355,9 +355,9 @@ function EvaluacionDashboard() {
                   <textarea
                     value={textoEvidencia}
                     onChange={(e) => setTextoEvidencia(e.target.value)}
-                    rows={5}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
-                    placeholder="Describe cómo se ejecutó la actividad, lugar, fecha, novedades..."
+                    rows={10}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-y text-sm leading-relaxed"
+                    placeholder="Describe en detalle cómo se ejecutó la actividad, incluyendo lugar, fecha, beneficiarios, novedades o cualquier información relevante..."
                     disabled={uploading || uploadSuccess}
                   />
                 </div>
