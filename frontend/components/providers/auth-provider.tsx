@@ -22,6 +22,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
 
+  // Rutas públicas que no requieren autenticación
+  const publicRoutes = ["/login", "/evaluacion", "/evaluacion/dashboard"]
+
   useEffect(() => {
     async function checkAuth() {
       const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
@@ -29,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!token) {
         setUser(null)
         setLoading(false)
-        if (pathname && pathname !== "/login") {
+        if (pathname && !publicRoutes.includes(pathname)) {
           router.push("/login")
         }
         return
