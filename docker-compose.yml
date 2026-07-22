@@ -19,10 +19,16 @@ services:
 
   backend:
     build: ./backend
-    restart: unless-stopped
+    restart: always
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     environment:
       DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-gesco}:${POSTGRES_PASSWORD:-gesco123}@db:5432/${POSTGRES_DB:-gesco_v2}"
       CORS_ORIGINS: "https://contratos.esenorte3.lat,https://www.contratos.esenorte3.lat"
@@ -32,9 +38,16 @@ services:
 
   frontend:
     build: ./frontend
-    restart: unless-stopped
+    restart: always
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', r => process.exit(r.statusCode !== 200 ? 1 : 0))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     ports:
       - "9000:3000"
     labels:

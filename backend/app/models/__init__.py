@@ -14,6 +14,7 @@ from app.models.supervisor import Supervisor
 from app.models.almacen import Almacen
 from app.models.inventario import Articulo, UnidadInventario, MovimientoInventario, Acta
 from app.models.auth import Role, Usuario, Acceso
+from app.models.evidencia import Evidencia
 
 __all__ = [
     "Resolucion",
