@@ -413,6 +413,17 @@ export default function EvaluacionDashboardPage() {
             </div>
 
             <div className="p-5 space-y-4 overflow-y-auto">
+              {/* Actividad completa */}
+              {selectedEvidencia.actividad_descripcion && (
+                <div className="bg-gray-50 rounded-lg border border-gray-100 p-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Actividad</p>
+                  <div
+                    className="text-sm text-gray-700 leading-relaxed break-words"
+                    dangerouslySetInnerHTML={{ __html: selectedEvidencia.actividad_descripcion }}
+                  />
+                </div>
+              )}
+
               {/* Evidence preview */}
               {selectedEvidencia.tipo === "TEXTO" ? (
                 <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm text-gray-700 whitespace-pre-wrap break-words max-h-60 overflow-y-auto">
