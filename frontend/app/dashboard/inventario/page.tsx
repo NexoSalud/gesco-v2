@@ -249,6 +249,8 @@ export default function InventarioPage() {
   const [articuloSearchQuery, setArticuloSearchQuery] = useState("")
   const [showArticuloSuggestions, setShowArticuloSuggestions] = useState(false)
   const [cartUnidadId, setCartUnidadId] = useState<number | "">("")
+  const [unidadSearchQuery, setUnidadSearchQuery] = useState("")
+  const [showUnidadSuggestions, setShowUnidadSuggestions] = useState(false)
   const [cartCantidad, setCartCantidad] = useState(1)
   const [cartEstado, setCartEstado] = useState("Se entrega en excelente estado funcional")
   const [cartObs, setCartObs] = useState("")
@@ -359,23 +361,37 @@ export default function InventarioPage() {
         getUnidades({ articulo_id: Number(cartArticuloId), estado: "DISPONIBLE" })
           .then((res) => {
             setDisponiblesParaCart(res)
+            let chosenId: number | "" = ""
             if (pendingUnidadId && res.some((item) => item.id === Number(pendingUnidadId))) {
-              setCartUnidadId(Number(pendingUnidadId))
+              chosenId = Number(pendingUnidadId)
               setPendingUnidadId("") // clear pre-selection
+            } else if (cartUnidadId && res.some((item) => item.id === Number(cartUnidadId))) {
+              chosenId = Number(cartUnidadId)
             } else if (res.length > 0) {
-              setCartUnidadId(res[0].id)
+              chosenId = res[0].id
+            }
+
+            if (chosenId !== "") {
+              setCartUnidadId(chosenId)
+              const found = res.find((u) => u.id === chosenId)
+              if (found) {
+                setUnidadSearchQuery(`S/N: ${found.serial}${found.imei2 ? ` (IMEI2: ${found.imei2})` : ""}`)
+              }
             } else {
               setCartUnidadId("")
+              setUnidadSearchQuery("")
             }
           })
           .catch((e) => toast.error("Error al obtener unidades: " + e.message))
       } else {
         setDisponiblesParaCart([])
         setCartUnidadId("")
+        setUnidadSearchQuery("")
       }
     } else {
       setDisponiblesParaCart([])
       setCartUnidadId("")
+      setUnidadSearchQuery("")
     }
   }, [cartArticuloId, articulos])
 
@@ -769,6 +785,8 @@ export default function InventarioPage() {
     setCartArticuloId("")
     setCartCategoria("")
     setCartAlmacenId("")
+    setCartUnidadId("")
+    setUnidadSearchQuery("")
     setCartEstado("Se entrega en excelente estado funcional")
     setCartObs("")
     setCartCantidad(1)
@@ -2032,6 +2050,7 @@ export default function InventarioPage() {
                               setCartCategoria("")
                               setCartArticuloId("")
                               setCartUnidadId("")
+                              setUnidadSearchQuery("")
                               setArticuloSearchQuery("")
                             }}
                             className="px-2 py-1.5 text-xs bg-white border border-gray-200 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
@@ -2055,6 +2074,7 @@ export default function InventarioPage() {
                               setCartCategoria(e.target.value)
                               setCartArticuloId("")
                               setCartUnidadId("")
+                              setUnidadSearchQuery("")
                               setArticuloSearchQuery("")
                             }}
                             className="px-2 py-1.5 text-xs bg-white border border-gray-200 rounded-lg w-full disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
@@ -2090,6 +2110,7 @@ export default function InventarioPage() {
                                 if (!e.target.value) {
                                   setCartArticuloId("")
                                   setCartUnidadId("")
+                                  setUnidadSearchQuery("")
                                 }
                               }}
                               onFocus={() => {
@@ -2103,6 +2124,7 @@ export default function InventarioPage() {
                                 onClick={() => {
                                   setCartArticuloId("")
                                   setCartUnidadId("")
+                                  setUnidadSearchQuery("")
                                   setArticuloSearchQuery("")
                                 }}
                                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm font-bold"
@@ -2161,6 +2183,7 @@ export default function InventarioPage() {
                                             onClick={() => {
                                               setCartArticuloId(u.articulo_id)
                                               setCartUnidadId(u.id)
+                                              setUnidadSearchQuery(`S/N: ${u.serial}${u.imei2 ? ` (IMEI2: ${u.imei2})` : ""}`)
                                               setArticuloSearchQuery(`${u.articulo?.elemento} - S/N: ${u.serial}`)
                                               setShowArticuloSuggestions(false)
                                             }}
@@ -2206,6 +2229,7 @@ export default function InventarioPage() {
                                           onClick={() => {
                                             setCartArticuloId(a.id)
                                             setCartUnidadId("")
+                                            setUnidadSearchQuery("")
                                             setArticuloSearchQuery(`${a.elemento} (${a.categoria})`)
                                             setShowArticuloSuggestions(false)
                                           }}
@@ -2255,20 +2279,98 @@ export default function InventarioPage() {
 
                         {cartArticuloId &&
                           articulos.find((a) => a.id === Number(cartArticuloId))?.requiere_serial && (
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-gray-500 uppercase">Unidad Física (S/N)</label>
-                              <select
-                                value={cartUnidadId}
-                                onChange={(e) => setCartUnidadId(e.target.value ? Number(e.target.value) : "")}
-                                className="px-2 py-1.5 text-xs bg-white border border-gray-200 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                              >
-                                <option value="">-- Seleccionar Serial --</option>
-                                {disponiblesParaCart.map((u) => (
-                                  <option key={u.id} value={u.id}>
-                                    {u.serial} {u.imei2 ? `(IMEI2: ${u.imei2})` : ""}
-                                  </option>
-                                ))}
-                              </select>
+                            <div className="space-y-1 relative">
+                              <label className="text-[10px] font-bold text-gray-500 uppercase">
+                                Unidad Física (S/N)
+                              </label>
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  placeholder={
+                                    disponiblesParaCart.length === 0
+                                      ? "Sin unidades disponibles..."
+                                      : "Buscar por serial S/N, imei2..."
+                                  }
+                                  disabled={disponiblesParaCart.length === 0}
+                                  value={unidadSearchQuery}
+                                  onChange={(e) => {
+                                    setUnidadSearchQuery(e.target.value)
+                                    setShowUnidadSuggestions(true)
+                                    if (!e.target.value) {
+                                      setCartUnidadId("")
+                                    }
+                                  }}
+                                  onFocus={() => {
+                                    if (disponiblesParaCart.length > 0) setShowUnidadSuggestions(true)
+                                  }}
+                                  className="px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg w-full disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-emerald-500 pr-8 font-medium"
+                                />
+                                {cartUnidadId !== "" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCartUnidadId("")
+                                      setUnidadSearchQuery("")
+                                    }}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm font-bold"
+                                  >
+                                    &times;
+                                  </button>
+                                )}
+                              </div>
+
+                              {showUnidadSuggestions && disponiblesParaCart.length > 0 && (
+                                <>
+                                  <div
+                                    className="fixed inset-0 z-10"
+                                    onClick={() => setShowUnidadSuggestions(false)}
+                                  />
+                                  <div className="absolute left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-20 divide-y divide-gray-100">
+                                    <div className="px-3 py-1 text-[9px] font-bold text-blue-500 uppercase bg-blue-50/30">
+                                      Unidades Disponibles ({disponiblesParaCart.length})
+                                    </div>
+                                    {disponiblesParaCart
+                                      .filter(
+                                        (u) =>
+                                          !unidadSearchQuery ||
+                                          u.serial?.toLowerCase().includes(unidadSearchQuery.toLowerCase()) ||
+                                          u.imei2?.toLowerCase().includes(unidadSearchQuery.toLowerCase())
+                                      )
+                                      .map((u) => (
+                                        <button
+                                          key={`cart-unit-${u.id}`}
+                                          type="button"
+                                          onClick={() => {
+                                            setCartUnidadId(u.id)
+                                            setUnidadSearchQuery(`S/N: ${u.serial}${u.imei2 ? ` (IMEI2: ${u.imei2})` : ""}`)
+                                            setShowUnidadSuggestions(false)
+                                          }}
+                                          className={`w-full text-left px-3 py-2 text-xs hover:bg-emerald-50 hover:text-emerald-900 transition-colors flex flex-col border-b border-gray-50 ${
+                                            cartUnidadId === u.id ? "bg-emerald-50 font-semibold text-emerald-900" : ""
+                                          }`}
+                                        >
+                                          <span className="font-semibold text-blue-800">📟 S/N: {u.serial}</span>
+                                          {u.imei2 && (
+                                            <span className="text-[10px] text-gray-500">
+                                              IMEI2: {u.imei2}
+                                            </span>
+                                          )}
+                                        </button>
+                                      ))}
+
+                                    {disponiblesParaCart.filter(
+                                      (u) =>
+                                        !unidadSearchQuery ||
+                                        u.serial?.toLowerCase().includes(unidadSearchQuery.toLowerCase()) ||
+                                        u.imei2?.toLowerCase().includes(unidadSearchQuery.toLowerCase())
+                                    ).length === 0 && (
+                                      <div className="p-3 text-center text-xs text-gray-400">
+                                        No se encontraron unidades físicas que coincidan
+                                      </div>
+                                    )}
+                                  </div>
+                                </>
+                              )}
                             </div>
                           )}
 
