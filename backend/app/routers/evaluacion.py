@@ -473,3 +473,126 @@ async def listar_contratistas_con_evidencias(
                 "correo": c.correo,
             } for c in contratistas
         ]
+
+
+@router.get("/contratista/{contratista_id}/informe")
+async def descargar_informe(
+    contratista_id: int,
+    formato: str = Query("pdf", regex="^(pdf|docx)$"),
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    """Descarga el informe de evaluación en PDF o DOCX."""
+    from app.services.informe_evaluacion import generar_pdf, generar_docx
+    from fastapi.responses import Response
+
+    # Obtener contratista
+    result = await db.execute(
+        select(Contratista).where(Contratista.id == contratista_id)
+    )
+    contratista = result.scalar_one_or_none()
+    if not contratista:
+        raise HTTPException(404, "Contratista no encontrado")
+
+    # Obtener contratos activos con actividades y evidencias
+    contratos_result = await db.execute(
+        select(Contrato)
+        .options(
+            selectinload(Contrato.actividades_contrato)
+            .selectinload(ActividadContrato.evidencias)
+        )
+        .where(Contrato.contratista_id == contratista_id)
+        .where(Contrato.estado.in_(["EN_PROCESO", "ACTIVO"]))
+        .order_by(Contrato.fecha_inicio.desc())
+    )
+    contratos = contratos_result.scalars().all()
+
+    # Obtener resumen
+    res_result = await db.execute(
+        select(Evidencia.estado, func.count(Evidencia.id))
+        .where(Evidencia.contratista_id == contratista_id)
+        .group_by(Evidencia.estado)
+    )
+    counts = {row[0]: row[1] for row in res_result.all()}
+
+    # Contar actividades
+    contrato_numeros = [c.numero_contrato for c in contratos]
+    act_result = await db.execute(
+        select(func.count(ActividadContrato.id))
+        .where(ActividadContrato.contrato_id.in_(contrato_numeros))
+    )
+    total_actividades = act_result.scalar() or 0
+
+    act_con_ev = await db.execute(
+        select(func.count(func.distinct(Evidencia.actividad_contrato_id)))
+        .where(Evidencia.contratista_id == contratista_id)
+    )
+    con_evidencia = act_con_ev.scalar() or 0
+
+    resumen = {
+        "total_actividades": total_actividades,
+        "aprobadas": counts.get("APROBADO", 0),
+        "rechazadas": counts.get("RECHAZADO", 0),
+        "pendientes": counts.get("PENDIENTE", 0),
+        "sin_evidencia": total_actividades - con_evidencia,
+        "porcentaje_cumplimiento": round(
+            counts.get("APROBADO", 0) / max(total_actividades, 1) * 100, 1
+        ),
+    }
+
+    # Construir data de contratos para el informe
+    from app.schemas.evidencia import EvidenciaOut
+    contratos_data = []
+    for c in contratos:
+        actividades_data = []
+        for act in c.actividades_contrato:
+            evidencias_out = []
+            for ev in act.evidencias:
+                evidencias_out.append({
+                    "id": ev.id,
+                    "tipo": ev.tipo,
+                    "contenido_texto": ev.contenido_texto,
+                    "archivo_ruta": ev.archivo_ruta,
+                    "archivo_nombre": ev.archivo_nombre,
+                    "estado": ev.estado,
+                    "observacion_coordinadora": ev.observacion_coordinadora,
+                    "created_at": str(ev.created_at) if ev.created_at else None,
+                })
+            actividades_data.append({
+                "id": act.id,
+                "descripcion": act.descripcion,
+                "tipo": act.tipo,
+                "orden": act.orden,
+                "evidencias": evidencias_out,
+            })
+        contratos_data.append({
+            "id": c.id,
+            "numero_contrato": c.numero_contrato,
+            "perfil": c.perfil,
+            "objeto": c.objeto,
+            "actividades": actividades_data,
+        })
+
+    contratista_dict = {
+        "nombre": contratista.nombre,
+        "identificacion": contratista.identificacion,
+        "telefono": contratista.telefono,
+        "correo": contratista.correo,
+    }
+
+    if formato == "pdf":
+        pdf_bytes = generar_pdf(contratista_dict, contratos_data, resumen)
+        filename = f"informe_evaluacion_{contratista.identificacion}.pdf"
+        media_type = "application/pdf"
+        content = pdf_bytes
+    else:
+        docx_bytes = generar_docx(contratista_dict, contratos_data, resumen)
+        filename = f"informe_evaluacion_{contratista.identificacion}.docx"
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        content = docx_bytes
+
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

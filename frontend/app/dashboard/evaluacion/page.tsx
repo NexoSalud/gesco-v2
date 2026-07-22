@@ -126,6 +126,28 @@ export default function EvaluacionDashboardPage() {
     setLoading(false)
   }, [filterEstado, searchTerm])
 
+  const descargarInforme = (formato: "pdf" | "docx") => {
+    if (!selectedContratista) return
+    const token = localStorage.getItem("token")
+    const url = `${API}/api/v1/evaluacion/contratista/${selectedContratista}/informe?formato=${formato}`
+    // Abrir en nueva pestaña con auth header vía query param alternativo
+    const xhr = new XMLHttpRequest()
+    xhr.open("GET", url)
+    xhr.setRequestHeader("Authorization", `Bearer ${token}`)
+    xhr.responseType = "blob"
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const blob = new Blob([xhr.response])
+        const link = document.createElement("a")
+        link.href = URL.createObjectURL(blob)
+        link.download = `informe_evaluacion_${selectedContratista}.${formato}`
+        link.click()
+        URL.revokeObjectURL(link.href)
+      }
+    }
+    xhr.send()
+  }
+
   useEffect(() => {
     loadData()
   }, [loadData])
@@ -243,6 +265,22 @@ export default function EvaluacionDashboardPage() {
                     <p className="text-xs text-gray-500">{item.label}</p>
                   </div>
                 ))}
+              </div>
+              <div className="flex gap-2 mt-4 pt-3 border-t border-gray-100">
+                <button
+                  onClick={() => descargarInforme("pdf")}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  PDF
+                </button>
+                <button
+                  onClick={() => descargarInforme("docx")}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <FileText className="w-4 h-4" />
+                  DOCX
+                </button>
               </div>
             </div>
           )}
