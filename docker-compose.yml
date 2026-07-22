@@ -19,16 +19,10 @@ services:
 
   backend:
     build: ./backend
-    restart: always
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; exit(0 if urllib.request.urlopen('http://localhost:8000/api/health').status == 200 else 1)"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
     environment:
       DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-gesco}:${POSTGRES_PASSWORD:-gesco123}@db:5432/${POSTGRES_DB:-gesco_v2}"
       CORS_ORIGINS: "https://contratos.esenorte3.lat,https://www.contratos.esenorte3.lat"
@@ -38,17 +32,9 @@ services:
 
   frontend:
     build: ./frontend
-    restart: always
+    restart: unless-stopped
     depends_on:
-      backend:
-        condition: service_started
-    healthcheck:
-      # Usamos /login porque devuelve 200. La raíz (/) retorna 307 redirect.
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/login', r => process.exit(r.statusCode !== 200 ? 1 : 0))"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      - backend
     ports:
       - "9000:3000"
     labels:
