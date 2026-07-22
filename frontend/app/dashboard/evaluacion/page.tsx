@@ -49,7 +49,8 @@ function ContentPopup({ open, onClose, title, content, type }: {
           )}
           {type === "html" && content && (
             <div
-              className="text-sm text-gray-700 break-words leading-relaxed"
+              className="text-sm text-gray-700 leading-relaxed [&_*]:max-w-full [&_*]:overflow-x-hidden [&_img]:max-w-full [&_img]:h-auto [&_table]:w-full [&_pre]:whitespace-pre-wrap"
+              style={{ overflowWrap: "break-word", wordBreak: "break-word", maxWidth: "100%" }}
               dangerouslySetInnerHTML={{ __html: content }}
             />
           )}
@@ -395,30 +396,35 @@ export default function EvaluacionDashboardPage() {
 
       {/* Evaluation Modal */}
       {selectedEvidencia && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => { setSelectedEvidencia(null); setObservacion("") }}>
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] shadow-xl flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="p-5 border-b border-gray-100 flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0 flex-1 mr-3">
-                  <h3
-                    className="text-lg font-semibold text-gray-800 truncate"
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4 overflow-x-hidden" onClick={() => { setSelectedEvidencia(null); setObservacion("") }}>
+          <div className="bg-white rounded-2xl w-full max-w-lg sm:max-w-xl md:max-w-2xl max-h-[95vh] sm:max-h-[90vh] shadow-xl flex flex-col overflow-x-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-4 sm:p-5 border-b border-gray-100 flex-shrink-0">
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <div
+                    className="text-sm sm:text-base font-semibold text-gray-800 line-clamp-2 break-words"
                     dangerouslySetInnerHTML={{ __html: selectedEvidencia.actividad_descripcion || `Actividad #${selectedEvidencia.actividad_contrato_id}` }}
                   />
                   <p className="text-xs text-gray-500 mt-0.5 truncate">Contrato {selectedEvidencia.contrato_id}</p>
                 </div>
-                <button onClick={() => { setSelectedEvidencia(null); setObservacion("") }} className="p-1.5 hover:bg-gray-100 rounded-lg flex-shrink-0">
+                <button onClick={() => { setSelectedEvidencia(null); setObservacion("") }} className="p-1.5 hover:bg-gray-100 rounded-lg flex-shrink-0 mt-0.5">
                   <X className="w-4 h-4 text-gray-400" />
                 </button>
               </div>
             </div>
 
-            <div className="p-5 space-y-4 overflow-y-auto">
+            <div className="p-4 sm:p-5 space-y-4 overflow-y-auto">
               {/* Actividad completa */}
               {selectedEvidencia.actividad_descripcion && (
-                <div className="bg-gray-50 rounded-lg border border-gray-100 p-3">
+                <div className="bg-gray-50 rounded-lg border border-gray-100 p-3 overflow-x-hidden">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Actividad</p>
                   <div
-                    className="text-sm text-gray-700 leading-relaxed break-words"
+                    className="text-sm text-gray-700 leading-relaxed [&_*]:max-w-full [&_*]:overflow-x-hidden [&_img]:max-w-full [&_img]:h-auto [&_table]:w-full [&_table]:table-auto [&_pre]:whitespace-pre-wrap [&_pre]:break-words"
+                    style={{
+                      overflowWrap: "break-word",
+                      wordBreak: "break-word",
+                      maxWidth: "100%",
+                    }}
                     dangerouslySetInnerHTML={{ __html: selectedEvidencia.actividad_descripcion }}
                   />
                 </div>
