@@ -572,35 +572,39 @@ function ActividadRow({
           {actividad.evidencias.length > 0 && (
             <div className="space-y-2 mt-2">
               {actividad.evidencias.map((ev) => (
-                <div key={ev.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                  {getTipoIcon(ev.tipo)}
-                  <div className="flex-1 min-w-0">
-                    {ev.tipo === "TEXTO" ? (
-                      <p className="text-sm text-gray-700 line-clamp-2">{ev.contenido_texto}</p>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-700 truncate">{ev.archivo_nombre || "Archivo"}</span>
-                        {ev.archivo_ruta && (
-                          <a
-                            href={`${API}${ev.archivo_ruta}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-emerald-600 hover:text-emerald-700"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </a>
-                        )}
-                      </div>
-                    )}
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {new Date(ev.created_at).toLocaleDateString("es-CO", {
-                        day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit"
-                      })}
-                    </p>
+                <div key={ev.id} className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                  {/* Fila principal: icono + contenido + badge */}
+                  <div className="flex items-center gap-3">
+                    {getTipoIcon(ev.tipo)}
+                    <div className="flex-1 min-w-0">
+                      {ev.tipo === "TEXTO" ? (
+                        <p className="text-sm text-gray-700 line-clamp-2 break-words">{ev.contenido_texto}</p>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-700 truncate">{ev.archivo_nombre || "Archivo"}</span>
+                          {ev.archivo_ruta && (
+                            <a
+                              href={`${API}${ev.archivo_ruta}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-emerald-600 hover:text-emerald-700"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </a>
+                          )}
+                        </div>
+                      )}
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {new Date(ev.created_at).toLocaleDateString("es-CO", {
+                          day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit"
+                        })}
+                      </p>
+                    </div>
+                    {getEstadoBadge(ev.estado)}
                   </div>
-                  {getEstadoBadge(ev.estado)}
+                  {/* Fila separada para la observación */}
                   {ev.observacion_coordinadora && (
-                    <div className={`mt-2 p-3 rounded-lg border text-sm ${
+                    <div className={`p-3 rounded-lg border text-sm ${
                       ev.estado === "RECHAZADO"
                         ? "bg-red-50 border-red-200 text-red-800"
                         : ev.estado === "APROBADO"
