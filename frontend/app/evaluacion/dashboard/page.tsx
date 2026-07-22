@@ -611,11 +611,11 @@ function ActividadRow({
                         <MessageSquareText className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
                           ev.estado === "RECHAZADO" ? "text-red-500" : "text-emerald-500"
                         }`} />
-                        <div>
+                        <div className="min-w-0">
                           <p className="font-semibold text-xs uppercase tracking-wider">
                             {ev.estado === "RECHAZADO" ? "Observación del coordinador" : "Observación"}
                           </p>
-                          <p className="mt-1 leading-relaxed">{ev.observacion_coordinadora}</p>
+                          <p className="mt-1 leading-relaxed break-words whitespace-pre-wrap">{ev.observacion_coordinadora}</p>
                         </div>
                       </div>
                     </div>
