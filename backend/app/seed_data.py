@@ -35,6 +35,7 @@ PERFILES_REF = [
     ("GESTOR COMUNITARIO", "GESTOR COMUNITARIO"),
     ("TRANSPORTE", "TRANSPORTE_188"),
     ("SINDICATO", "SINDICATO_103"),
+    ("FIOSOTERAPIA", "FIOSOTERAPIA"),
     ("OTRO", None),
 ]
 
@@ -61,6 +62,7 @@ for nombre, ref_key in PERFILES_REF:
         "GESTOR COMUNITARIO": "Prestar servicios como Gestor Comunitario en los Equipos Básicos en Salud, promoviendo la participación comunitaria.",
         "TRANSPORTE": "Prestar servicios de conducción y transporte para el desplazamiento del talento humano, insumos y usuarios de la ESE Norte 3.",
         "SINDICATO": "Prestar servicios de apoyo administrativo y operativo para el fortalecimiento de la Atención Primaria en Salud.",
+        "FIOSOTERAPIA": "Prestar servicios profesionales como Fisioterapeuta en los Equipos Básicos en Salud (EBS), desarrollando actividades de promoción, prevención, diagnóstico, intervención y rehabilitación funcional en el área de fisioterapia para la población asignada.",
         "OTRO": "Prestar servicios profesionales o de apoyo a la gestión según las necesidades del servicio.",
     }
     
@@ -100,6 +102,13 @@ for nombre, ref_key in PERFILES_REF:
             "Diligenciar los registros clínicos y RIPS correspondientes.",
             "Cumplir con los protocolos de bioseguridad y seguridad del paciente.",
         ],
+        "FIOSOTERAPIA": [
+            "Realizar evaluación, diagnóstico e intervención fisioterapéutica a la población asignada.",
+            "Desarrollar actividades de promoción y prevención en el área de la rehabilitación funcional.",
+            "Educar a pacientes y familias sobre estrategias de rehabilitación y cuidado funcional.",
+            "Diligenciar los registros clínicos y RIPS correspondientes.",
+            "Cumplir con los protocolos de bioseguridad y seguridad del paciente.",
+        ],
     }
     
     unspsc_map = {
@@ -111,6 +120,7 @@ for nombre, ref_key in PERFILES_REF:
         "FONOAUDIOLOGIA": ("85111600", "SERVICIOS DE PERSONAL TEMPORAL"),
         "GESTOR COMUNITARIO": ("85111600", "SERVICIOS DE PERSONAL TEMPORAL"),
         "AUXILIAR ENFERMERIA": ("85101601", "SERVICIOS DE ENFERMERÍA"),
+        "FIOSOTERAPIA": ("85111600", "SERVICIOS DE PERSONAL TEMPORAL"),
     }
     
     PERFILES_DATA.append({
@@ -181,6 +191,9 @@ PERFIL_NORMALIZATION = {
     "FONOAUDIOLOGIA": "FONOAUDIOLOGIA",
     "FONOAUDIÓLOGO": "FONOAUDIOLOGIA",
     "FONOAUDIOLOGO": "FONOAUDIOLOGIA",
+    "FIOSOTERAPIA": "FIOSOTERAPIA",
+    "FISIOTERAPIA": "FIOSOTERAPIA",
+    "FISIOTERAPEUTA": "FIOSOTERAPIA",
     "CONDUCTOR": "TRANSPORTE",
     "TRANSPORTE": "TRANSPORTE",
 }
