@@ -31,6 +31,7 @@ from app.seed_data import seed_database
 from app.error_handlers import global_exception_handler, validation_exception_handler, http_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi import HTTPException
+from fastapi.staticfiles import StaticFiles
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -251,6 +252,12 @@ app.include_router(inventario_router)
 app.include_router(auth_router)
 app.include_router(seguridad_router)
 app.include_router(evaluacion_router)
+
+# Archivos estáticos (evidencias, imágenes)
+import os
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+os.makedirs(static_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Error handlers
 app.add_exception_handler(Exception, global_exception_handler)
