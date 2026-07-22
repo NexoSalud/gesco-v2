@@ -16,6 +16,7 @@ import {
   BadgeCheck,
   Package,
   Shield,
+  ClipboardCheck,
 } from "lucide-react"
 import { useState } from "react"
 import { useAuth } from "@/components/providers/auth-provider"
@@ -54,6 +55,12 @@ const NAV_ITEMS = [
     href: "/dashboard/inventario",
     icon: Package,
     permission: "inventario"
+  },
+  {
+    label: "Evaluación",
+    href: "/dashboard/evaluacion",
+    icon: ClipboardCheck,
+    permission: "contratos"
   },
   {
     label: "Supervisores",

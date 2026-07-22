@@ -24,6 +24,7 @@ from app.routers import (
     inventario_router,
     auth_router,
     seguridad_router,
+    evaluacion_router,
 )
 from app.models.plantilla_objeto import PlantillaObjeto
 from app.seed_data import seed_database
@@ -187,6 +188,31 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.info("Columna 'resolucion_id' ya existe en unidades_inventario o error al crearla, saltando: %s", e)
 
+    # Migración: crear tabla evidencias si no existe
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS evidencias (
+                    id SERIAL PRIMARY KEY,
+                    actividad_contrato_id INTEGER NOT NULL REFERENCES actividades_contrato(id) ON DELETE CASCADE,
+                    contratista_id INTEGER NOT NULL REFERENCES contratistas(id) ON DELETE CASCADE,
+                    contrato_id VARCHAR(50) NOT NULL REFERENCES contratos(numero_contrato) ON DELETE CASCADE,
+                    tipo VARCHAR(20) NOT NULL,
+                    contenido_texto TEXT,
+                    archivo_ruta VARCHAR(500),
+                    archivo_nombre VARCHAR(200),
+                    archivo_tipo VARCHAR(50),
+                    estado VARCHAR(20) DEFAULT 'PENDIENTE',
+                    observacion_coordinadora TEXT,
+                    evaluated_by INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    evaluated_at TIMESTAMP
+                )
+            """))
+            logger.info("Migración OK: tabla evidencias creada/verificada")
+    except Exception as e:
+        logger.warning(f"Migración evidencias: {e}")
+
     await seed_database()
     logger.info("Gesco V2 listo!")
     yield
@@ -224,6 +250,7 @@ app.include_router(supervisores_router)
 app.include_router(inventario_router)
 app.include_router(auth_router)
 app.include_router(seguridad_router)
+app.include_router(evaluacion_router)
 
 # Error handlers
 app.add_exception_handler(Exception, global_exception_handler)

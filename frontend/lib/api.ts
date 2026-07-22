@@ -655,3 +655,119 @@ export const saveRoleAccesos = (roleId: number, data: any[]) =>
   })
 
 
+// ─── Evaluación de Cumplimiento ─────────────────────────────────────────────
+
+export interface Evidencia {
+  id: number
+  actividad_contrato_id: number
+  contratista_id: number
+  contrato_id: string
+  tipo: "ARCHIVO" | "TEXTO" | "IMAGEN"
+  contenido_texto: string | null
+  archivo_ruta: string | null
+  archivo_nombre: string | null
+  archivo_tipo: string | null
+  estado: "PENDIENTE" | "APROBADO" | "RECHAZADO"
+  observacion_coordinadora: string | null
+  created_at: string
+  evaluated_at: string | null
+  evaluated_by: number | null
+  actividad_descripcion: string | null
+}
+
+export interface ActividadConEvidencias {
+  id: number
+  descripcion: string
+  tipo: string
+  orden: number
+  evidencias: Evidencia[]
+}
+
+export interface ContratoEvaluacion {
+  id: number
+  numero_contrato: string
+  perfil: string | null
+  objeto: string | null
+  estado: string
+  fecha_inicio: string | null
+  fecha_fin: string | null
+  monto_total: number
+  actividades: ActividadConEvidencias[]
+}
+
+export interface DashboardContratista {
+  contratista_id: number
+  identificacion: string
+  nombre: string
+  telefono: string | null
+  correo: string | null
+  contratos: ContratoEvaluacion[]
+}
+
+export interface ResumenCumplimiento {
+  contratista_id: number
+  contratista_nombre: string
+  total_actividades: number
+  con_evidencia: number
+  sin_evidencia: number
+  aprobadas: number
+  rechazadas: number
+  pendientes: number
+  porcentaje_cumplimiento: number
+}
+
+// Público (sin auth) — busca contratista por cédula
+export const buscarContratistaEvaluacion = (cedula: string) =>
+  request<DashboardContratista>(`/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(cedula)}`)
+
+// Público — subir evidencia (multipart)
+export async function subirEvidencia(formData: FormData): Promise<Evidencia> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+  const headers: Record<string, string> = {}
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`
+  }
+  const res = await fetch(`${API}/api/v1/evaluacion/evidencias`, {
+    method: "POST",
+    headers,
+    body: formData,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Error ${res.status}: ${text.slice(0, 200)}`)
+  }
+  return res.json()
+}
+
+// Protegido — listar evidencias con filtros
+export const listarEvidencias = (params?: {
+  contratista_id?: number
+  contrato_id?: string
+  estado?: string
+  actividad_id?: number
+}) => {
+  const q = new URLSearchParams()
+  if (params?.contratista_id) q.set("contratista_id", String(params.contratista_id))
+  if (params?.contrato_id) q.set("contrato_id", params.contrato_id)
+  if (params?.estado) q.set("estado", params.estado)
+  if (params?.actividad_id) q.set("actividad_id", String(params.actividad_id))
+  return request<Evidencia[]>(`/api/v1/evaluacion/evidencias?${q}`)
+}
+
+// Protegido — evaluar (aprobar/rechazar) evidencia
+export const evaluarEvidencia = (id: number, data: { estado: string; observacion?: string }) =>
+  request<Evidencia>(`/api/v1/evaluacion/evidencias/${id}`, {
+    method: "PUT", body: JSON.stringify(data),
+  })
+
+// Protegido — resumen de cumplimiento
+export const getResumenContratista = (contratistaId: number) =>
+  request<ResumenCumplimiento>(`/api/v1/evaluacion/contratista/${contratistaId}/resumen`)
+
+// Protegido — listar contratistas con evidencias
+export const listarContratistasEvaluacion = (buscar?: string) => {
+  const q = buscar ? `?buscar=${encodeURIComponent(buscar)}` : ""
+  return request<any[]>(`/api/v1/evaluacion/contratistas${q}`)
+}
+
+
