@@ -29,15 +29,19 @@ export default function EvaluacionDashboardPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true)
+    // Cargar evidencias y contratistas por separado para que el error de uno
+    // no bloquee al otro
     try {
-      const [evs, conts] = await Promise.all([
-        listarEvidencias({ estado: filterEstado }),
-        listarContratistasEvaluacion(searchTerm || undefined),
-      ])
+      const evs = await listarEvidencias({ estado: filterEstado })
       setEvidencias(evs)
+    } catch (err) {
+      console.error("Error cargando evidencias:", err)
+    }
+    try {
+      const conts = await listarContratistasEvaluacion(searchTerm || undefined)
       setContratistas(conts)
     } catch (err) {
-      console.error("Error loading data:", err)
+      console.error("Error cargando contratistas:", err)
     }
     setLoading(false)
   }, [filterEstado, searchTerm])

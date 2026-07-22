@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, case as sql_case
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -416,8 +416,7 @@ async def listar_contratistas_con_evidencias(
             func.count(Evidencia.id).label("total_evidencias"),
             func.sum(
                 func.cast(
-                    func.iff(Evidencia.estado == "PENDIENTE", 1, 0),
-                    # Usamos CASE en lugar de iff para compatibilidad con PostgreSQL
+                    sql_case((Evidencia.estado == "PENDIENTE", 1), else_=0),
                 )
             ).label("pendientes"),
         )
