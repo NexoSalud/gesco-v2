@@ -29,6 +29,7 @@ services:
       DEBUG: "false"
     volumes:
       - uploads:/app/uploads
+      - evidencias:/app/static/evidencias
 
   frontend:
     build: ./frontend
@@ -52,3 +53,4 @@ services:
 volumes:
   pgdata:
   uploads:
+  evidencias:
