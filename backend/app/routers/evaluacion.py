@@ -539,13 +539,49 @@ async def descargar_informe(
     }
 
     # Construir data de contratos para el informe
-    from app.schemas.evidencia import EvidenciaOut
+    import os as _os
+    from pathlib import Path as _Path
+    try:
+        from PIL import Image as _PILImage
+        _HAS_PIL = True
+    except ImportError:
+        _HAS_PIL = False
+
+    _STATIC_BASE = _Path(__file__).parent.parent / "static"
+
+    def _cargar_imagen_evidencia(archivo_ruta: str | None) -> dict:
+        """Lee imagen, base64 + dimensiones."""
+        if not archivo_ruta:
+            return {"base64": None, "width": 0, "height": 0}
+        rel_path = archivo_ruta.lstrip("/")
+        if rel_path.startswith("static/"):
+            file_path = _STATIC_BASE / rel_path[7:]
+        else:
+            file_path = _STATIC_BASE / rel_path
+        if not file_path.exists():
+            return {"base64": None, "width": 0, "height": 0}
+        try:
+            with open(file_path, "rb") as f:
+                img_b64 = base64.b64encode(f.read()).decode()
+            w, h = 0, 0
+            if _HAS_PIL:
+                with _PILImage.open(file_path) as img:
+                    w, h = img.size
+            return {"base64": img_b64, "width": w, "height": h}
+        except Exception:
+            return {"base64": None, "width": 0, "height": 0}
+
     contratos_data = []
     for c in contratos:
         actividades_data = []
         for act in c.actividades_contrato:
             evidencias_out = []
             for ev in act.evidencias:
+                if ev.estado != "APROBADO":
+                    continue
+                img_data = {}
+                if ev.tipo == "IMAGEN":
+                    img_data = _cargar_imagen_evidencia(ev.archivo_ruta)
                 evidencias_out.append({
                     "id": ev.id,
                     "tipo": ev.tipo,
@@ -555,6 +591,9 @@ async def descargar_informe(
                     "estado": ev.estado,
                     "observacion_coordinadora": ev.observacion_coordinadora,
                     "created_at": str(ev.created_at) if ev.created_at else None,
+                    "img_base64": img_data.get("base64"),
+                    "img_width": img_data.get("width", 0),
+                    "img_height": img_data.get("height", 0),
                 })
             actividades_data.append({
                 "id": act.id,
