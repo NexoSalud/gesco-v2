@@ -552,14 +552,17 @@ async def descargar_informe(
     def _cargar_imagen_evidencia(archivo_ruta: str | None) -> dict:
         """Lee imagen, base64 + dimensiones."""
         if not archivo_ruta:
-            return {"base64": None, "width": 0, "height": 0}
+            logger.warning(f"Informe: archivo_ruta vacío")
+            return {"base64": None, "width": 0, "height": 0, "file_found": False}
         rel_path = archivo_ruta.lstrip("/")
         if rel_path.startswith("static/"):
             file_path = _STATIC_BASE / rel_path[7:]
         else:
             file_path = _STATIC_BASE / rel_path
+        logger.info(f"Informe: buscando imagen en {file_path}")
         if not file_path.exists():
-            return {"base64": None, "width": 0, "height": 0}
+            logger.warning(f"Informe: imagen NO encontrada en {file_path}")
+            return {"base64": None, "width": 0, "height": 0, "file_found": False}
         try:
             with open(file_path, "rb") as f:
                 img_b64 = base64.b64encode(f.read()).decode()
@@ -567,9 +570,11 @@ async def descargar_informe(
             if _HAS_PIL:
                 with _PILImage.open(file_path) as img:
                     w, h = img.size
-            return {"base64": img_b64, "width": w, "height": h}
-        except Exception:
-            return {"base64": None, "width": 0, "height": 0}
+            logger.info(f"Informe: imagen cargada {w}x{h}")
+            return {"base64": img_b64, "width": w, "height": h, "file_found": True}
+        except Exception as e:
+            logger.error(f"Informe: error cargando imagen: {e}")
+            return {"base64": None, "width": 0, "height": 0, "file_found": False}
 
     contratos_data = []
     for c in contratos:
@@ -594,6 +599,7 @@ async def descargar_informe(
                     "img_base64": img_data.get("base64"),
                     "img_width": img_data.get("width", 0),
                     "img_height": img_data.get("height", 0),
+                    "img_file_found": img_data.get("file_found", False),
                 })
             actividades_data.append({
                 "id": act.id,

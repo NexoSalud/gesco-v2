@@ -471,8 +471,11 @@
                       {% set img_class = "evidencia-img square" %}
                     {% endif %}
                     <img src="data:image/jpeg;base64,{{ ev.img_base64 }}" class="{{ img_class }}" alt="Evidencia" />
+                  {% elif ev.img_file_found is defined and ev.img_file_found %}
+                    <span class="filename">⚠️ {{ ev.archivo_nombre or 'Imagen no disponible' }}</span>
                   {% else %}
-                    <span class="filename">{{ ev.archivo_nombre or 'Imagen' }}</span>
+                    <span class="filename" style="color:#999;">📷 {{ ev.archivo_nombre or 'Imagen' }}</span>
+                    <div style="font-size:7pt;color:#bbb;font-style:italic;">(archivo de imagen no disponible en el servidor)</div>
                   {% endif %}
                 {% elif ev.tipo == "TEXTO" %}
                   <div class="evidencia-texto">{{ ev.contenido_texto }}</div>
