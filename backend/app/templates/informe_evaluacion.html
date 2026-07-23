@@ -357,20 +357,22 @@
   <table class="act-table">
     <thead>
       <tr>
-        <th class="num-col">#</th>
+        <th class="num-col" style="width:25px;">#</th>
         <th>Actividad</th>
-        <th style="width:70px;">Tipo</th>
-        <th class="estado-col">Estado</th>
-        <th style="width:50px;">Evidencias</th>
+        <th class="estado-col" style="width:80px;">Estado</th>
       </tr>
     </thead>
     <tbody>
       {% for act in contrato.actividades %}
-      <tr>
-        <td class="num-col">{{ loop.index }}</td>
-        <td>{{ act.descripcion|safe }}</td>
-        <td style="font-size:7pt;color:#888;">{{ act.tipo }}</td>
-        <td class="estado-col">
+      <!-- Fila 1: datos de la actividad -->
+      <tr style="background:#f0f4f8;">
+        <td class="num-col" style="vertical-align:middle;">
+          <strong>{{ loop.index }}</strong>
+        </td>
+        <td style="padding:6px 4px;">
+          {{ act.descripcion|safe }}
+        </td>
+        <td class="estado-col" style="vertical-align:middle;">
           {% if act.estado_global == "APROBADO" %}
             <span class="est-aprobado">✓ Aprobado</span>
           {% elif act.estado_global == "RECHAZADO" %}
@@ -381,34 +383,55 @@
             <span class="est-sin-ev">— Sin evidencia</span>
           {% endif %}
         </td>
-        <td style="text-align:center;">{{ act.total_evidencias }}</td>
       </tr>
-      {% if act.observacion %}
+      <!-- Fila 2: evidencias subidas -->
       <tr>
-        <td></td>
-        <td colspan="4" style="padding:2px 4px;">
-          <div class="obs-box">{{ act.observacion }}</div>
+        <td colspan="3" style="padding:2px 8px 6px 8px;">
+          {% if act.evidencias and act.evidencias|length > 0 %}
+            <table style="width:100%;border-collapse:collapse;font-size:8pt;">
+              {% for ev in act.evidencias %}
+              <tr>
+                <td style="padding:2px 4px;border:none;width:20px;text-align:center;">
+                  {% if ev.tipo == "IMAGEN" %}📷{% elif ev.tipo == "ARCHIVO" %}📄{% else %}📝{% endif %}
+                </td>
+                <td style="padding:2px 4px;border:none;">
+                  {{ ev.archivo_nombre or ev.tipo }}
+                </td>
+                <td style="padding:2px 4px;border:none;text-align:right;width:90px;">
+                  {% if ev.estado == "APROBADO" %}
+                    <span class="est-aprobado" style="font-size:7.5pt;">✓ Aprobado</span>
+                  {% elif ev.estado == "RECHAZADO" %}
+                    <span class="est-rechazado" style="font-size:7.5pt;">✗ Rechazado</span>
+                  {% else %}
+                    <span class="est-pendiente" style="font-size:7.5pt;">⏳ Pendiente</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% if ev.observacion_coordinadora %}
+              <tr>
+                <td colspan="3" style="padding:0 4px 4px 24px;border:none;">
+                  <div class="obs-box" style="margin:2px 0;font-size:7.5pt;padding:4px 6px;">
+                    <strong>Obs:</strong> {{ ev.observacion_coordinadora }}
+                  </div>
+                </td>
+              </tr>
+              {% endif %}
+              {% endfor %}
+            </table>
+          {% else %}
+            <span style="color:#999;font-style:italic;font-size:8pt;">
+              Sin evidencias subidas
+            </span>
+          {% endif %}
         </td>
       </tr>
-      {% endif %}
       {% endfor %}
     </tbody>
   </table>
   {% endfor %}
 </div>
 
-<!-- Observaciones generales -->
-{% if observaciones %}
-<div class="section">
-  <div class="section-title">4. Observaciones</div>
-  {% for obs in observaciones %}
-  <div class="obs-box">
-    <strong>{{ obs.actividad }}:</strong><br>
-    {{ obs.texto }}
-  </div>
-  {% endfor %}
-</div>
-{% endif %}
+<!-- Observaciones generales (ahora inline en cada evidencia) -->
 
 <!-- Firmas -->
 <div class="signatures">

@@ -79,7 +79,7 @@ def _build_context(contratista: dict, contratos: list, resumen: dict) -> dict:
         "pct_pendientes": round(resumen.get("pendientes", 0) / total_ev * 100, 1),
         "pct_sin_evidencia": round(resumen.get("sin_evidencia", 0) / total_ev * 100, 1),
         "contratos": contratos,
-        "observaciones": [],  # se llena abajo si hay observaciones
+        "observaciones": []
     }
 
 
@@ -88,17 +88,6 @@ def _build_context(contratista: dict, contratos: list, resumen: dict) -> dict:
 def generar_pdf(contratista: dict, contratos: list, resumen: dict) -> bytes:
     """Genera el PDF del informe de evaluación."""
     ctx = _build_context(contratista, contratos, resumen)
-
-    # Recolectar observaciones
-    observaciones = []
-    for c in contratos:
-        for act in c.get("actividades", []):
-            if act.get("observacion"):
-                observaciones.append({
-                    "actividad": act["descripcion"],
-                    "texto": act["observacion"],
-                })
-    ctx["observaciones"] = observaciones
 
     env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
     template = env.get_template("informe_evaluacion.html")
@@ -259,8 +248,10 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
                           bold=True, size=10, color=(26, 82, 118),
                           space_after=4)
 
+    from docx.oxml.ns import qn as _qn
+    from docx.oxml import parse_xml as _parse_xml
+
     for c in contratos:
-        # Contract sub-header
         _add_styled_paragraph(doc,
             f"Contrato: {c['numero_contrato']}" +
             (f" — {c.get('perfil', '')}" if c.get('perfil') else ""),
@@ -272,28 +263,26 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
                                   size=9, color=(150, 150, 150))
             continue
 
-        table_act = doc.add_table(rows=1 + len(acts), cols=4)
+        # ─── Tabla: 1 fila de actividad + 1 fila de evidencias por cada act ───
+        table_act = doc.add_table(rows=1, cols=3)
         table_act.style = "Table Grid"
         table_act.alignment = WD_TABLE_ALIGNMENT.LEFT
 
+        # Column widths
+        for row in table_act.rows:
+            row.cells[0].width = Cm(1)
+            row.cells[1].width = Cm(13.5)
+            row.cells[2].width = Cm(2.5)
+
         # Header row
-        headers = ["#", "Actividad", "Estado", "Ev."]
-        for j, h in enumerate(headers):
+        for j, h in enumerate(["#", "Actividad", "Estado"]):
             cell = table_act.rows[0].cells[j]
             _add_cell_text(cell, h, bold=True, size=7,
                            color=(255, 255, 255),
                            alignment=WD_ALIGN_PARAGRAPH.CENTER)
             _set_cell_shading(cell, "1A5276")
 
-        # Set column widths
-        for row in table_act.rows:
-            row.cells[0].width = Cm(1)
-            row.cells[1].width = Cm(11)
-            row.cells[2].width = Cm(2.5)
-            row.cells[3].width = Cm(1)
-
         for i, act in enumerate(acts):
-            row = table_act.rows[i + 1]
             estado = act.get("estado_global", "SIN_EVIDENCIA")
             estado_label = {
                 "APROBADO": "✓ Aprobado",
@@ -301,52 +290,60 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
                 "PENDIENTE": "⏳ Pendiente",
             }.get(estado, "— Sin evidencia")
 
-            _add_cell_text(row.cells[0], str(i + 1),
+            # ── Fila 1: Actividad ──
+            row_act = table_act.add_row()
+            _add_cell_text(row_act.cells[0], str(i + 1),
+                           bold=True, alignment=WD_ALIGN_PARAGRAPH.CENTER)
+            _add_cell_text(row_act.cells[1], act.get("descripcion", ""), size=8)
+            _add_cell_text(row_act.cells[2], estado_label, size=8,
                            alignment=WD_ALIGN_PARAGRAPH.CENTER)
-            _add_cell_text(row.cells[1], act.get("descripcion", ""), size=8)
-            _add_cell_text(row.cells[2], estado_label, size=8,
-                           alignment=WD_ALIGN_PARAGRAPH.CENTER)
-            _add_cell_text(row.cells[3], str(act.get("total_evidencias", 0)),
-                           alignment=WD_ALIGN_PARAGRAPH.CENTER)
+            # Shading
+            for cell in row_act.cells:
+                _set_cell_shading(cell, "F0F4F8")
 
-            # Observation row
-            if act.get("observacion"):
-                obs_p = doc.add_paragraph()
-                obs_p.paragraph_format.space_before = Pt(0)
-                obs_p.paragraph_format.space_after = Pt(4)
-                run_label = obs_p.add_run("Observación: ")
-                run_label.bold = True
-                run_label.font.size = Pt(8)
-                run_label.font.color.rgb = RGBColor(125, 102, 8)
-                run_text = obs_p.add_run(act["observacion"])
-                run_text.font.size = Pt(8)
+            # ── Fila 2: Evidencias ──
+            row_ev = table_act.add_row()
+            # Merge cells 1-3 for evidence list
+            row_ev.cells[0].merge(row_ev.cells[2])
+            ev_cell = row_ev.cells[0]
+
+            evidencias = act.get("evidencias", [])
+            if evidencias:
+                # Clear default paragraph
+                ev_cell.text = ""
+                for ev in evidencias:
+                    p = ev_cell.add_paragraph()
+                    p.paragraph_format.space_before = Pt(1)
+                    p.paragraph_format.space_after = Pt(1)
+
+                    tipo_icon = {"IMAGEN": "📷", "ARCHIVO": "📄", "TEXTO": "📝"}.get(ev.get("tipo", ""), "📄")
+                    run = p.add_run(f"{tipo_icon}  {ev.get('archivo_nombre', ev.get('tipo', 'Evidencia'))}")
+                    run.font.size = Pt(8)
+
+                    ev_estado = ev.get("estado", "PENDIENTE")
+                    ev_label = {"APROBADO": " ✓ Aprobado", "RECHAZADO": " ✗ Rechazado", "PENDIENTE": " ⏳ Pendiente"}.get(ev_estado, "")
+                    run2 = p.add_run(ev_label)
+                    run2.font.size = Pt(7.5)
+                    ev_color = {"APROBADO": (39, 174, 96), "RECHAZADO": (231, 76, 60), "PENDIENTE": (212, 160, 23)}
+                    if ev_estado in ev_color:
+                        run2.font.color.rgb = RGBColor(*ev_color[ev_estado])
+
+                    if ev.get("observacion_coordinadora"):
+                        p_obs = ev_cell.add_paragraph()
+                        p_obs.paragraph_format.space_before = Pt(0)
+                        p_obs.paragraph_format.space_after = Pt(2)
+                        p_obs.paragraph_format.left_indent = Cm(1)
+                        r3 = p_obs.add_run(f"Obs: {ev['observacion_coordinadora']}")
+                        r3.font.size = Pt(7)
+                        r3.font.color.rgb = RGBColor(125, 102, 8)
+                        r3.italic = True
+            else:
+                _add_cell_text(ev_cell, "Sin evidencias subidas",
+                               size=8, color=(150, 150, 150))
 
         doc.add_paragraph()
 
-    # ─── 4. Observaciones ─────────────────────────────────────────────
-    observaciones = []
-    for c in contratos:
-        for act in c.get("actividades", []):
-            if act.get("observacion"):
-                observaciones.append({
-                    "actividad": act["descripcion"],
-                    "texto": act["observacion"],
-                })
-
-    if observaciones:
-        _add_styled_paragraph(doc, "4. OBSERVACIONES",
-                              bold=True, size=10, color=(26, 82, 118),
-                              space_after=4)
-        for obs in observaciones:
-            p = doc.add_paragraph()
-            p.paragraph_format.space_after = Pt(4)
-            run = p.add_run(f"{obs['actividad']}: ")
-            run.bold = True
-            run.font.size = Pt(9)
-            run2 = p.add_run(obs["texto"])
-            run2.font.size = Pt(9)
-
-    # ─── Firmas ────────────────────────────────────────────────────────
+    # ─── 4. Firmas ──────────────────────────────────────────────────────
     doc.add_paragraph()
     doc.add_paragraph()
 
