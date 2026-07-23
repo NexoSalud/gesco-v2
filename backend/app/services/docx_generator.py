@@ -377,71 +377,47 @@ def generar_documento_contrato(tipo: str, data: dict) -> bytes:
                     _replace_in_element(cell, ph, val)
 
     import re as _re
-    # ─── Manejo especial de <<OBLIGACIONES>> con contenido HTML ─────────
-    oblig_html = placeholders.get("<<OBLIGACIONES>>", "")
-    # ─── Manejo especial de <<OBJETO DEL CONTRATO>> con contenido HTML ───
-    objeto_html = placeholders.get("<<OBJETO DEL CONTRATO>>", "")
+    # ─── Helper: convertir HTML a texto plano legible ────────────────────
+    def _html_a_texto(html_content: str) -> str:
+        """Convierte HTML a texto plano, preservando saltos de línea y viñetas."""
+        if not html_content or ('<' not in html_content or '>' not in html_content):
+            return html_content
+        texto = html_content
+        # Reemplazar <br> con nueva línea
+        texto = re.sub(r'<br\s*/?>', '\n', texto, flags=re.IGNORECASE)
+        # </p> → nueva línea
+        texto = re.sub(r'</p>', '\n', texto, flags=re.IGNORECASE)
+        # <li> → viñeta
+        texto = re.sub(r'<li[^>]*>', '• ', texto, flags=re.IGNORECASE)
+        texto = re.sub(r'</li>', '\n', texto, flags=re.IGNORECASE)
+        # <tr> → nueva línea
+        texto = re.sub(r'</tr>', '\n', texto, flags=re.IGNORECASE)
+        # <td>, <th> → separar con tabulación
+        texto = re.sub(r'</t[dh]>', '\t', texto, flags=re.IGNORECASE)
+        # Limpiar todos los demás tags HTML
+        texto = re.sub(r'<[^>]+>', '', texto)
+        # Entidades HTML
+        texto = texto.replace('&nbsp;', ' ').replace('&amp;', '&')
+        texto = texto.replace('&lt;', '<').replace('&gt;', '>')
+        # Limpiar líneas en blanco excesivas
+        texto = re.sub(r'\n{3,}', '\n\n', texto)
+        texto = re.sub(r'\t{2,}', '\t', texto)
+        return texto.strip()
 
-    # Procesar <<OBLIGACIONES>>: convertir HTML a elementos DOCX
-    for p in doc.paragraphs:
-        if "<<OBLIGACIONES>>" in p.text:
-            _merge_runs_and_replace(p, "<<OBLIGACIONES>>", "")
-            if oblig_html and oblig_html != "Ver cláusula SEGUNDA del contrato.":
-                last_element = p._p
-                lines = oblig_html.split('\n')
-                for line in lines:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    # Detectar si la línea tiene HTML (tags)
-                    if '<' in line and '>' in line:
-                        # Intentar parsear HTML blocks
-                        blocks = _parse_html_blocks(line)
-                        for btype, content in blocks:
-                            if btype == 'table':
-                                hd, rr = _extract_table_data(content)
-                                if hd or rr:
-                                    tbl = _make_table_xml(hd, rr)
-                                    last_element.addnext(tbl)
-                                    last_element = tbl
-                            else:
-                                clean = re.sub(r'<br\s*/?>', '\n', content, flags=re.IGNORECASE)
-                                clean = re.sub(r'</p>', '\n', clean, flags=re.IGNORECASE)
-                                clean = re.sub(r'<li[^>]*>', '• ', clean, flags=re.IGNORECASE)
-                                clean = re.sub(r'</li>', '\n', clean, flags=re.IGNORECASE)
-                                clean = re.sub(r'<[^>]+>', '', clean)
-                                clean = clean.replace('&nbsp;', ' ').replace('&amp;', '&')
-                                clean = re.sub(r'\n{3,}', '\n\n', clean).strip()
-                                for part in clean.split('\n'):
-                                    part = part.strip()
-                                    if not part:
-                                        continue
-                                    new_p = _make_paragraph_xml(part, bold=False, size=11)
-                                    last_element.addnext(new_p)
-                                    last_element = new_p
-                    else:
-                        # Texto plano, insertar como párrafo
-                        new_p = _make_paragraph_xml(line, bold=False, size=11)
-                        last_element.addnext(new_p)
-                        last_element = new_p
-            break
+    # ─── Convertir valores HTML a texto plano ────────────────────────────
+    oblig_plano = _html_a_texto(placeholders.get("<<OBLIGACIONES>>", ""))
+    objeto_plano = _html_a_texto(placeholders.get("<<OBJETO DEL CONTRATO>>", ""))
 
-    # Procesar <<OBJETO DEL CONTRATO>>: convertir HTML a texto limpio
-    if '<' in objeto_html and '>' in objeto_html:
-        clean = re.sub(r'<br\s*/?>', '\n', objeto_html, flags=re.IGNORECASE)
-        clean = re.sub(r'</p>', '\n', clean, flags=re.IGNORECASE)
-        clean = re.sub(r'<[^>]+>', '', clean)
-        clean = clean.replace('&nbsp;', ' ').replace('&amp;', '&')
-        clean = re.sub(r'\n{3,}', '\n\n', clean).strip()
-        objeto_html = clean
-
-    # Placeholders restantes (reemplazo simple de texto)
+    # Placeholders: reemplazo simple de texto (body + tablas)
     for ph, val in placeholders.items():
-        if ph == "<<OBLIGACIONES>>":
-            continue  # Ya procesado arriba
         val = str(val) if val is not None else ""
-        # Usar valor limpio para <<OBJETO DEL CONTRATO>>
-        val_clean = objeto_html if ph == "<<OBJETO DEL CONTRATO>>" else val
+        # Usar valor limpio (sin HTML) para OBLIGACIONES y OBJETO
+        if ph == "<<OBLIGACIONES>>":
+            val_clean = oblig_plano if oblig_plano else "Ver cláusula SEGUNDA del contrato."
+        elif ph == "<<OBJETO DEL CONTRATO>>":
+            val_clean = objeto_plano
+        else:
+            val_clean = val
         # 1. Body paragraphs
         for p in doc.paragraphs:
             if ph in p.text:
