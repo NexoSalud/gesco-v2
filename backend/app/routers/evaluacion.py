@@ -246,6 +246,12 @@ async def listar_evidencias(
         )
         act_desc = act_result.scalar_one_or_none()
 
+        # Obtener nombre del contratista
+        cont_result = await db.execute(
+            select(Contratista.nombre).where(Contratista.id == ev.contratista_id)
+        )
+        cont_nombre = cont_result.scalar_one_or_none()
+
         out.append(EvidenciaOut(
             id=ev.id,
             actividad_contrato_id=ev.actividad_contrato_id,
@@ -262,6 +268,7 @@ async def listar_evidencias(
             evaluated_at=ev.evaluated_at,
             evaluated_by=ev.evaluated_by,
             actividad_descripcion=act_desc,
+            contratista_nombre=cont_nombre,
         ))
 
     return out
@@ -298,6 +305,12 @@ async def evaluar_evidencia(
     )
     act_desc = act_result.scalar_one_or_none()
 
+    # Obtener nombre del contratista
+    cont_result = await db.execute(
+        select(Contratista.nombre).where(Contratista.id == evidencia.contratista_id)
+    )
+    cont_nombre = cont_result.scalar_one_or_none()
+
     return EvidenciaOut(
         id=evidencia.id,
         actividad_contrato_id=evidencia.actividad_contrato_id,
@@ -314,6 +327,7 @@ async def evaluar_evidencia(
         evaluated_at=evidencia.evaluated_at,
         evaluated_by=evidencia.evaluated_by,
         actividad_descripcion=act_desc,
+        contratista_nombre=cont_nombre,
     )
 
 
@@ -619,6 +633,174 @@ async def descargar_informe(
                 img_data = {}
                 if ev.tipo == "IMAGEN":
                     img_data = _cargar_imagen_evidencia(ev.archivo_ruta)
+                evidencias_out.append({
+                    "id": ev.id,
+                    "tipo": ev.tipo,
+                    "contenido_texto": ev.contenido_texto,
+                    "archivo_ruta": ev.archivo_ruta,
+                    "archivo_nombre": ev.archivo_nombre,
+                    "estado": ev.estado,
+                    "observacion_coordinadora": ev.observacion_coordinadora,
+                    "created_at": str(ev.created_at) if ev.created_at else None,
+                    "img_base64": img_data.get("base64"),
+                    "img_width": img_data.get("width", 0),
+                    "img_height": img_data.get("height", 0),
+                    "img_file_found": img_data.get("file_found", False),
+                })
+            actividades_data.append({
+                "id": act.id,
+                "descripcion": act.descripcion,
+                "tipo": act.tipo,
+                "orden": act.orden,
+                "evidencias": evidencias_out,
+            })
+        contratos_data.append({
+            "id": c.id,
+            "numero_contrato": c.numero_contrato,
+            "perfil": c.perfil,
+            "objeto": c.objeto,
+            "actividades": actividades_data,
+        })
+
+    contratista_dict = {
+        "nombre": contratista.nombre,
+        "identificacion": contratista.identificacion,
+        "telefono": contratista.telefono,
+        "correo": contratista.correo,
+    }
+
+    if formato == "pdf":
+        pdf_bytes = generar_pdf(contratista_dict, contratos_data, resumen)
+        filename = f"informe_evaluacion_{contratista.identificacion}.pdf"
+        media_type = "application/pdf"
+        content = pdf_bytes
+    else:
+        docx_bytes = generar_docx(contratista_dict, contratos_data, resumen)
+        filename = f"informe_evaluacion_{contratista.identificacion}.docx"
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        content = docx_bytes
+
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/publico/informe")
+async def descargar_informe_publico(
+    cedula: str = Query(..., min_length=1),
+    formato: str = Query("pdf", regex="^(pdf|docx)$"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Endpoint público: descarga informe por cédula (sin auth)."""
+    from app.services.informe_evaluacion import generar_pdf, generar_docx
+    from fastapi.responses import Response
+
+    # Buscar contratista por cédula
+    result = await db.execute(
+        select(Contratista).where(Contratista.identificacion == cedula)
+    )
+    contratista = result.scalar_one_or_none()
+    if not contratista:
+        raise HTTPException(404, "Contratista no encontrado con esa cédula")
+
+    contratista_id = contratista.id
+
+    # Obtener contratos activos con actividades y evidencias
+    contratos_result = await db.execute(
+        select(Contrato)
+        .options(
+            selectinload(Contrato.actividades_contrato)
+            .selectinload(ActividadContrato.evidencias)
+        )
+        .where(Contrato.contratista_id == contratista_id)
+        .where(Contrato.estado.in_(["EN_PROCESO", "ACTIVO"]))
+        .order_by(Contrato.fecha_inicio.desc())
+    )
+    contratos = contratos_result.scalars().all()
+
+    # Resumen
+    res_result = await db.execute(
+        select(Evidencia.estado, func.count(Evidencia.id))
+        .where(Evidencia.contratista_id == contratista_id)
+        .group_by(Evidencia.estado)
+    )
+    counts = {row[0]: row[1] for row in res_result.all()}
+
+    contrato_numeros = [c.numero_contrato for c in contratos]
+    total_act = await db.execute(
+        select(func.count(ActividadContrato.id))
+        .where(ActividadContrato.contrato_id.in_(contrato_numeros))
+    )
+    total_actividades = total_act.scalar() or 0
+
+    act_con_ev = await db.execute(
+        select(func.count(func.distinct(Evidencia.actividad_contrato_id)))
+        .where(Evidencia.contratista_id == contratista_id)
+    )
+    con_evidencia = act_con_ev.scalar() or 0
+
+    resumen = {
+        "total_actividades": total_actividades,
+        "aprobadas": counts.get("APROBADO", 0),
+        "rechazadas": counts.get("RECHAZADO", 0),
+        "pendientes": counts.get("PENDIENTE", 0),
+        "sin_evidencia": total_actividades - con_evidencia,
+        "porcentaje_cumplimiento": round(
+            counts.get("APROBADO", 0) / max(total_actividades, 1) * 100, 1
+        ),
+    }
+
+    # Construir data de contratos (misma lógica del endpoint protegido)
+    import os as _os2
+    from pathlib import Path as _Path2
+    try:
+        from PIL import Image as _PILImage2
+        _HAS_PIL2 = True
+    except ImportError:
+        _HAS_PIL2 = False
+
+    _STATIC_BASE2 = _Path2(__file__).parent.parent / "static"
+
+    def _cargar_img(archivo_ruta: str | None) -> dict:
+        if not archivo_ruta:
+            return {"base64": None, "width": 0, "height": 0, "file_found": False}
+        rel_path = archivo_ruta.lstrip("/")
+        rutas = []
+        if rel_path.startswith("uploads/"):
+            rutas.append(_Path2("/app/uploads") / rel_path[8:])
+            rutas.append(_STATIC_BASE2 / rel_path[8:])
+        elif rel_path.startswith("static/"):
+            rutas.append(_STATIC_BASE2 / rel_path[7:])
+            rutas.append(_Path2("/app/uploads") / rel_path[7:])
+        else:
+            rutas.append(_STATIC_BASE2 / rel_path)
+        for p in rutas:
+            if p.exists():
+                try:
+                    with open(p, "rb") as f:
+                        b64 = base64.b64encode(f.read()).decode()
+                    w, h = 0, 0
+                    if _HAS_PIL2:
+                        with _PILImage2.open(p) as img:
+                            w, h = img.size
+                    return {"base64": b64, "width": w, "height": h, "file_found": True}
+                except Exception:
+                    pass
+        return {"base64": None, "width": 0, "height": 0, "file_found": False}
+
+    contratos_data = []
+    for c in contratos:
+        actividades_data = []
+        for act in c.actividades_contrato:
+            evidencias_out = []
+            for ev in act.evidencias:
+                if ev.estado != "APROBADO":
+                    continue
+                img_data = {}
+                if ev.tipo == "IMAGEN":
+                    img_data = _cargar_img(ev.archivo_ruta)
                 evidencias_out.append({
                     "id": ev.id,
                     "tipo": ev.tipo,

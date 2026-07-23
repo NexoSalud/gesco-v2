@@ -30,6 +30,7 @@ class EvidenciaOut(BaseModel):
     evaluated_at: datetime | None = None
     evaluated_by: int | None = None
     actividad_descripcion: str | None = None
+    contratista_nombre: str | None = None
 
     model_config = {"from_attributes": True}
 

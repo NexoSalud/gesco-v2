@@ -444,6 +444,11 @@ export default function EvaluacionDashboardPage() {
                     dangerouslySetInnerHTML={{ __html: selectedEvidencia.actividad_descripcion || `Actividad #${selectedEvidencia.actividad_contrato_id}` }}
                   />
                   <p className="text-xs text-gray-500 mt-0.5 truncate">Contrato {selectedEvidencia.contrato_id}</p>
+                  {selectedEvidencia.contratista_nombre && (
+                    <p className="text-xs text-gray-500 truncate">
+                      Contratista: {selectedEvidencia.contratista_nombre}
+                    </p>
+                  )}
                 </div>
                 <button onClick={() => { setSelectedEvidencia(null); setObservacion("") }} className="p-1.5 hover:bg-gray-100 rounded-lg flex-shrink-0 mt-0.5">
                   <X className="w-4 h-4 text-gray-400" />

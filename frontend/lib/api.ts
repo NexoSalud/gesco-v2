@@ -673,6 +673,7 @@ export interface Evidencia {
   evaluated_at: string | null
   evaluated_by: number | null
   actividad_descripcion: string | null
+  contratista_nombre: string | null
 }
 
 export interface ActividadConEvidencias {
