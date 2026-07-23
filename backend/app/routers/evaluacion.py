@@ -415,9 +415,7 @@ async def listar_contratistas_con_evidencias(
             Contratista.correo,
             func.count(Evidencia.id).label("total_evidencias"),
             func.sum(
-                func.cast(
-                    sql_case((Evidencia.estado == "PENDIENTE", 1), else_=0),
-                )
+                sql_case((Evidencia.estado == "PENDIENTE", 1), else_=0),
             ).label("pendientes"),
         )
         .select_from(Contratista)
