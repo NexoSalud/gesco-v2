@@ -7,6 +7,7 @@ Dos modos:
 import logging
 import os
 import uuid
+import base64
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
