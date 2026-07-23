@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/evaluacion", tags=["Evaluación"])
 
-# Directorio para subir archivos de evidencia
-EVIDENCIAS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "evidencias")
+# Directorio para subir archivos de evidencia (volumen persistente: uploads)
+EVIDENCIAS_DIR = "/app/uploads/evidencias"
 os.makedirs(EVIDENCIAS_DIR, exist_ok=True)
 
 
@@ -178,7 +178,7 @@ async def subir_evidencia(
         with open(file_path, "wb") as f:
             f.write(content)
 
-        evidencia_data["archivo_ruta"] = f"/static/evidencias/{safe_name}"
+        evidencia_data["archivo_ruta"] = f"/uploads/evidencias/{safe_name}"
         evidencia_data["archivo_nombre"] = archivo.filename
         evidencia_data["archivo_tipo"] = archivo.content_type
 
@@ -555,7 +555,10 @@ async def descargar_informe(
             logger.warning(f"Informe: archivo_ruta vacío")
             return {"base64": None, "width": 0, "height": 0, "file_found": False}
         rel_path = archivo_ruta.lstrip("/")
-        if rel_path.startswith("static/"):
+        if rel_path.startswith("uploads/"):
+            # Evidencias están en /app/uploads/evidencias/
+            file_path = _Path("/app/uploads") / rel_path[8:]
+        elif rel_path.startswith("static/"):
             file_path = _STATIC_BASE / rel_path[7:]
         else:
             file_path = _STATIC_BASE / rel_path

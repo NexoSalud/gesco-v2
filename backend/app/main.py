@@ -254,10 +254,12 @@ app.include_router(auth_router)
 app.include_router(seguridad_router)
 app.include_router(evaluacion_router)
 
-# Archivos estáticos (evidencias, imágenes)
+# Archivos estáticos: logo, evidencias, etc.
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 os.makedirs(static_dir, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
+# Uploads persistentes (evidencias, imágenes subidas)
+app.mount("/uploads", StaticFiles(directory="/app/uploads"), name="uploads")
 
 # Error handlers
 app.add_exception_handler(Exception, global_exception_handler)
