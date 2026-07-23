@@ -554,18 +554,46 @@ async def descargar_informe(
         if not archivo_ruta:
             logger.warning(f"Informe: archivo_ruta vacío")
             return {"base64": None, "width": 0, "height": 0, "file_found": False}
+        
         rel_path = archivo_ruta.lstrip("/")
+        
+        # Probar múltiples rutas posibles
+        rutas_a_probar = []
+        
         if rel_path.startswith("uploads/"):
-            # Evidencias están en /app/uploads/evidencias/
-            file_path = _Path("/app/uploads") / rel_path[8:]
+            # Ruta principal: /app/uploads/evidencias/uuid.ext
+            rutas_a_probar.append(_Path("/app/uploads") / rel_path[8:])
+            # Fallback: static/evidencias/uuid.ext (formato legacy)
+            rutas_a_probar.append(_STATIC_BASE / rel_path[8:])
         elif rel_path.startswith("static/"):
-            file_path = _STATIC_BASE / rel_path[7:]
+            # Ruta principal: static/evidencias/uuid.ext
+            rutas_a_probar.append(_STATIC_BASE / rel_path[7:])
+            # Fallback: /app/uploads/evidencias/uuid.ext
+            rutas_a_probar.append(_Path("/app/uploads") / rel_path[7:])
         else:
-            file_path = _STATIC_BASE / rel_path
-        logger.info(f"Informe: buscando imagen en {file_path}")
-        if not file_path.exists():
-            logger.warning(f"Informe: imagen NO encontrada en {file_path}")
+            rutas_a_probar.append(_STATIC_BASE / rel_path)
+        
+        logger.info(f"Informe: archivo_ruta='{archivo_ruta}' rel_path='{rel_path}'")
+        
+        file_path = None
+        for p in rutas_a_probar:
+            logger.info(f"Informe: probando {p} (existe={p.exists()})")
+            if p.exists():
+                file_path = p
+                break
+        
+        if file_path is None:
+            logger.warning(f"Informe: imagen NO encontrada en ninguna ruta")
+            # Listar directorios para debug
+            for d in [_Path("/app/uploads/evidencias"), _Path(str(_STATIC_BASE / "evidencias"))]:
+                if d.exists():
+                    try:
+                        archivos = list(d.iterdir())[:5]
+                        logger.info(f"Informe: contenido de {d}: {[str(x.name) for x in archivos]}")
+                    except Exception as e:
+                        logger.warning(f"Informe: error listando {d}: {e}")
             return {"base64": None, "width": 0, "height": 0, "file_found": False}
+        
         try:
             with open(file_path, "rb") as f:
                 img_b64 = base64.b64encode(f.read()).decode()
@@ -573,7 +601,7 @@ async def descargar_informe(
             if _HAS_PIL:
                 with _PILImage.open(file_path) as img:
                     w, h = img.size
-            logger.info(f"Informe: imagen cargada {w}x{h}")
+            logger.info(f"Informe: imagen cargada de {file_path} ({w}x{h})")
             return {"base64": img_b64, "width": w, "height": h, "file_found": True}
         except Exception as e:
             logger.error(f"Informe: error cargando imagen: {e}")
