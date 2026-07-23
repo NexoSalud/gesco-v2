@@ -13,3 +13,4 @@ from app.routers.inventario import router as inventario_router
 from app.routers.auth import router as auth_router
 from app.routers.usuarios import router as seguridad_router
 from app.routers.evaluacion import router as evaluacion_router
+from app.routers.documentos import router as documentos_router

@@ -772,3 +772,80 @@ export const listarContratistasEvaluacion = (buscar?: string) => {
 }
 
 
+// ─── Documentos de Contratista ────────────────────────────────────────────────
+
+export const TIPOS_DOCUMENTO = [
+  { valor: "CUENTA_COBRO", etiqueta: "Cuenta de Cobro", icono: "📄" },
+  { valor: "RETENCION", etiqueta: "Retención formato", icono: "🧾" },
+  { valor: "LISTADO_ASISTENCIA", etiqueta: "Listado de asistencia", icono: "📋" },
+  { valor: "PLANILLA_SEGURIDAD", etiqueta: "Planilla de seguridad social", icono: "🛡️" },
+  { valor: "CERTIFICACION_BANCARIA", etiqueta: "Certificación bancaria", icono: "🏦" },
+  { valor: "ARL", etiqueta: "ARL", icono: "⚕️" },
+]
+
+export interface DocumentoContratista {
+  id: number
+  contratista_id: number
+  contrato_numero: string
+  tipo_documento: string
+  archivo_ruta: string
+  archivo_nombre: string
+  archivo_tamano: number
+  estado: "PENDIENTE" | "APROBADO" | "RECHAZADO"
+  observacion: string | null
+  created_at: string
+  updated_at: string | null
+  evaluated_at: string | null
+  contratista_nombre: string | null
+  contratista_identificacion: string | null
+}
+
+// Subir documento (público)
+export async function subirDocumentoContratista(formData: FormData): Promise<DocumentoContratista> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+  const headers: Record<string, string> = {}
+  if (token) headers["Authorization"] = `Bearer ${token}`
+  const res = await fetch(`${API}/api/v1/documentos/subir`, {
+    method: "POST",
+    headers,
+    body: formData,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(text.slice(0, 300))
+  }
+  return res.json()
+}
+
+// Listar documentos de un contrato (público, requiere cédula)
+export const listarDocumentosContrato = (contratoNumero: string, cedula: string) =>
+  request<DocumentoContratista[]>(
+    `/api/v1/documentos/contrato/${encodeURIComponent(contratoNumero)}?cedula=${encodeURIComponent(cedula)}`
+  )
+
+// Listar todos los documentos (protegido)
+export const listarDocumentosAdmin = (params?: {
+  contratista_id?: number
+  contrato_numero?: string
+  tipo_documento?: string
+  estado?: string
+}) => {
+  const q = new URLSearchParams()
+  if (params?.contratista_id) q.set("contratista_id", String(params.contratista_id))
+  if (params?.contrato_numero) q.set("contrato_numero", params.contrato_numero)
+  if (params?.tipo_documento) q.set("tipo_documento", params.tipo_documento)
+  if (params?.estado) q.set("estado", params.estado)
+  return request<DocumentoContratista[]>(`/api/v1/documentos/admin/listar?${q}`)
+}
+
+// Evaluar documento (protegido)
+export const evaluarDocumento = (id: number, data: { estado: string; observacion?: string }) =>
+  request<DocumentoContratista>(`/api/v1/documentos/${id}/evaluar`, {
+    method: "PUT", body: JSON.stringify(data),
+  })
+
+// Eliminar documento
+export const eliminarDocumento = (id: number) =>
+  request<void>(`/api/v1/documentos/${id}`, { method: "DELETE" })
+
+

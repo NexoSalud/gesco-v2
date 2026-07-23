@@ -26,6 +26,7 @@ from app.routers import (
     auth_router,
     seguridad_router,
     evaluacion_router,
+    documentos_router,
 )
 from app.models.plantilla_objeto import PlantillaObjeto
 from app.seed_data import seed_database
@@ -190,6 +191,30 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.info("Columna 'resolucion_id' ya existe en unidades_inventario o error al crearla, saltando: %s", e)
 
+    # Migración: crear tabla documentos_contratista si no existe
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS documentos_contratista (
+                    id SERIAL PRIMARY KEY,
+                    contratista_id INTEGER NOT NULL REFERENCES contratistas(id) ON DELETE CASCADE,
+                    contrato_numero VARCHAR(50) NOT NULL REFERENCES contratos(numero_contrato) ON DELETE CASCADE,
+                    tipo_documento VARCHAR(50) NOT NULL,
+                    archivo_ruta VARCHAR(500) NOT NULL,
+                    archivo_nombre VARCHAR(200) NOT NULL,
+                    archivo_tamano INTEGER DEFAULT 0,
+                    estado VARCHAR(20) DEFAULT 'PENDIENTE',
+                    observacion TEXT,
+                    evaluated_by INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP,
+                    evaluated_at TIMESTAMP
+                )
+            """))
+            logger.info("Migración OK: tabla documentos_contratista creada/verificada")
+    except Exception as e:
+        logger.warning(f"Migración documentos_contratista: {e}")
+
     # Migración: crear tabla evidencias si no existe
     try:
         async with engine.begin() as conn:
@@ -253,6 +278,7 @@ app.include_router(inventario_router)
 app.include_router(auth_router)
 app.include_router(seguridad_router)
 app.include_router(evaluacion_router)
+app.include_router(documentos_router)
 
 # Archivos estáticos: logo, evidencias, etc.
 static_dir = os.path.join(os.path.dirname(__file__), "static")
