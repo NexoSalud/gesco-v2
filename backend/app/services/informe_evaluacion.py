@@ -301,7 +301,7 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
             for cell in row_act.cells:
                 _set_cell_shading(cell, "F0F4F8")
 
-            # ── Fila 2: Evidencias (solo aprobadas con imágenes inline) ──
+            # ── Fila 2: Evidencias agrupadas por tipo ──
             row_ev = table_act.add_row()
             row_ev.cells[0].merge(row_ev.cells[2])
             ev_cell = row_ev.cells[0]
@@ -309,25 +309,27 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
             evidencias = act.get("evidencias", [])
             if evidencias:
                 ev_cell.text = ""
-                for ev in evidencias:
-                    tipo = ev.get("tipo", "")
-                    tipo_icon = {"IMAGEN": "📷", "ARCHIVO": "📄", "TEXTO": "📝"}.get(tipo, "📄")
-                    tipo_label = {"IMAGEN": "IMAGEN", "ARCHIVO": "ARCHIVO", "TEXTO": "TEXTO"}.get(tipo, "")
+                # Group by type
+                imgs = [e for e in evidencias if e.get("tipo") == "IMAGEN"]
+                textos = [e for e in evidencias if e.get("tipo") == "TEXTO"]
+                archivos = [e for e in evidencias if e.get("tipo") == "ARCHIVO"]
 
-                    # Tipo label row
-                    p_tipo = ev_cell.add_paragraph()
-                    p_tipo.paragraph_format.space_before = Pt(4)
-                    p_tipo.paragraph_format.space_after = Pt(1)
-                    r_t = p_tipo.add_run(f"{tipo_icon}  {tipo_label}")
-                    r_t.font.size = Pt(6.5)
-                    r_t.font.color.rgb = RGBColor(136, 136, 136)
-                    r_t.bold = True
+                import tempfile, os as _os_docx
 
-                    if tipo == "IMAGEN":
+                # IMÁGENES (todas juntas)
+                if imgs:
+                    p_label = ev_cell.add_paragraph()
+                    p_label.paragraph_format.space_before = Pt(4)
+                    p_label.paragraph_format.space_after = Pt(2)
+                    r_l = p_label.add_run(f"📷  IMAGEN ({len(imgs)})")
+                    r_l.font.size = Pt(6.5)
+                    r_l.font.color.rgb = RGBColor(136, 136, 136)
+                    r_l.bold = True
+
+                    # Create a sub-table or inline paragraphs for images
+                    for ev in imgs:
                         img_b64 = ev.get("img_base64")
                         if img_b64:
-                            # Write base64 to temp file and insert
-                            import tempfile, os as _os
                             img_data_clean = base64.b64decode(img_b64)
                             with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
                                 tmp.write(img_data_clean)
@@ -336,57 +338,84 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
                                 from PIL import Image as _PILImg
                                 with _PILImg.open(tmp_path) as img_pil:
                                     orig_w, orig_h = img_pil.size
-                                # Calculate max dimensions based on aspect ratio
-                                max_w = 12  # cm
-                                max_h = 8   # cm
                                 ratio = orig_w / orig_h if orig_h > 0 else 1
+                                # Larger images: 14cm for landscape, 10cm for portrait
                                 if ratio > 1.3:
-                                    # Landscape
-                                    disp_w = min(max_w, Cm(12))
-                                    disp_h = disp_w / ratio
+                                    disp_w = min(Cm(14), Cm(orig_w * 14 / orig_h))
+                                    disp_h = Cm(float(disp_w / ratio))
                                 elif ratio < 0.7:
-                                    # Portrait
-                                    disp_h = min(max_h, Cm(8))
-                                    disp_w = disp_h * ratio
+                                    disp_h = min(Cm(10), Cm(orig_h * 10 / orig_w))
+                                    disp_w = Cm(float(disp_h * ratio))
                                 else:
-                                    # Square-ish
-                                    disp_w = min(Cm(7), Cm(orig_w * 7 / orig_h))
-                                    disp_h = disp_w / ratio
+                                    disp_w = min(Cm(10), Cm(orig_w * 10 / orig_h))
+                                    disp_h = Cm(float(disp_w / ratio))
                                 ev_cell.add_picture(tmp_path, width=Cm(float(disp_w)), height=Cm(float(disp_h)))
                             except Exception:
-                                p_err = ev_cell.add_paragraph()
-                                r_e = p_err.add_run(f"  {ev.get('archivo_nombre', 'Imagen')}")
-                                r_e.font.size = Pt(8)
+                                pass
                             finally:
                                 try:
-                                    _os.unlink(tmp_path)
+                                    _os_docx.unlink(tmp_path)
                                 except Exception:
                                     pass
                         else:
-                            p_name = ev_cell.add_paragraph()
-                            r_n = p_name.add_run(f"  {ev.get('archivo_nombre', 'Imagen')}")
-                            r_n.font.size = Pt(8)
+                            p_fallback = ev_cell.add_paragraph()
+                            r_f = p_fallback.add_run(f"  {ev.get('archivo_nombre', 'Imagen')}")
+                            r_f.font.size = Pt(8)
 
-                    elif tipo == "TEXTO":
-                        p_text = ev_cell.add_paragraph()
-                        p_text.paragraph_format.space_before = Pt(1)
-                        p_text.paragraph_format.space_after = Pt(2)
-                        r_text = p_text.add_run(ev.get("contenido_texto", "")[:200])
-                        r_text.font.size = Pt(7.5)
-                        r_text.font.color.rgb = RGBColor(68, 68, 68)
+                    # Observations for images
+                    for ev in imgs:
+                        if ev.get("observacion_coordinadora"):
+                            p_obs = ev_cell.add_paragraph()
+                            p_obs.paragraph_format.space_before = Pt(1)
+                            p_obs.paragraph_format.space_after = Pt(1)
+                            r3 = p_obs.add_run(f"Obs: {ev['observacion_coordinadora']}")
+                            r3.font.size = Pt(7)
+                            r3.font.color.rgb = RGBColor(125, 102, 8)
+                            r3.italic = True
 
-                    else:  # ARCHIVO
-                        p_file = ev_cell.add_paragraph()
-                        p_file.paragraph_format.space_before = Pt(1)
-                        p_file.paragraph_format.space_after = Pt(1)
-                        r_file = p_file.add_run(f"  {ev.get('archivo_nombre', 'Archivo')}")
-                        r_file.font.size = Pt(8)
+                # TEXTOS (cada uno en su fila)
+                for ev in textos:
+                    p_t_label = ev_cell.add_paragraph()
+                    p_t_label.paragraph_format.space_before = Pt(4)
+                    p_t_label.paragraph_format.space_after = Pt(1)
+                    r_tl = p_t_label.add_run("📝  TEXTO")
+                    r_tl.font.size = Pt(6.5)
+                    r_tl.font.color.rgb = RGBColor(136, 136, 136)
+                    r_tl.bold = True
 
-                    # Observation
+                    p_text = ev_cell.add_paragraph()
+                    p_text.paragraph_format.space_before = Pt(1)
+                    p_text.paragraph_format.space_after = Pt(2)
+                    r_text = p_text.add_run(ev.get("contenido_texto", "")[:200])
+                    r_text.font.size = Pt(7.5)
+                    r_text.font.color.rgb = RGBColor(68, 68, 68)
+
                     if ev.get("observacion_coordinadora"):
                         p_obs = ev_cell.add_paragraph()
-                        p_obs.paragraph_format.space_before = Pt(1)
-                        p_obs.paragraph_format.space_after = Pt(2)
+                        p_obs.paragraph_format.left_indent = Cm(0.5)
+                        r3 = p_obs.add_run(f"Obs: {ev['observacion_coordinadora']}")
+                        r3.font.size = Pt(7)
+                        r3.font.color.rgb = RGBColor(125, 102, 8)
+                        r3.italic = True
+
+                # ARCHIVOS (cada uno en su fila)
+                for ev in archivos:
+                    p_a_label = ev_cell.add_paragraph()
+                    p_a_label.paragraph_format.space_before = Pt(4)
+                    p_a_label.paragraph_format.space_after = Pt(1)
+                    r_al = p_a_label.add_run("📄  ARCHIVO")
+                    r_al.font.size = Pt(6.5)
+                    r_al.font.color.rgb = RGBColor(136, 136, 136)
+                    r_al.bold = True
+
+                    p_file = ev_cell.add_paragraph()
+                    p_file.paragraph_format.space_before = Pt(1)
+                    p_file.paragraph_format.space_after = Pt(1)
+                    r_file = p_file.add_run(f"  {ev.get('archivo_nombre', 'Archivo')}")
+                    r_file.font.size = Pt(8)
+
+                    if ev.get("observacion_coordinadora"):
+                        p_obs = ev_cell.add_paragraph()
                         p_obs.paragraph_format.left_indent = Cm(0.5)
                         r3 = p_obs.add_run(f"Obs: {ev['observacion_coordinadora']}")
                         r3.font.size = Pt(7)

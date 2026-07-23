@@ -196,24 +196,35 @@
     text-transform: uppercase;
     letter-spacing: 0.3px;
   }
+  /* Contenedor de imágenes en fila */
+  .evidencia-imgs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 4px 0;
+    justify-content: center;
+  }
+  .evidencia-img-wrapper {
+    flex: 0 0 auto;
+    max-width: 48%;
+  }
   .evidencia-img {
     max-width: 100%;
     height: auto;
     display: block;
-    margin: 4px auto;
     border-radius: 3px;
     border: 1px solid #ddd;
   }
   .evidencia-img.landscape {
-    max-height: 120px;
+    max-height: 180px;
     width: auto;
   }
   .evidencia-img.portrait {
-    max-height: 160px;
+    max-height: 220px;
     width: auto;
   }
   .evidencia-img.square {
-    max-height: 100px;
+    max-height: 160px;
     width: auto;
   }
   .evidencia-texto {
@@ -448,40 +459,72 @@
           {% endif %}
         </td>
       </tr>
-      <!-- Fila 2: evidencias aprobadas -->
+      <!-- Fila 2: evidencias aprobadas agrupadas por tipo -->
       <tr>
         <td colspan="3" style="padding:4px 8px 8px 8px;">
           {% set evs = act.evidencias %}
           {% if evs and evs|length > 0 %}
-            {% for ev in evs %}
+            {% set imgs = evs | selectattr("tipo", "equalto", "IMAGEN") | list %}
+            {% set textos = evs | selectattr("tipo", "equalto", "TEXTO") | list %}
+            {% set archivos = evs | selectattr("tipo", "equalto", "ARCHIVO") | list %}
+
+            {% if imgs and imgs|length > 0 %}
             <div class="evidencia-row">
-              <div class="evidencia-icon">
-                {% if ev.tipo == "IMAGEN" %}📷{% elif ev.tipo == "ARCHIVO" %}📄{% else %}📝{% endif %}
-              </div>
+              <div class="evidencia-icon">📷</div>
               <div class="evidencia-content">
-                <div class="typelabel">{{ ev.tipo }}</div>
-                {% if ev.tipo == "IMAGEN" %}
-                  {% if ev.img_base64 %}
-                    {% set r = ev.img_width / ev.img_height if ev.img_height > 0 else 1 %}
-                    {% if r > 1.3 %}
-                      {% set img_class = "evidencia-img landscape" %}
-                    {% elif r < 0.7 %}
-                      {% set img_class = "evidencia-img portrait" %}
+                <div class="typelabel">IMAGEN ({{ imgs|length }})</div>
+                <div class="evidencia-imgs">
+                  {% for ev in imgs %}
+                  <div class="evidencia-img-wrapper">
+                    {% if ev.img_base64 %}
+                      {% set r = ev.img_width / ev.img_height if ev.img_height > 0 else 1 %}
+                      {% if r > 1.3 %}
+                        {% set img_class = "evidencia-img landscape" %}
+                      {% elif r < 0.7 %}
+                        {% set img_class = "evidencia-img portrait" %}
+                      {% else %}
+                        {% set img_class = "evidencia-img square" %}
+                      {% endif %}
+                      <img src="data:image/jpeg;base64,{{ ev.img_base64 }}" class="{{ img_class }}" alt="Evidencia" />
                     {% else %}
-                      {% set img_class = "evidencia-img square" %}
+                      <span class="filename" style="color:#999;">{{ ev.archivo_nombre or 'Imagen' }}</span>
                     {% endif %}
-                    <img src="data:image/jpeg;base64,{{ ev.img_base64 }}" class="{{ img_class }}" alt="Evidencia" />
-                  {% elif ev.img_file_found is defined and ev.img_file_found %}
-                    <span class="filename">⚠️ {{ ev.archivo_nombre or 'Imagen no disponible' }}</span>
-                  {% else %}
-                    <span class="filename" style="color:#999;">📷 {{ ev.archivo_nombre or 'Imagen' }}</span>
-                    <div style="font-size:7pt;color:#bbb;font-style:italic;">(archivo de imagen no disponible en el servidor)</div>
-                  {% endif %}
-                {% elif ev.tipo == "TEXTO" %}
-                  <div class="evidencia-texto">{{ ev.contenido_texto }}</div>
-                {% else %}
-                  <span class="filename">{{ ev.archivo_nombre or 'Archivo' }}</span>
+                  </div>
+                  {% endfor %}
+                </div>
+                {% set obs_imgs = imgs | selectattr("observacion_coordinadora") | list %}
+                {% if obs_imgs %}
+                  {% for ev in obs_imgs %}
+                  <div class="obs-box" style="margin:3px 0 0 0;font-size:7pt;padding:3px 6px;">
+                    <strong>Obs:</strong> {{ ev.observacion_coordinadora }}
+                  </div>
+                  {% endfor %}
                 {% endif %}
+              </div>
+            </div>
+            {% endif %}
+
+            {% for ev in textos %}
+            <div class="evidencia-row">
+              <div class="evidencia-icon">📝</div>
+              <div class="evidencia-content">
+                <div class="typelabel">TEXTO</div>
+                <div class="evidencia-texto">{{ ev.contenido_texto }}</div>
+                {% if ev.observacion_coordinadora %}
+                  <div class="obs-box" style="margin:3px 0 0 0;font-size:7pt;padding:3px 6px;">
+                    <strong>Obs:</strong> {{ ev.observacion_coordinadora }}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+
+            {% for ev in archivos %}
+            <div class="evidencia-row">
+              <div class="evidencia-icon">📄</div>
+              <div class="evidencia-content">
+                <div class="typelabel">ARCHIVO</div>
+                <span class="filename">{{ ev.archivo_nombre or 'Archivo' }}</span>
                 {% if ev.observacion_coordinadora %}
                   <div class="obs-box" style="margin:3px 0 0 0;font-size:7pt;padding:3px 6px;">
                     <strong>Obs:</strong> {{ ev.observacion_coordinadora }}
