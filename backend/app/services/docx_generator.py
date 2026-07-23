@@ -377,19 +377,82 @@ def generar_documento_contrato(tipo: str, data: dict) -> bytes:
                     _replace_in_element(cell, ph, val)
 
     import re as _re
+    # ─── Manejo especial de <<OBLIGACIONES>> con contenido HTML ─────────
+    oblig_html = placeholders.get("<<OBLIGACIONES>>", "")
+    # ─── Manejo especial de <<OBJETO DEL CONTRATO>> con contenido HTML ───
+    objeto_html = placeholders.get("<<OBJETO DEL CONTRATO>>", "")
+
+    # Procesar <<OBLIGACIONES>>: convertir HTML a elementos DOCX
+    for p in doc.paragraphs:
+        if "<<OBLIGACIONES>>" in p.text:
+            _merge_runs_and_replace(p, "<<OBLIGACIONES>>", "")
+            if oblig_html and oblig_html != "Ver cláusula SEGUNDA del contrato.":
+                last_element = p._p
+                lines = oblig_html.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    # Detectar si la línea tiene HTML (tags)
+                    if '<' in line and '>' in line:
+                        # Intentar parsear HTML blocks
+                        blocks = _parse_html_blocks(line)
+                        for btype, content in blocks:
+                            if btype == 'table':
+                                hd, rr = _extract_table_data(content)
+                                if hd or rr:
+                                    tbl = _make_table_xml(hd, rr)
+                                    last_element.addnext(tbl)
+                                    last_element = tbl
+                            else:
+                                clean = re.sub(r'<br\s*/?>', '\n', content, flags=re.IGNORECASE)
+                                clean = re.sub(r'</p>', '\n', clean, flags=re.IGNORECASE)
+                                clean = re.sub(r'<li[^>]*>', '• ', clean, flags=re.IGNORECASE)
+                                clean = re.sub(r'</li>', '\n', clean, flags=re.IGNORECASE)
+                                clean = re.sub(r'<[^>]+>', '', clean)
+                                clean = clean.replace('&nbsp;', ' ').replace('&amp;', '&')
+                                clean = re.sub(r'\n{3,}', '\n\n', clean).strip()
+                                for part in clean.split('\n'):
+                                    part = part.strip()
+                                    if not part:
+                                        continue
+                                    new_p = _make_paragraph_xml(part, bold=False, size=11)
+                                    last_element.addnext(new_p)
+                                    last_element = new_p
+                    else:
+                        # Texto plano, insertar como párrafo
+                        new_p = _make_paragraph_xml(line, bold=False, size=11)
+                        last_element.addnext(new_p)
+                        last_element = new_p
+            break
+
+    # Procesar <<OBJETO DEL CONTRATO>>: convertir HTML a texto limpio
+    if '<' in objeto_html and '>' in objeto_html:
+        clean = re.sub(r'<br\s*/?>', '\n', objeto_html, flags=re.IGNORECASE)
+        clean = re.sub(r'</p>', '\n', clean, flags=re.IGNORECASE)
+        clean = re.sub(r'<[^>]+>', '', clean)
+        clean = clean.replace('&nbsp;', ' ').replace('&amp;', '&')
+        clean = re.sub(r'\n{3,}', '\n\n', clean).strip()
+        objeto_html = clean
+
+    # Placeholders restantes (reemplazo simple de texto)
     for ph, val in placeholders.items():
+        if ph == "<<OBLIGACIONES>>":
+            continue  # Ya procesado arriba
         val = str(val) if val is not None else ""
+        # Usar valor limpio para <<OBJETO DEL CONTRATO>>
+        val_clean = objeto_html if ph == "<<OBJETO DEL CONTRATO>>" else val
         # 1. Body paragraphs
         for p in doc.paragraphs:
             if ph in p.text:
-                full_new = p.text.replace(ph, val)
+                full_new = p.text.replace(ph, val_clean)
                 for i, run in enumerate(p.runs):
                     run.text = full_new if i == 0 else ""
         # 2. Top-level tables (con recursión para anidadas)
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
-                    _replace_in_element(cell, ph, val)
+                    _replace_in_element(cell, ph, val_clean)
 
     buf = io.BytesIO()
     doc.save(buf)
