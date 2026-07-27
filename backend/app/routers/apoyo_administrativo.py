@@ -448,13 +448,13 @@ async def seed_apoyo_from_docx(
     Solo ejecuta si no hay registros previos."""
     from app.seed_apoyo import SECTIONS
 
-    # Check if already seeded
-    existing = await db.execute(select(ApoyoAdministrativo).limit(1))
-    if existing.scalar_one_or_none():
-        return {"message": "Ya hay registros de ApoyoAdministrativo, no se duplica la carga", "count": 0}
-
     total_apoyos = 0
     total_actividades = 0
+
+    # Check if actividades already exist
+    act_existing = await db.execute(select(ActividadApoyo).limit(1))
+    if act_existing.scalar_one_or_none():
+        return {"message": "Las actividades ya están cargadas", "count": 0}
 
     for section in SECTIONS:
         role = section["role"]
@@ -462,27 +462,29 @@ async def seed_apoyo_from_docx(
         actividades_text = section["actividades"]
 
         for name in names:
-            ident = f"APOYO-{role.split()[0][:3].upper()}-{name.split()[0].upper()}"
-
-            apoyo = ApoyoAdministrativo(
-                nombre=name,
-                identificacion=ident,
-                perfil=role,
-                activo=True,
+            # Find or create apoyo
+            existing = await db.execute(
+                select(ApoyoAdministrativo).where(ApoyoAdministrativo.nombre == name)
             )
-            db.add(apoyo)
-            await db.flush()
-
-            for i, act_text in enumerate(actividades_text):
-                act = ActividadApoyo(
-                    apoyo_id=apoyo.id,
-                    descripcion=act_text,
-                    tipo="GENERAL",
-                    orden=i + 1,
+            apoyo = existing.scalar_one_or_none()
+            if not apoyo:
+                ident = f"APOYO-{role.split()[0][:3].upper()}-{name.split()[0].upper()}"
+                apoyo = ApoyoAdministrativo(
+                    nombre=name, identificacion=ident, perfil=role, activo=True,
                 )
-                db.add(act)
+                db.add(apoyo)
+                await db.flush()
+                total_apoyos += 1
 
-            total_apoyos += 1
+            # Skip if already has activities
+            apoy_acts = await db.execute(
+                select(ActividadApoyo).where(ActividadApoyo.apoyo_id == apoyo.id).limit(1)
+            )
+            if apoy_acts.scalar_one_or_none():
+                continue
+
+            for i, at in enumerate(actividades_text):
+                db.add(ActividadApoyo(apoyo_id=apoyo.id, descripcion=at, tipo="GENERAL", orden=i + 1))
             total_actividades += len(actividades_text)
 
     await db.commit()
@@ -491,3 +493,4 @@ async def seed_apoyo_from_docx(
         "apoyos_creados": total_apoyos,
         "actividades_creadas": total_actividades,
     }
+
