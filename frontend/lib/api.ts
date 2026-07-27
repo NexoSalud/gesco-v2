@@ -771,6 +771,29 @@ export const listarContratistasEvaluacion = (buscar?: string) => {
   return request<any[]>(`/api/v1/evaluacion/contratistas${q}`)
 }
 
+// ─── Apoyo Administrativo ────────────────────────────────────────────────────
+
+export const listarApoyosEvaluacion = (buscar?: string) => {
+  const q = buscar ? `?buscar=${encodeURIComponent(buscar)}` : ""
+  return request<any[]>(`/api/v1/apoyo/evaluacion/listar${q}`)
+}
+
+export const buscarApoyoEvaluacion = (cedula: string) =>
+  request<any>(`/api/v1/apoyo/evaluacion/buscar?cedula=${encodeURIComponent(cedula)}`)
+
+export const getResumenApoyo = (apoyoId: number) =>
+  request<any>(`/api/v1/apoyo/${apoyoId}/resumen`)
+
+export const evaluarEvidenciaApoyo = (id: number, data: { estado: string; observacion?: string }) =>
+  request<any>(`/api/v1/apoyo/evidencias/${id}`, {
+    method: "PUT", body: JSON.stringify(data),
+  })
+
+export const getApoyos = (buscar?: string) => {
+  const q = buscar ? `?buscar=${encodeURIComponent(buscar)}` : ""
+  return request<any[]>(`/api/v1/apoyo/${q}`)
+}
+
 
 // ─── Documentos de Contratista ────────────────────────────────────────────────
 

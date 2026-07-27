@@ -12,6 +12,9 @@ import {
   listarEvidencias, evaluarEvidencia, listarContratistasEvaluacion,
   getResumenContratista,
   listarDocumentosAdmin, evaluarDocumento,
+  listarApoyosEvaluacion, buscarApoyoEvaluacion,
+  getResumenApoyo, evaluarEvidenciaApoyo,
+  getApoyos,
   TIPOS_DOCUMENTO,
   type Evidencia, type ResumenCumplimiento, type DocumentoContratista,
 } from "@/lib/api"
@@ -112,8 +115,10 @@ interface ContratistaListItem {
   nombre: string
   telefono: string | null
   correo: string | null
+  perfil?: string | null
   total_evidencias: number
   pendientes: number
+  tipo?: string  // "CONTRATISTA" | "APOYO"
 }
 
 export default function EvaluacionDashboardPage() {
@@ -124,7 +129,7 @@ export default function EvaluacionDashboardPage() {
   // Contratista seleccionado
   const [selectedContratista, setSelectedContratista] = useState<{
     id: number; nombre: string; identificacion: string;
-    telefono: string | null; correo: string | null
+    telefono: string | null; correo: string | null; tipo?: string
   } | null>(null)
 
   // Data del contratista seleccionado
@@ -143,14 +148,20 @@ export default function EvaluacionDashboardPage() {
   const [expandedActividades, setExpandedActividades] = useState<Set<number>>(new Set())
   const [expandedDocumento, setExpandedDocumento] = useState<number | null>(null)
 
-  // ─── Load contratistas ────────────────────────────────────────────
+  // ─── Load contratistas + apoyos ───────────────────────────────────
   const loadContratistas = useCallback(async (q?: string) => {
     setLoadingContratistas(true)
     try {
-      const list = await listarContratistasEvaluacion(q || undefined)
-      setContratistas(list as ContratistaListItem[])
+      const [contratistasList, apoyosList] = await Promise.all([
+        listarContratistasEvaluacion(q || undefined),
+        listarApoyosEvaluacion(q || undefined),
+      ])
+      const contratistasItems = (contratistasList as any[]).map(c => ({ ...c, tipo: c.tipo || "CONTRATISTA" }))
+      const apoyosItems = (apoyosList as any[]).map(a => ({ ...a, tipo: "APOYO" }))
+      // Sort by name, merge lists
+      setContratistas([...contratistasItems, ...apoyosItems].sort((a, b) => a.nombre.localeCompare(b.nombre)))
     } catch (err) {
-      console.error("Error cargando contratistas:", err)
+      console.error("Error cargando contratistas/apoyos:", err)
     }
     setLoadingContratistas(false)
   }, [])
@@ -175,22 +186,32 @@ export default function EvaluacionDashboardPage() {
     setObservacion("")
 
     try {
-      // Load all data in parallel
-      const [dashRes, resumenRes] = await Promise.all([
-        fetch(`${API}/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(c.identificacion)}`),
-        getResumenContratista(c.id),
-      ])
-      if (dashRes.ok) {
-        const dash = await dashRes.json()
-        setDashboard(dash)
-      }
-      setResumen(resumenRes)
+      if (c.tipo === "APOYO") {
+        // Load Apoyo data
+        const [dashRes, resumenRes] = await Promise.all([
+          buscarApoyoEvaluacion(c.identificacion),
+          getResumenApoyo(c.id),
+        ])
+        setDashboard(dashRes)
+        setResumen(resumenRes)
+        setDocumentos([])  // Apoyo no tiene documentos contractuales
+      } else {
+        // Load Contratista data
+        const [dashRes, resumenRes] = await Promise.all([
+          fetch(`${API}/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(c.identificacion)}`),
+          getResumenContratista(c.id),
+        ])
+        if (dashRes.ok) {
+          setDashboard(await dashRes.json())
+        }
+        setResumen(resumenRes)
 
-      // Load documentos
-      const docsRes = await listarDocumentosAdmin({ contratista_id: c.id })
-      setDocumentos(docsRes)
+        // Load documentos
+        const docsRes = await listarDocumentosAdmin({ contratista_id: c.id })
+        setDocumentos(docsRes)
+      }
     } catch (err) {
-      console.error("Error cargando datos del contratista:", err)
+      console.error("Error cargando datos:", err)
     }
     setLoadingData(false)
   }, [])
@@ -208,14 +229,23 @@ export default function EvaluacionDashboardPage() {
   const handleEvaluarEvidencia = async (id: number, estado: string) => {
     setEvaluating(true)
     try {
-      await evaluarEvidencia(id, { estado, observacion: observacion || undefined })
+      if (selectedContratista?.tipo === "APOYO") {
+        await evaluarEvidenciaApoyo(id, { estado, observacion: observacion || undefined })
+      } else {
+        await evaluarEvidencia(id, { estado, observacion: observacion || undefined })
+      }
       setObservacion("")
       setEvaluatingId(null)
       // Reload dashboard
       if (selectedContratista) {
-        const dashRes = await fetch(`${API}/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(selectedContratista.identificacion)}`)
-        if (dashRes.ok) setDashboard(await dashRes.json())
-        if (resumen) setResumen(await getResumenContratista(selectedContratista.id))
+        if (selectedContratista.tipo === "APOYO") {
+          setDashboard(await buscarApoyoEvaluacion(selectedContratista.identificacion))
+          setResumen(await getResumenApoyo(selectedContratista.id))
+        } else {
+          const dashRes = await fetch(`${API}/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(selectedContratista.identificacion)}`)
+          if (dashRes.ok) setDashboard(await dashRes.json())
+          if (resumen) setResumen(await getResumenContratista(selectedContratista.id))
+        }
       }
     } catch (err) {
       console.error("Error evaluando evidencia:", err)
@@ -244,6 +274,10 @@ export default function EvaluacionDashboardPage() {
   // ─── Descargar informe ────────────────────────────────────────────
   const descargarInforme = (formato: "pdf" | "docx") => {
     if (!selectedContratista) return
+    if (selectedContratista.tipo === "APOYO") {
+      // Apoyo aún no tiene informe generado
+      return
+    }
     const token = localStorage.getItem("token")
     const url = `${API}/api/v1/evaluacion/contratista/${selectedContratista.id}/informe?formato=${formato}`
     const xhr = new XMLHttpRequest()
@@ -287,6 +321,7 @@ export default function EvaluacionDashboardPage() {
     const pendings = countPendings(dashboard, documentos)
     const docsAprobados = documentos.filter(d => d.estado === "APROBADO").length
     const docsPendientes = documentos.filter(d => d.estado === "PENDIENTE").length
+    const isApoyo = selectedContratista.tipo === "APOYO"
 
     return (
       <div className="space-y-5 max-w-full overflow-x-hidden pb-8">
@@ -300,7 +335,16 @@ export default function EvaluacionDashboardPage() {
               <ChevronLeft className="w-4 h-4" />
               Todos los contratistas
             </button>
-            <h1 className="text-lg sm:text-xl font-bold text-gray-800 truncate max-w-full">{selectedContratista.nombre}</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-gray-800 truncate max-w-full flex items-center gap-2">
+              {selectedContratista.nombre}
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                selectedContratista.tipo === "APOYO"
+                  ? "bg-purple-100 text-purple-700"
+                  : "bg-blue-100 text-blue-700"
+              }`}>
+                {selectedContratista.tipo === "APOYO" ? "APOYO" : "CONTRATISTA"}
+              </span>
+            </h1>
             <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-500">
               <span className="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded break-all">{selectedContratista.identificacion}</span>
               {selectedContratista.telefono && <span className="flex items-center gap-1"><Phone className="w-3 h-3 flex-shrink-0" /><span className="truncate max-w-[120px]">{selectedContratista.telefono}</span></span>}
@@ -308,12 +352,16 @@ export default function EvaluacionDashboardPage() {
             </div>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
-            <button onClick={() => descargarInforme("pdf")} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
-              <Download className="w-4 h-4 flex-shrink-0" /> PDF
-            </button>
-            <button onClick={() => descargarInforme("docx")} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              <FileText className="w-4 h-4 flex-shrink-0" /> DOCX
-            </button>
+            {selectedContratista.tipo !== "APOYO" && (
+              <>
+                <button onClick={() => descargarInforme("pdf")} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
+                  <Download className="w-4 h-4 flex-shrink-0" /> PDF
+                </button>
+                <button onClick={() => descargarInforme("docx")} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                  <FileText className="w-4 h-4 flex-shrink-0" /> DOCX
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -328,8 +376,10 @@ export default function EvaluacionDashboardPage() {
                 { label: "Rechazadas", value: resumen.rechazadas, color: "bg-red-50 text-red-700" },
                 { label: "Pendientes Ev.", value: pendings.evPendientes, color: "bg-yellow-50 text-yellow-700" },
                 { label: "Cumplimiento", value: `${resumen.porcentaje_cumplimiento}%`, color: "bg-blue-50 text-blue-700" },
-                { label: "Docs Pend.", value: docsPendientes, color: docsPendientes > 0 ? "bg-yellow-50 text-yellow-700" : "bg-gray-100 text-gray-700" },
-                { label: "Docs Aprob.", value: docsAprobados, color: "bg-emerald-50 text-emerald-700" },
+                ...(isApoyo ? [] : [
+                  { label: "Docs Pend.", value: docsPendientes, color: docsPendientes > 0 ? "bg-yellow-50 text-yellow-700" : "bg-gray-100 text-gray-700" },
+                  { label: "Docs Aprob.", value: docsAprobados, color: "bg-emerald-50 text-emerald-700" },
+                ]),
               ].map((k) => (
                 <div key={k.label} className={`text-center p-2.5 rounded-xl min-w-[85px] snap-start flex-shrink-0 ${k.color}`}>
                   <p className="text-base font-bold">{k.value}</p>
@@ -345,8 +395,10 @@ export default function EvaluacionDashboardPage() {
                 { label: "Rechazadas", value: resumen.rechazadas, color: "bg-red-50 text-red-700" },
                 { label: "Pendientes", value: pendings.evPendientes, color: "bg-yellow-50 text-yellow-700" },
                 { label: "Cumplimiento", value: `${resumen.porcentaje_cumplimiento}%`, color: "bg-blue-50 text-blue-700" },
-                { label: "Docs Pend.", value: docsPendientes, color: docsPendientes > 0 ? "bg-yellow-50 text-yellow-700" : "bg-gray-100 text-gray-700" },
-                { label: "Docs Aprob.", value: docsAprobados, color: "bg-emerald-50 text-emerald-700" },
+                ...(isApoyo ? [] : [
+                  { label: "Docs Pend.", value: docsPendientes, color: docsPendientes > 0 ? "bg-yellow-50 text-yellow-700" : "bg-gray-100 text-gray-700" },
+                  { label: "Docs Aprob.", value: docsAprobados, color: "bg-emerald-50 text-emerald-700" },
+                ]),
               ].map((k) => (
                 <div key={k.label} className={`text-center p-3 rounded-xl ${k.color}`}>
                   <p className="text-lg font-bold">{k.value}</p>
@@ -369,24 +421,30 @@ export default function EvaluacionDashboardPage() {
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 Actividades y Evidencias
               </h2>
-              {!dashboard || !dashboard.contratos?.length ? (
-                <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-                  <p className="text-gray-500">No hay contratos activos para este contratista.</p>
-                </div>
-              ) : (
-                dashboard.contratos.map((contrato: any, ci: number) => (
-                  <div key={ci} className="mb-4 bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-                      <p className="font-semibold text-gray-800 text-sm">
-                        {contrato.numero_contrato}
-                        {contrato.perfil && <span className="font-normal text-gray-500 ml-2">{contrato.perfil}</span>}
-                      </p>
+              {(() => {
+                // Apoyo: actividades directas en dashboard.actividades
+                // Contratista: actividades anidadas en dashboard.contratos[].actividades
+                const actividades = isApoyo
+                  ? (dashboard?.actividades || [])
+                  : (dashboard?.contratos || []).length > 0
+                    ? dashboard.contratos.flatMap((c: any) => (c.actividades || []).map((a: any) => ({ ...a, contrato: c })))
+                    : []
+
+                if (!dashboard || actividades.length === 0) {
+                  return (
+                    <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+                      <p className="text-gray-500">No hay actividades registradas.</p>
                     </div>
-                    {contrato.actividades?.length === 0 ? (
-                      <div className="px-4 py-3 text-sm text-gray-400">Sin actividades registradas.</div>
-                    ) : (
-                      <div className="divide-y divide-gray-100">
-                        {contrato.actividades.map((act: any, ai: number) => {
+                  )
+                }
+
+                return (
+                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="divide-y divide-gray-100">
+                      {actividades.map((act: any, ai: number) => {
+                        // Add contrato_numero for display if available
+                        const contratoNum = act.contrato?.numero_contrato
+                        const contratoPerfil = act.contrato?.perfil
                           const isExpanded = expandedActividades.has(act.id)
                           const evs = act.evidencias || []
                           const aprobadas = evs.filter((e: Evidencia) => e.estado === "APROBADO")
@@ -480,16 +538,16 @@ export default function EvaluacionDashboardPage() {
                                 </div>
                               )}
                             </div>
-                          )
-                        })}
+                      )
+                    })}
                       </div>
-                    )}
-                  </div>
-                ))
-              )}
+                    </div>
+                  );
+                })()}
             </section>
 
             {/* ── DOCUMENTOS CONTRACTUALES ── */}
+            {!isApoyo && (
             <section>
               <h2 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-emerald-600" />
@@ -570,6 +628,7 @@ export default function EvaluacionDashboardPage() {
                 </div>
               )}
             </section>
+            )}
           </>
         )}
       </div>
@@ -623,16 +682,18 @@ export default function EvaluacionDashboardPage() {
               className="bg-white rounded-xl border border-gray-200 p-4 text-left hover:border-emerald-300 hover:shadow-sm transition-all"
             >
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                  <User className="w-4 h-4 text-emerald-600" />
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${c.tipo === "APOYO" ? "bg-purple-100" : "bg-emerald-100"}`}>
+                  <User className={`w-4 h-4 ${c.tipo === "APOYO" ? "text-purple-600" : "text-emerald-600"}`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-800 text-sm truncate">{c.nombre}</p>
+                  <p className="font-semibold text-gray-800 text-sm truncate flex items-center gap-1.5">
+                    {c.nombre}
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 ${c.tipo === "APOYO" ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"}`}>{c.tipo === "APOYO" ? "APOYO" : "CONT"}</span>
+                  </p>
                   <p className="text-xs text-gray-500 font-mono">{c.identificacion}</p>
+                  {(c as any).perfil && <p className="text-xs text-gray-400 truncate mt-0.5">{(c as any).perfil}</p>}
                   <div className="flex flex-wrap gap-1.5 mt-2">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                      c.pendientes > 0 ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-500"
-                    }`}>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${c.pendientes > 0 ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-500"}`}>
                       <Clock className="w-3 h-3" />{c.pendientes} pend.
                     </span>
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">

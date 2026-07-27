@@ -27,6 +27,7 @@ from app.routers import (
     seguridad_router,
     evaluacion_router,
     documentos_router,
+    apoyo_router,
 )
 from app.models.plantilla_objeto import PlantillaObjeto
 from app.seed_data import seed_database
@@ -279,6 +280,7 @@ app.include_router(auth_router)
 app.include_router(seguridad_router)
 app.include_router(evaluacion_router)
 app.include_router(documentos_router)
+app.include_router(apoyo_router)
 
 # Archivos estáticos: logo, evidencias, etc.
 static_dir = os.path.join(os.path.dirname(__file__), "static")
