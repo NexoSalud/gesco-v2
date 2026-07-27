@@ -27,6 +27,7 @@ class ApoyoCreate(BaseModel):
 
 class ApoyoUpdate(BaseModel):
     nombre: str | None = None
+    identificacion: str | None = None
     telefono: str | None = None
     correo: str | None = None
     perfil: str | None = None
