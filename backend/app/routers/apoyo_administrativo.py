@@ -436,3 +436,58 @@ async def resumen_apoyo(
         pendientes=pendientes,
         porcentaje_cumplimiento=porcentaje,
     )
+
+# ─── Endpoint de carga masiva desde el seed_data (una sola vez) ────────────
+
+@router.post("/seed-from-docx", status_code=200)
+async def seed_apoyo_from_docx(
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    """Carga los ApoyoAdministrativo y sus actividades desde el seed_apoyo.py.
+    Solo ejecuta si no hay registros previos."""
+    from app.seed_apoyo import SECTIONS
+
+    # Check if already seeded
+    existing = await db.execute(select(ApoyoAdministrativo).limit(1))
+    if existing.scalar_one_or_none():
+        return {"message": "Ya hay registros de ApoyoAdministrativo, no se duplica la carga", "count": 0}
+
+    total_apoyos = 0
+    total_actividades = 0
+
+    for section in SECTIONS:
+        role = section["role"]
+        names = section["names"]
+        actividades_text = section["actividades"]
+
+        for name in names:
+            ident = f"APOYO-{role.split()[0][:3].upper()}-{name.split()[0].upper()}"
+
+            apoyo = ApoyoAdministrativo(
+                nombre=name,
+                identificacion=ident,
+                perfil=role,
+                activo=True,
+            )
+            db.add(apoyo)
+            await db.flush()
+
+            for i, act_text in enumerate(actividades_text):
+                act = ActividadApoyo(
+                    apoyo_id=apoyo.id,
+                    descripcion=act_text,
+                    tipo="GENERAL",
+                    orden=i + 1,
+                )
+                db.add(act)
+
+            total_apoyos += 1
+            total_actividades += len(actividades_text)
+
+    await db.commit()
+    return {
+        "message": "Carga completada",
+        "apoyos_creados": total_apoyos,
+        "actividades_creadas": total_actividades,
+    }
