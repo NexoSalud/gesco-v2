@@ -127,6 +127,71 @@ def _add_table_header_row(table, headers: list[str], col_widths: list[float] = N
         if col_widths and i < len(col_widths):
             cell.width = Cm(col_widths[i])
 
+UPLOADS_BASE = "/app/uploads"
+
+
+_ = _set_cell_border  # referenced but type: ignore
+
+
+def _add_actividad_row_with_evidence(table, values: list[str], evidencias: list,
+                                       col_widths: list[float] = None,
+                                       bold_first=False):
+    """Agrega una fila a la tabla con texto en las columnas y, si hay evidencias
+    de tipo IMAGEN aprobadas, las incrusta en la tercera columna."""
+    row = table.add_row()
+    for i, val in enumerate(values):
+        cell = row.cells[i]
+        cell.text = ""
+        p = cell.paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT if i > 0 else WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.space_before = Pt(1)
+        p.paragraph_format.space_after = Pt(1)
+        run = p.add_run(val)
+        run.font.name = FONT_NAME
+        run.font.size = FONT_SIZE_TABLE_CELL
+        run.font.color.rgb = COLOR_TEXT
+        if bold_first and i == 0:
+            run.bold = True
+        if col_widths and i < len(col_widths):
+            cell.width = Cm(col_widths[i])
+
+        # Para la tercera columna (ACTIVIDAD REALIZADA), incrustar imágenes
+        if i == 2 and evidencias:
+            img_evidencias = [ev for ev in evidencias if ev.tipo == "IMAGEN" and ev.estado == "APROBADO"]
+            if img_evidencias:
+                p.paragraph_format.space_after = Pt(4)
+                for ev in img_evidencias:
+                    if not ev.archivo_ruta:
+                        continue
+                    # Convertir ruta URL a ruta local
+                    local_path = ev.archivo_ruta
+                    if local_path.startswith("/uploads/"):
+                        local_path = UPLOADS_BASE + local_path[8:]
+                    if os.path.exists(local_path):
+                        try:
+                            img_p = cell.add_paragraph()
+                            img_p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                            img_run = img_p.add_run()
+                            # Escalar a max 12cm de ancho o 8cm de alto
+                            img_run.add_picture(local_path, width=Cm(10))
+                            # Nombre del archivo debajo
+                            cap_p = cell.add_paragraph()
+                            cap_p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                            cap_run = cap_p.add_run(f"(Imagen: {ev.archivo_nombre or 'sin nombre'})")
+                            cap_run.font.name = FONT_NAME
+                            cap_run.font.size = Pt(7)
+                            cap_run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
+                            cap_run.italic = True
+                        except Exception as img_err:
+                            logger.warning(f"Error al incrustar imagen {local_path}: {img_err}")
+                    else:
+                        logger.warning(f"Imagen no encontrada en disco: {local_path}")
+
+    return row
+
+
+_ = _set_cell_border  # referenced but type: ignore
+
 
 def _add_data_row(table, values: list[str], col_widths: list[float] = None,
                    bold_first=False, bg_color=None):
@@ -531,11 +596,11 @@ async def _build_section_vi(doc, db: AsyncSession, mes: int, anio: int,
                     f"perfil. Pendiente de reporte de ejecución detallada."
                 )
 
-            _add_data_row(table, [
+            _add_actividad_row_with_evidence(table, [
                 str(act_idx),
                 act.descripcion,
                 texto_realizada,
-            ], col_widths)
+            ], evidencias, col_widths)
 
         _add_formatted_paragraph(doc, "", space_after=Cm(0.4))
 
