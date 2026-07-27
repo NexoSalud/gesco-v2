@@ -280,7 +280,24 @@ export default function EvaluacionDashboardPage() {
   const descargarInforme = (formato: "pdf" | "docx") => {
     if (!selectedContratista) return
     if (selectedContratista.tipo === "APOYO") {
-      // Apoyo aún no tiene informe generado
+      // Abrir informe mensual de apoyo
+      const url = `${API}/api/v1/apoyo/informe-mensual?mes=${new Date().getMonth() + 1}&anio=${new Date().getFullYear()}`
+      const token = localStorage.getItem("token")
+      const xhr = new XMLHttpRequest()
+      xhr.open("GET", url)
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`)
+      xhr.responseType = "blob"
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const blob = new Blob([xhr.response])
+          const link = document.createElement("a")
+          link.href = URL.createObjectURL(blob)
+          link.download = `INFORME_ACTIVIDADES_APOYO_ADVO_EBS.docx`
+          link.click()
+          URL.revokeObjectURL(link.href)
+        }
+      }
+      xhr.send()
       return
     }
     const token = localStorage.getItem("token")
