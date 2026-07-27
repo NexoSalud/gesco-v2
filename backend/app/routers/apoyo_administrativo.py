@@ -439,58 +439,40 @@ async def resumen_apoyo(
 
 # ─── Endpoint de carga masiva desde el seed_data (una sola vez) ────────────
 
-@router.post("/seed-from-docx", status_code=200)
-async def seed_apoyo_from_docx(
+
+
+
+@router.post("/seed-actividades", status_code=200)
+async def seed_actividades(
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
-    """Carga los ApoyoAdministrativo y sus actividades desde el seed_apoyo.py.
-    Solo ejecuta si no hay registros previos."""
+    """Crea actividades desde el DOCX para apoyos que no tengan ninguna."""
     from app.seed_apoyo import SECTIONS
 
-    total_apoyos = 0
-    total_actividades = 0
-
-    # Check if actividades already exist
-    act_existing = await db.execute(select(ActividadApoyo).limit(1))
-    if act_existing.scalar_one_or_none():
-        return {"message": "Las actividades ya están cargadas", "count": 0}
+    creadas = 0
+    omitidas = 0
 
     for section in SECTIONS:
-        role = section["role"]
-        names = section["names"]
-        actividades_text = section["actividades"]
-
-        for name in names:
-            # Find or create apoyo
-            existing = await db.execute(
+        for name in section["names"]:
+            result = await db.execute(
                 select(ApoyoAdministrativo).where(ApoyoAdministrativo.nombre == name)
             )
-            apoyo = existing.scalar_one_or_none()
+            apoyo = result.scalar_one_or_none()
             if not apoyo:
-                ident = f"APOYO-{role.split()[0][:3].upper()}-{name.split()[0].upper()}"
-                apoyo = ApoyoAdministrativo(
-                    nombre=name, identificacion=ident, perfil=role, activo=True,
-                )
-                db.add(apoyo)
-                await db.flush()
-                total_apoyos += 1
-
-            # Skip if already has activities
-            apoy_acts = await db.execute(
-                select(ActividadApoyo).where(ActividadApoyo.apoyo_id == apoyo.id).limit(1)
-            )
-            if apoy_acts.scalar_one_or_none():
+                logger.warning(f"Apoyo no encontrado: {name}")
                 continue
 
-            for i, at in enumerate(actividades_text):
+            act_result = await db.execute(
+                select(ActividadApoyo).where(ActividadApoyo.apoyo_id == apoyo.id).limit(1)
+            )
+            if act_result.scalar_one_or_none():
+                omitidas += len(section["actividades"])
+                continue
+
+            for i, at in enumerate(section["actividades"]):
                 db.add(ActividadApoyo(apoyo_id=apoyo.id, descripcion=at, tipo="GENERAL", orden=i + 1))
-            total_actividades += len(actividades_text)
+            creadas += len(section["actividades"])
 
     await db.commit()
-    return {
-        "message": "Carga completada",
-        "apoyos_creados": total_apoyos,
-        "actividades_creadas": total_actividades,
-    }
-
+    return {"actividades_creadas": creadas, "actividades_omitidas": omitidas}
