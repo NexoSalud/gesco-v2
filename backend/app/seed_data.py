@@ -260,8 +260,38 @@ async def seed_database():
                     await db.execute(text("DELETE FROM perfiles"))
                     await db.commit()
                 else:
-                    logger.info("Seed data ya existe, saltando...")
-                    return
+                    logger.info("Seed data ya existe para perfiles.")
+
+                # ─── Seed ApoyoAdministrativo (se ejecuta siempre) ────────
+                from app.seed_apoyo import SECTIONS
+                from app.models.apoyo_administrativo import ApoyoAdministrativo
+                from app.models.actividad_apoyo import ActividadApoyo
+
+                apoyo_check = await db.execute(select(ApoyoAdministrativo).limit(1))
+                if apoyo_check.scalar_one_or_none() is None:
+                    logger.info("Sembrando ApoyoAdministrativo...")
+                    count_a = 0
+                    count_acts = 0
+                    for section in SECTIONS:
+                        role = section["role"]
+                        names = section["names"]
+                        acts_text = section["actividades"]
+                        for name in names:
+                            ident = f"APOYO-{role.split()[0][:3].upper()}-{name.split()[0].upper()}"
+                            apoyo = ApoyoAdministrativo(
+                                nombre=name, identificacion=ident, perfil=role, activo=True,
+                            )
+                            db.add(apoyo)
+                            await db.flush()
+                            for i, at in enumerate(acts_text):
+                                db.add(ActividadApoyo(apoyo_id=apoyo.id, descripcion=at, tipo="GENERAL", orden=i + 1))
+                            count_a += 1
+                            count_acts += len(acts_text)
+                    await db.commit()
+                    logger.info(f"ApoyoAdministrativo: {count_a} apoyos, {count_acts} actividades")
+
+                # ─── Fin seed apoyos ─────────────────────────────────────
+                return  # perfiles ya existen, salir sin re-insertarlos
 
             logger.info("Insertando datos iniciales...")
 
@@ -292,44 +322,6 @@ async def seed_database():
                     contenido=pt["contenido"],
                 )
                 db.add(plantilla)
-
-            # ─── Seed ApoyoAdministrativo ────────────────────────────────────
-            try:
-                from app.models.apoyo_administrativo import ApoyoAdministrativo
-                from app.models.actividad_apoyo import ActividadApoyo
-                from app.seed_apoyo import SECTIONS
-
-                result = await db.execute(select(ApoyoAdministrativo).limit(1))
-                if result.scalar_one_or_none() is None:
-                    logger.info("Sembrando ApoyoAdministrativo...")
-                    count_apoyos = 0
-                    count_acts = 0
-                    for section in SECTIONS:
-                        role = section["role"]
-                        names = section["names"]
-                        acts_text = section["actividades"]
-                        for name in names:
-                            ident = f"APOYO-{role.split()[0][:3].upper()}-{name.split()[0].upper()}"
-                            apoyo = ApoyoAdministrativo(
-                                nombre=name,
-                                identificacion=ident,
-                                perfil=role,
-                                activo=True,
-                            )
-                            db.add(apoyo)
-                            await db.flush()
-                            for i, at in enumerate(acts_text):
-                                db.add(ActividadApoyo(
-                                    apoyo_id=apoyo.id,
-                                    descripcion=at,
-                                    tipo="GENERAL",
-                                    orden=i + 1,
-                                ))
-                            count_apoyos += 1
-                            count_acts += len(acts_text)
-                    logger.info(f"ApoyoAdministrativo: {count_apoyos} apoyos, {count_acts} actividades")
-            except Exception as e:
-                logger.warning(f"Error en seed de ApoyoAdministrativo: {e}")
 
             await db.commit()
             logger.info(f"Seed completado: {len(PERFILES_DATA)} perfiles creados")
