@@ -1,5 +1,6 @@
 """ActividadApoyo — actividades/obligaciones específicas de cada apoyo administrativo."""
 
+import datetime
 from sqlalchemy import String, Text, Integer, ForeignKey, Boolean, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
