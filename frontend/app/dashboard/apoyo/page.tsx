@@ -269,9 +269,18 @@ export default function ApoyoPage() {
                   const link = document.createElement("a")
                   link.href = URL.createObjectURL(new Blob([xhr.response]))
                   link.download = `INFORME_ACTIVIDADES_APOYO_ADVO_EBS.docx`
+                  document.body.appendChild(link)
                   link.click()
+                  document.body.removeChild(link)
                   URL.revokeObjectURL(link.href)
+                } else {
+                  console.error("Error al descargar informe:", xhr.status, xhr.statusText)
+                  alert("Error al descargar el informe. Verifica la consola para más detalles.")
                 }
+              }
+              xhr.onerror = () => {
+                console.error("Error de red al descargar el informe")
+                alert("Error de conexión al descargar el informe.")
               }
               xhr.send()
             }}
