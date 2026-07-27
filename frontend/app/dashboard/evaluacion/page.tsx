@@ -374,7 +374,11 @@ export default function EvaluacionDashboardPage() {
             </div>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
-            {selectedContratista.tipo !== "APOYO" && (
+            {selectedContratista.tipo === "APOYO" ? (
+              <button onClick={() => descargarInforme("docx")} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                <FileText className="w-4 h-4 flex-shrink-0" /> Informe mensual
+              </button>
+            ) : (
               <>
                 <button onClick={() => descargarInforme("pdf")} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
                   <Download className="w-4 h-4 flex-shrink-0" /> PDF
