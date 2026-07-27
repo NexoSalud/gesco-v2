@@ -79,14 +79,14 @@ function InlineEvaluar({
         placeholder="Observación (opcional)..."
         disabled={evaluating}
       />
-      <div className="flex gap-2 justify-end flex-wrap">
-        <button onClick={onCancel} className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 rounded-lg transition-colors" disabled={evaluating}>
+      <div className="flex gap-1.5 justify-end flex-wrap">
+        <button onClick={onCancel} className="px-2.5 sm:px-3 py-1.5 sm:py-1.5 text-xs text-gray-600 hover:bg-gray-200 rounded-lg transition-colors" disabled={evaluating}>
           Cancelar
         </button>
         <button
           onClick={() => onEvaluar("RECHAZADO")}
           disabled={evaluating}
-          className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center gap-1"
+          className="px-2.5 sm:px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center gap-1"
         >
           {evaluating ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
           Rechazar
@@ -94,7 +94,7 @@ function InlineEvaluar({
         <button
           onClick={() => onEvaluar("APROBADO")}
           disabled={evaluating}
-          className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center gap-1"
+          className="px-2.5 sm:px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center gap-1"
         >
           {evaluating ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
           Aprobar
@@ -291,8 +291,8 @@ export default function EvaluacionDashboardPage() {
     return (
       <div className="space-y-5 max-w-full overflow-x-hidden pb-8">
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="space-y-1 min-w-0">
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-3 flex-wrap">
+          <div className="space-y-1 min-w-0 w-full sm:w-auto">
             <button
               onClick={backToList}
               className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 transition-colors"
@@ -300,47 +300,61 @@ export default function EvaluacionDashboardPage() {
               <ChevronLeft className="w-4 h-4" />
               Todos los contratistas
             </button>
-            <h1 className="text-xl font-bold text-gray-800 truncate">{selectedContratista.nombre}</h1>
-            <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
-              <span className="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded">{selectedContratista.identificacion}</span>
-              {selectedContratista.telefono && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{selectedContratista.telefono}</span>}
-              {selectedContratista.correo && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{selectedContratista.correo}</span>}
+            <h1 className="text-lg sm:text-xl font-bold text-gray-800 truncate max-w-full">{selectedContratista.nombre}</h1>
+            <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-500">
+              <span className="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded break-all">{selectedContratista.identificacion}</span>
+              {selectedContratista.telefono && <span className="flex items-center gap-1"><Phone className="w-3 h-3 flex-shrink-0" /><span className="truncate max-w-[120px]">{selectedContratista.telefono}</span></span>}
+              {selectedContratista.correo && <span className="flex items-center gap-1"><Mail className="w-3 h-3 flex-shrink-0" /><span className="truncate max-w-[150px]">{selectedContratista.correo}</span></span>}
             </div>
           </div>
-          <div className="flex gap-2 flex-shrink-0">
-            <button onClick={() => descargarInforme("pdf")} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
-              <Download className="w-4 h-4" /> PDF
+          <div className="flex gap-2 w-full sm:w-auto">
+            <button onClick={() => descargarInforme("pdf")} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
+              <Download className="w-4 h-4 flex-shrink-0" /> PDF
             </button>
-            <button onClick={() => descargarInforme("docx")} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              <FileText className="w-4 h-4" /> DOCX
+            <button onClick={() => descargarInforme("docx")} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <FileText className="w-4 h-4 flex-shrink-0" /> DOCX
             </button>
           </div>
         </div>
 
-        {/* KPIs */}
+        {/* KPIs — scrollable horizontal en mobile, grid en desktop */}
         {resumen && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2">
-            {[
-              { label: "Actividades", value: resumen.total_actividades, color: "bg-gray-100 text-gray-700" },
-              { label: "Aprobadas", value: resumen.aprobadas, color: "bg-emerald-50 text-emerald-700" },
-              { label: "Rechazadas", value: resumen.rechazadas, color: "bg-red-50 text-red-700" },
-              { label: "Pendientes", value: pendings.evPendientes, color: "bg-yellow-50 text-yellow-700" },
-              { label: "Cumplimiento", value: `${resumen.porcentaje_cumplimiento}%`, color: "bg-blue-50 text-blue-700" },
-            ].map((k) => (
-              <div key={k.label} className={`text-center p-3 rounded-xl ${k.color}`}>
-                <p className="text-xl font-bold">{k.value}</p>
-                <p className="text-xs mt-0.5 opacity-75">{k.label}</p>
-              </div>
-            ))}
-            <div className={`text-center p-3 rounded-xl ${docsPendientes > 0 ? "bg-yellow-50 text-yellow-700" : "bg-gray-100 text-gray-700"}`}>
-              <p className="text-xl font-bold">{docsPendientes}</p>
-              <p className="text-xs mt-0.5 opacity-75">Docs Pend.</p>
+          <>
+            {/* Mobile: horizontal scroll */}
+            <div className="flex sm:hidden gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory">
+              {[
+                { label: "Actividades", value: resumen.total_actividades, color: "bg-gray-100 text-gray-700" },
+                { label: "Aprobadas", value: resumen.aprobadas, color: "bg-emerald-50 text-emerald-700" },
+                { label: "Rechazadas", value: resumen.rechazadas, color: "bg-red-50 text-red-700" },
+                { label: "Pendientes Ev.", value: pendings.evPendientes, color: "bg-yellow-50 text-yellow-700" },
+                { label: "Cumplimiento", value: `${resumen.porcentaje_cumplimiento}%`, color: "bg-blue-50 text-blue-700" },
+                { label: "Docs Pend.", value: docsPendientes, color: docsPendientes > 0 ? "bg-yellow-50 text-yellow-700" : "bg-gray-100 text-gray-700" },
+                { label: "Docs Aprob.", value: docsAprobados, color: "bg-emerald-50 text-emerald-700" },
+              ].map((k) => (
+                <div key={k.label} className={`text-center p-2.5 rounded-xl min-w-[85px] snap-start flex-shrink-0 ${k.color}`}>
+                  <p className="text-base font-bold">{k.value}</p>
+                  <p className="text-[10px] mt-0.5 opacity-75 whitespace-nowrap">{k.label}</p>
+                </div>
+              ))}
             </div>
-            <div className="text-center p-3 rounded-xl bg-emerald-50 text-emerald-700">
-              <p className="text-xl font-bold">{docsAprobados}</p>
-              <p className="text-xs mt-0.5 opacity-75">Docs Aprob.</p>
+            {/* Desktop: grid */}
+            <div className="hidden sm:grid sm:grid-cols-4 md:grid-cols-7 gap-2">
+              {[
+                { label: "Actividades", value: resumen.total_actividades, color: "bg-gray-100 text-gray-700" },
+                { label: "Aprobadas", value: resumen.aprobadas, color: "bg-emerald-50 text-emerald-700" },
+                { label: "Rechazadas", value: resumen.rechazadas, color: "bg-red-50 text-red-700" },
+                { label: "Pendientes", value: pendings.evPendientes, color: "bg-yellow-50 text-yellow-700" },
+                { label: "Cumplimiento", value: `${resumen.porcentaje_cumplimiento}%`, color: "bg-blue-50 text-blue-700" },
+                { label: "Docs Pend.", value: docsPendientes, color: docsPendientes > 0 ? "bg-yellow-50 text-yellow-700" : "bg-gray-100 text-gray-700" },
+                { label: "Docs Aprob.", value: docsAprobados, color: "bg-emerald-50 text-emerald-700" },
+              ].map((k) => (
+                <div key={k.label} className={`text-center p-3 rounded-xl ${k.color}`}>
+                  <p className="text-lg font-bold">{k.value}</p>
+                  <p className="text-[11px] mt-0.5 opacity-75">{k.label}</p>
+                </div>
+              ))}
             </div>
-          </div>
+          </>
         )}
 
         {loadingData ? (
@@ -389,27 +403,27 @@ export default function EvaluacionDashboardPage() {
                                   isExpanded ? next.delete(act.id) : next.add(act.id)
                                   setExpandedActividades(next)
                                 }}
-                                className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
+                                className="w-full flex items-center gap-1.5 px-3 sm:px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
                               >
-                                <span className="text-sm font-bold text-gray-400 w-6 flex-shrink-0">#{ai + 1}</span>
-                                <span className="flex-1 text-sm text-gray-700 min-w-0 truncate">{act.descripcion}</span>
+                                <span className="text-xs sm:text-sm font-bold text-gray-400 w-5 sm:w-6 flex-shrink-0">#{ai + 1}</span>
+                                <span className="flex-1 text-xs sm:text-sm text-gray-700 min-w-0 break-words line-clamp-2">{act.descripcion}</span>
                                 {ESTADO_BADGE(actEstado)}
-                                {isExpanded ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                                {isExpanded ? <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" />}
                               </button>
 
                               {/* Evidencias (expandidas) */}
                               {isExpanded && (
-                                <div className="px-4 pb-3 space-y-2">
+                                <div className="px-2 sm:px-4 pb-3 space-y-1.5">
                                   {evs.length === 0 ? (
-                                    <p className="text-xs text-gray-400 italic pl-8">Sin evidencias.</p>
+                                    <p className="text-xs text-gray-400 italic pl-6 sm:pl-8">Sin evidencias.</p>
                                   ) : (
                                     evs.map((ev: Evidencia) => {
                                       const isEvaluating = evaluatingId === ev.id && evaluatingType === "evidencia"
                                       return (
-                                        <div key={ev.id} className="pl-8">
-                                          <div className="flex items-start gap-2">
-                                            <div className="flex-shrink-0 mt-0.5">{TIPO_ICON(ev.tipo)}</div>
-                                            <div className="flex-1 min-w-0">
+                                        <div key={ev.id} className="pl-4 sm:pl-8">
+                                          <div className="flex items-start gap-1.5 sm:gap-2">
+                                            <div className="flex-shrink-0 mt-0.5 scale-75 sm:scale-100">{TIPO_ICON(ev.tipo)}</div>
+                                            <div className="flex-1 min-w-0 overflow-hidden">
                                               <div className="flex items-center gap-2 flex-wrap">
                                                 {ESTADO_BADGE(ev.estado)}
                                                 <span className="text-xs text-gray-500">
@@ -496,21 +510,21 @@ export default function EvaluacionDashboardPage() {
                       const tipoInfo = TIPOS_DOCUMENTO.find((t) => t.valor === doc.tipo_documento)
                       return (
                         <div key={doc.id}>
-                          <div className="flex items-start gap-3 p-3 hover:bg-gray-50 transition-colors">
-                            <div className="flex-shrink-0 text-lg mt-0.5">{TIPO_DOC_ICON[doc.tipo_documento] || "📄"}</div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-medium text-sm text-gray-800">{tipoInfo?.etiqueta || doc.tipo_documento}</span>
+                          <div className="flex items-start gap-2 p-2 sm:p-3 hover:bg-gray-50 transition-colors">
+                            <div className="flex-shrink-0 text-base sm:text-lg mt-0.5">{TIPO_DOC_ICON[doc.tipo_documento] || "📄"}</div>
+                            <div className="flex-1 min-w-0 overflow-hidden">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-medium text-xs sm:text-sm text-gray-800 break-words">{tipoInfo?.etiqueta || doc.tipo_documento}</span>
                                 {ESTADO_BADGE(doc.estado)}
                               </div>
-                              <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-gray-500">
-                                <span className="truncate max-w-[200px]">{doc.archivo_nombre}</span>
-                                <span>•</span>
-                                <span>{new Date(doc.created_at).toLocaleDateString("es-CO")}</span>
-                                {doc.contrato_numero && <><span>•</span><span>Contrato {doc.contrato_numero}</span></>}
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-[11px] text-gray-500">
+                                <span className="truncate max-w-[100px] sm:max-w-[200px] block">{doc.archivo_nombre}</span>
+                                <span className="hidden sm:inline">•</span>
+                                <span className="whitespace-nowrap">{new Date(doc.created_at).toLocaleDateString("es-CO")}</span>
+                                {doc.contrato_numero && <><span className="hidden sm:inline">•</span><span className="truncate max-w-[100px]">Contrato {doc.contrato_numero}</span></>}
                               </div>
                               {doc.observacion && (
-                                <p className="text-xs text-yellow-700 mt-1 italic">Obs: {doc.observacion}</p>
+                                <p className="text-[11px] text-yellow-700 mt-1 italic break-words">Obs: {doc.observacion}</p>
                               )}
                             </div>
                             <div className="flex items-center gap-1 flex-shrink-0">
@@ -539,7 +553,7 @@ export default function EvaluacionDashboardPage() {
                             </div>
                           </div>
                           {isExpanded && evaluatingId === doc.id && evaluatingType === "documento" && (
-                            <div className="px-12 pb-3">
+                            <div className="px-4 sm:px-12 pb-3">
                               <InlineEvaluar
                                 onEvaluar={(estado) => handleEvaluarDocumento(doc.id, estado)}
                                 onCancel={() => { setExpandedDocumento(null); setEvaluatingId(null); setObservacion("") }}
