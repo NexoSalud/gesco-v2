@@ -359,43 +359,55 @@ async def evaluar_documento(
     if not doc:
         raise HTTPException(404, "Documento no encontrado")
 
-    doc.estado = data.estado
-    doc.observacion = data.observacion
-    doc.evaluated_by = current_user.id
-    from datetime import datetime
-    doc.evaluated_at = datetime.utcnow()
+    try:
+        doc.estado = data.estado
+        doc.observacion = data.observacion
+        doc.evaluated_by = current_user.id
+        from datetime import datetime
+        doc.evaluated_at = datetime.utcnow()
 
-    await db.commit()
-    await db.refresh(doc)
+        await db.commit()
+        await db.refresh(doc)
+    except Exception as e:
+        import traceback
+        logger.error(f"Error en evaluar_documento (commit/refresh): {e}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(500, f"Error al evaluar documento: {e}")
 
-    # Obtener datos del contratista
-    cont_result = await db.execute(
-        select(Contratista.nombre, Contratista.identificacion).where(
-            Contratista.id == doc.contratista_id
+    try:
+        # Obtener datos del contratista
+        cont_result = await db.execute(
+            select(Contratista.nombre, Contratista.identificacion).where(
+                Contratista.id == doc.contratista_id
+            )
         )
-    )
-    cont_row = cont_result.one_or_none()
-    cont_nombre = cont_row[0] if cont_row else None
-    cont_ident = cont_row[1] if cont_row else None
+        cont_row = cont_result.one_or_none()
+        cont_nombre = cont_row[0] if cont_row else None
+        cont_ident = cont_row[1] if cont_row else None
 
-    logger.info(f"Documento {doc.id} evaluado como {data.estado} por usuario {current_user.id}")
+        logger.info(f"Documento {doc.id} evaluado como {data.estado} por usuario {current_user.id}")
 
-    return DocumentoContratistaOut(
-        id=doc.id,
-        contratista_id=doc.contratista_id,
-        contrato_numero=doc.contrato_numero,
-        tipo_documento=doc.tipo_documento,
-        archivo_ruta=doc.archivo_ruta,
-        archivo_nombre=doc.archivo_nombre,
-        archivo_tamano=doc.archivo_tamano,
-        estado=doc.estado,
-        observacion=doc.observacion,
-        created_at=doc.created_at,
-        updated_at=doc.updated_at,
-        evaluated_at=doc.evaluated_at,
-        contratista_nombre=cont_nombre,
-        contratista_identificacion=cont_ident,
-    )
+        return DocumentoContratistaOut(
+            id=doc.id,
+            contratista_id=doc.contratista_id,
+            contrato_numero=doc.contrato_numero,
+            tipo_documento=doc.tipo_documento,
+            archivo_ruta=doc.archivo_ruta,
+            archivo_nombre=doc.archivo_nombre,
+            archivo_tamano=doc.archivo_tamano,
+            estado=doc.estado,
+            observacion=doc.observacion,
+            created_at=doc.created_at,
+            updated_at=doc.updated_at,
+            evaluated_at=doc.evaluated_at,
+            contratista_nombre=cont_nombre,
+            contratista_identificacion=cont_ident,
+        )
+    except Exception as e:
+        import traceback
+        logger.error(f"Error en evaluar_documento (serialización): {e}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(500, f"Error al serializar documento: {e}")
 
 
 @router.delete("/{documento_id}", status_code=204)
