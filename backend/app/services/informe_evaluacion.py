@@ -3,6 +3,7 @@ Genera PDF (WeasyPrint) y DOCX (python-docx) con estilo profesional tipo documen
 """
 
 import io
+import logging
 import base64
 import os
 from datetime import datetime
@@ -10,6 +11,8 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 from weasyprint import HTML
+
+logger = logging.getLogger(__name__)
 
 from docx import Document
 from docx.shared import Pt, Cm, Inches, RGBColor
