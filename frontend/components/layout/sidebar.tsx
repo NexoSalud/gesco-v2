@@ -63,6 +63,12 @@ const NAV_ITEMS = [
     permission: "contratos"
   },
   {
+    label: "Apoyo Admin.",
+    href: "/dashboard/apoyo",
+    icon: User,
+    permission: "contratos"
+  },
+  {
     label: "Supervisores",
     href: "/dashboard/supervisores",
     icon: BadgeCheck,
