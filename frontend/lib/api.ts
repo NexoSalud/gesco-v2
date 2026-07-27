@@ -794,6 +794,27 @@ export const getApoyos = (buscar?: string) => {
   return request<any[]>(`/api/v1/apoyo/${q}`)
 }
 
+export const crearApoyo = (data: any) =>
+  request<any>("/api/v1/apoyo/", { method: "POST", body: JSON.stringify(data) })
+
+export const actualizarApoyo = (id: number, data: any) =>
+  request<any>(`/api/v1/apoyo/${id}`, { method: "PUT", body: JSON.stringify(data) })
+
+export const eliminarApoyo = (id: number) =>
+  request<void>(`/api/v1/apoyo/${id}`, { method: "DELETE" })
+
+export const getActividadesApoyo = (apoyoId: number) =>
+  request<any[]>(`/api/v1/apoyo/${apoyoId}/actividades`)
+
+export const crearActividadApoyo = (apoyoId: number, data: any) =>
+  request<any>(`/api/v1/apoyo/${apoyoId}/actividades`, { method: "POST", body: JSON.stringify(data) })
+
+export const eliminarActividadApoyo = (id: number) =>
+  request<void>(`/api/v1/apoyo/actividades/${id}`, { method: "DELETE" })
+
+export const seedActividadesApoyo = () =>
+  request<any>("/api/v1/apoyo/seed-actividades", { method: "POST" })
+
 
 // ─── Documentos de Contratista ────────────────────────────────────────────────
 

@@ -2,14 +2,14 @@
 
 import { useEffect, useState, useCallback } from "react"
 import {
-  Loader2, Search, User, Plus, ChevronRight, Pencil, Trash2, X, Check,
-  Save, Phone, Mail, Briefcase, RefreshCw, FileText, ListChecks, ChevronDown,
-  Clock, CheckCircle2,
+  Loader2, Search, User, Plus, Pencil, Trash2, X,
+  Save, Phone, Mail, RefreshCw, FileText, ListChecks,
 } from "lucide-react"
-import { getApoyos } from "@/lib/api"
+import {
+  getApoyos, crearApoyo, actualizarApoyo, eliminarApoyo,
+  getActividadesApoyo, crearActividadApoyo, eliminarActividadApoyo,
+} from "@/lib/api"
 import { toast } from "sonner"
-
-const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
 
 interface Apoyo {
   id: number
@@ -63,10 +63,8 @@ function ActivitiesPanel({ apoyoId }: { apoyoId: number }) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/api/v1/apoyo/${apoyoId}/actividades`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      })
-      if (res.ok) setActividades(await res.json())
+      const acts = await getActividadesApoyo(apoyoId)
+      setActividades(acts)
     } catch { /* ignore */ }
     setLoading(false)
   }, [apoyoId])
@@ -77,35 +75,19 @@ function ActivitiesPanel({ apoyoId }: { apoyoId: number }) {
     if (!newDesc.trim()) return
     setAdding(true)
     try {
-      const res = await fetch(`${API}/api/v1/apoyo/${apoyoId}/actividades`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ descripcion: newDesc.trim(), orden: actividades.length + 1 }),
-      })
-      if (res.ok) {
-        setNewDesc("")
-        toast.success("Actividad agregada")
-        load()
-      } else {
-        toast.error("Error al agregar actividad")
-      }
+      await crearActividadApoyo(apoyoId, { descripcion: newDesc.trim(), orden: actividades.length + 1 })
+      setNewDesc("")
+      toast.success("Actividad agregada")
+      load()
     } catch { toast.error("Error de conexión") }
     setAdding(false)
   }
 
   const deleteActividad = async (id: number) => {
     try {
-      const res = await fetch(`${API}/api/v1/apoyo/actividades/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      })
-      if (res.ok) {
-        toast.success("Actividad eliminada")
-        load()
-      }
+      await eliminarActividadApoyo(id)
+      toast.success("Actividad eliminada")
+      load()
     } catch { toast.error("Error") }
   }
 
@@ -201,25 +183,15 @@ export default function ApoyoPage() {
     }
     setSaving(true)
     try {
-      const url = editingId
-        ? `${API}/api/v1/apoyo/${editingId}`
-        : `${API}/api/v1/apoyo/`
-      const res = await fetch(url, {
-        method: editingId ? "PUT" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(form),
-      })
-      if (res.ok) {
-        toast.success(editingId ? "Apoyo actualizado" : "Apoyo creado")
-        setFormOpen(false)
-        load(search)
+      if (editingId) {
+        await actualizarApoyo(editingId, form)
+        toast.success("Apoyo actualizado")
       } else {
-        const text = await res.text()
-        toast.error(text.slice(0, 100))
+        await crearApoyo(form)
+        toast.success("Apoyo creado")
       }
+      setFormOpen(false)
+      load(search)
     } catch { toast.error("Error de conexión") }
     setSaving(false)
   }
@@ -227,15 +199,10 @@ export default function ApoyoPage() {
   const handleDelete = async () => {
     if (!deleteId) return
     try {
-      const res = await fetch(`${API}/api/v1/apoyo/${deleteId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      })
-      if (res.ok) {
-        toast.success("Apoyo eliminado")
-        setDeleteId(null)
-        load(search)
-      }
+      await eliminarApoyo(deleteId)
+      toast.success("Apoyo eliminado")
+      setDeleteId(null)
+      load(search)
     } catch { toast.error("Error") }
   }
 
