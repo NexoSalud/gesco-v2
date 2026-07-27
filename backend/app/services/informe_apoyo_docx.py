@@ -130,9 +130,6 @@ def _add_table_header_row(table, headers: list[str], col_widths: list[float] = N
 UPLOADS_BASE = "/app/uploads"
 
 
-_ = _set_cell_border  # referenced but type: ignore
-
-
 def _add_actividad_row_with_evidence(table, values: list[str], evidencias: list,
                                        col_widths: list[float] = None,
                                        bold_first=False):
@@ -188,9 +185,6 @@ def _add_actividad_row_with_evidence(table, values: list[str], evidencias: list,
                         logger.warning(f"Imagen no encontrada en disco: {local_path}")
 
     return row
-
-
-_ = _set_cell_border  # referenced but type: ignore
 
 
 def _add_data_row(table, values: list[str], col_widths: list[float] = None,
