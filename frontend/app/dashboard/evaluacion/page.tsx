@@ -179,7 +179,7 @@ export default function EvaluacionDashboardPage() {
   const selectContratista = useCallback(async (c: ContratistaListItem) => {
     setSelectedContratista({
       id: c.id, nombre: c.nombre, identificacion: c.identificacion,
-      telefono: c.telefono, correo: c.correo,
+      telefono: c.telefono, correo: c.correo, tipo: c.tipo,
     })
     setLoadingData(true)
     setDashboard(null)
