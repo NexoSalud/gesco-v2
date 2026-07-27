@@ -494,17 +494,24 @@ async def _build_section_vi(doc, db: AsyncSession, mes: int, anio: int,
                 pendientes = [e for e in evidencias if e.estado == "PENDIENTE"]
                 rechazadas = [e for e in evidencias if e.estado == "RECHAZADO"]
 
-                partes = []
-                for ev in evidencias:
-                    if ev.tipo == "TEXTO" and ev.contenido_texto:
-                        partes.append(ev.contenido_texto[:200])
-
                 texto_realizada = f"{act_idx}. "
-                if aprobadas and not rechazadas:
+
+                if aprobadas:
                     texto_realizada += (
                         "Se ejecutó la actividad conforme a lo programado, presentando las "
                         "evidencias requeridas para su verificación y registro documental. "
                     )
+                    texto_realizada += f"Se cuenta con {len(aprobadas)} evidencia(s) aprobada(s)."
+                    # Detallar cada evidencia aprobada
+                    for ev in aprobadas:
+                        if ev.tipo == "TEXTO" and ev.contenido_texto:
+                            texto_realizada += f"\n\n- Evidencia de texto: {ev.contenido_texto[:300]}"
+                        elif ev.tipo == "IMAGEN":
+                            nombre = ev.archivo_nombre or "imagen"
+                            texto_realizada += f"\n\n- Evidencia gráfica: {nombre}"
+                        elif ev.tipo == "ARCHIVO":
+                            nombre = ev.archivo_nombre or "archivo"
+                            texto_realizada += f"\n\n- Evidencia documental: {nombre}"
                 elif rechazadas and not aprobadas:
                     texto_realizada += (
                         "La actividad se ejecutó parcialmente. Se presentaron soportes que "
@@ -516,10 +523,8 @@ async def _build_section_vi(doc, db: AsyncSession, mes: int, anio: int,
                         "el período, con soportes en proceso de revisión. "
                     )
 
-                if aprobadas:
-                    texto_realizada += f"Se cuenta con {len(aprobadas)} evidencia(s) aprobada(s)."
-                if partes:
-                    texto_realizada += f"\n\nDescripción: {partes[0]}"
+                if rechazadas:
+                    texto_realizada += f"\n{len(rechazadas)} evidencia(s) rechazada(s) requieren corrección."
             else:
                 texto_realizada = (
                     f"{act_idx}. Actividad corresponde a las obligaciones contractuales del "
