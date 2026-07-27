@@ -19,11 +19,18 @@ export default function EvaluacionPage() {
 
     try {
       const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
-      const res = await fetch(`${API}/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(cedula.trim())}`)
+
+      // Primero buscar como contratista
+      let res = await fetch(`${API}/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(cedula.trim())}`)
+
+      if (!res.ok && res.status === 404) {
+        // Si no es contratista, buscar como apoyo administrativo
+        res = await fetch(`${API}/api/v1/apoyo/evaluacion/buscar?cedula=${encodeURIComponent(cedula.trim())}`)
+      }
 
       if (!res.ok) {
         if (res.status === 404) {
-          setError("No se encontró un contratista con esa cédula. Verifica el número e intenta de nuevo.")
+          setError("No se encontró ningún registro con esa cédula. Verifica el número e intenta de nuevo.")
         } else {
           setError("Error al consultar. Intenta de nuevo más tarde.")
         }
