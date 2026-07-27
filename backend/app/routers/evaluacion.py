@@ -669,6 +669,27 @@ async def descargar_informe(
         "correo": contratista.correo,
     }
 
+    # Obtener documentos contractuales de todos los contratos
+    for c_data in contratos_data:
+        docs_result = await db.execute(
+            select(DocumentoContratista).where(
+                DocumentoContratista.contrato_numero == c_data["numero_contrato"]
+            ).order_by(DocumentoContratista.tipo_documento, DocumentoContratista.created_at.desc())
+        )
+        documentos_data = []
+        for doc in docs_result.scalars().all():
+            documentos_data.append({
+                "id": doc.id,
+                "tipo_documento": doc.tipo_documento,
+                "archivo_ruta": doc.archivo_ruta,
+                "archivo_nombre": doc.archivo_nombre,
+                "archivo_tamano": doc.archivo_tamano,
+                "estado": doc.estado,
+                "observacion": doc.observacion,
+                "created_at": str(doc.created_at) if doc.created_at else None,
+            })
+        c_data["documentos"] = documentos_data
+
     if formato == "pdf":
         pdf_bytes = generar_pdf(contratista_dict, contratos_data, resumen)
         filename = f"informe_evaluacion_{contratista.identificacion}.pdf"
@@ -836,6 +857,27 @@ async def descargar_informe_publico(
         "telefono": contratista.telefono,
         "correo": contratista.correo,
     }
+
+    # Obtener documentos contractuales de todos los contratos
+    for c_data in contratos_data:
+        docs_result = await db.execute(
+            select(DocumentoContratista).where(
+                DocumentoContratista.contrato_numero == c_data["numero_contrato"]
+            ).order_by(DocumentoContratista.tipo_documento, DocumentoContratista.created_at.desc())
+        )
+        documentos_data = []
+        for doc in docs_result.scalars().all():
+            documentos_data.append({
+                "id": doc.id,
+                "tipo_documento": doc.tipo_documento,
+                "archivo_ruta": doc.archivo_ruta,
+                "archivo_nombre": doc.archivo_nombre,
+                "archivo_tamano": doc.archivo_tamano,
+                "estado": doc.estado,
+                "observacion": doc.observacion,
+                "created_at": str(doc.created_at) if doc.created_at else None,
+            })
+        c_data["documentos"] = documentos_data
 
     if formato == "pdf":
         pdf_bytes = generar_pdf(contratista_dict, contratos_data, resumen)

@@ -5,12 +5,14 @@ import {
   Loader2, Search, Eye, CheckCircle2, XCircle, Clock,
   FileText, Image, MessageSquareText, Filter,
   AlertCircle, RefreshCw, X, Maximize2, Download,
-  ChevronRight,
+  ChevronRight, ExternalLink,
 } from "lucide-react"
 import {
   listarEvidencias, evaluarEvidencia, listarContratistasEvaluacion,
   getResumenContratista,
-  type Evidencia, type ResumenCumplimiento,
+  listarDocumentosAdmin, evaluarDocumento,
+  TIPOS_DOCUMENTO,
+  type Evidencia, type ResumenCumplimiento, type DocumentoContratista,
 } from "@/lib/api"
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
@@ -95,7 +97,16 @@ export default function EvaluacionDashboardPage() {
   const [evaluating, setEvaluating] = useState(false)
   const [selectedContratista, setSelectedContratista] = useState<number | null>(null)
   const [resumen, setResumen] = useState<ResumenCumplimiento | null>(null)
-  const [activeTab, setActiveTab] = useState<"evidencias" | "contratistas">("evidencias")
+  const [activeTab, setActiveTab] = useState<"evidencias" | "contratistas" | "documentos">("evidencias")
+
+  // Document state
+  const [documentos, setDocumentos] = useState<DocumentoContratista[]>([])
+  const [loadingDocs, setLoadingDocs] = useState(false)
+  const [filterDocEstado, setFilterDocEstado] = useState<string>("")
+  const [filterDocTipo, setFilterDocTipo] = useState<string>("")
+  const [selectedDoc, setSelectedDoc] = useState<DocumentoContratista | null>(null)
+  const [docObservacion, setDocObservacion] = useState("")
+  const [evaluatingDoc, setEvaluatingDoc] = useState(false)
 
   // Popup state
   const [popup, setPopup] = useState<{
@@ -107,6 +118,33 @@ export default function EvaluacionDashboardPage() {
 
   const openContent = (title: string, content: string | null, type: "texto" | "html" | "imagen" | "archivo") => {
     setPopup({ open: true, title, content, type })
+  }
+
+  const loadDocumentos = useCallback(async () => {
+    setLoadingDocs(true)
+    try {
+      const params: Record<string, string> = {}
+      if (filterDocEstado) params.estado = filterDocEstado
+      if (filterDocTipo) params.tipo_documento = filterDocTipo
+      const docs = await listarDocumentosAdmin(params as any)
+      setDocumentos(docs)
+    } catch (err) {
+      console.error("Error cargando documentos:", err)
+    }
+    setLoadingDocs(false)
+  }, [filterDocEstado, filterDocTipo])
+
+  const handleEvaluarDocumento = async (id: number, estado: string) => {
+    setEvaluatingDoc(true)
+    try {
+      await evaluarDocumento(id, { estado, observacion: docObservacion || undefined })
+      setDocObservacion("")
+      setSelectedDoc(null)
+      await loadDocumentos()
+    } catch (err) {
+      console.error("Error evaluando documento:", err)
+    }
+    setEvaluatingDoc(false)
   }
 
   const loadData = useCallback(async () => {
@@ -125,6 +163,10 @@ export default function EvaluacionDashboardPage() {
     }
     setLoading(false)
   }, [filterEstado, searchTerm])
+
+  useEffect(() => {
+    loadDocumentos()
+  }, [loadDocumentos])
 
   const descargarInforme = (formato: "pdf" | "docx") => {
     if (!selectedContratista) return
@@ -234,6 +276,14 @@ export default function EvaluacionDashboardPage() {
         >
           Contratistas
         </button>
+        <button
+          onClick={() => setActiveTab("documentos")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+            activeTab === "documentos" ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Documentos Contractuales
+        </button>
       </div>
 
       {activeTab === "contratistas" && (
@@ -316,6 +366,119 @@ export default function EvaluacionDashboardPage() {
                     </div>
                   </button>
                 ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "documentos" && (
+        <div className="space-y-4">
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              {["", "PENDIENTE", "APROBADO", "RECHAZADO"].map((estado) => (
+                <button
+                  key={estado}
+                  onClick={() => setFilterDocEstado(estado)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                    filterDocEstado === estado
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  }`}
+                >
+                  {estado || "TODOS"}
+                </button>
+              ))}
+            </div>
+            <select
+              value={filterDocTipo}
+              onChange={(e) => setFilterDocTipo(e.target.value)}
+              className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">Todos los tipos</option>
+              {TIPOS_DOCUMENTO.map((t) => (
+                <option key={t.valor} value={t.valor}>{t.etiqueta}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Document list */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            {loadingDocs ? (
+              <div className="p-8 text-center">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto text-emerald-600" />
+              </div>
+            ) : documentos.length === 0 ? (
+              <div className="p-8 text-center">
+                <FileText className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-500">No hay documentos contractuales</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {documentos.map((doc) => {
+                  const tipoInfo = TIPOS_DOCUMENTO.find((t) => t.valor === doc.tipo_documento)
+                  return (
+                    <div key={doc.id} className="p-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 mt-0.5 text-xl">
+                          {tipoInfo?.icono || "📄"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-gray-800">
+                              {tipoInfo?.etiqueta || doc.tipo_documento}
+                            </span>
+                            {getEstadoBadge(doc.estado)}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-500">
+                            {doc.contratista_nombre && (
+                              <span className="truncate max-w-[200px]">{doc.contratista_nombre}</span>
+                            )}
+                            <span>•</span>
+                            <span>Contrato {doc.contrato_numero}</span>
+                            <span>•</span>
+                            <span>{new Date(doc.created_at).toLocaleDateString("es-CO")}</span>
+                          </div>
+                          {doc.archivo_tamano > 0 && (
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              PDF — {(doc.archivo_tamano / (1024 * 1024)).toFixed(1)} MB
+                            </p>
+                          )}
+                          {doc.observacion && (
+                            <div className="mt-2 text-xs text-gray-500 bg-yellow-50 p-2 rounded-lg border border-yellow-100 break-words">
+                              <span className="font-medium">Observación: </span>
+                              {doc.observacion}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <a
+                            href={`${API}${doc.archivo_ruta}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Descargar PDF"
+                          >
+                            <Download className="w-4 h-4 text-gray-500" />
+                          </a>
+                          {doc.estado === "PENDIENTE" && (
+                            <button
+                              onClick={() => {
+                                setSelectedDoc(doc)
+                                setDocObservacion("")
+                              }}
+                              className="px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors whitespace-nowrap"
+                            >
+                              Evaluar
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -545,6 +708,87 @@ export default function EvaluacionDashboardPage() {
         </div>
       )}
 
+      {/* Document Evaluation Modal */}
+      {selectedDoc && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4 overflow-x-hidden" onClick={() => { setSelectedDoc(null); setDocObservacion("") }}>
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl flex flex-col overflow-x-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-4 sm:p-5 border-b border-gray-100 flex-shrink-0">
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-semibold text-gray-800">
+                    {TIPOS_DOCUMENTO.find((t) => t.valor === selectedDoc.tipo_documento)?.etiqueta || selectedDoc.tipo_documento}
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {selectedDoc.contratista_nombre} — Contrato {selectedDoc.contrato_numero}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {selectedDoc.archivo_nombre} ({(selectedDoc.archivo_tamano / (1024 * 1024)).toFixed(1)} MB)
+                  </p>
+                </div>
+                <button onClick={() => { setSelectedDoc(null); setDocObservacion("") }} className="p-1.5 hover:bg-gray-100 rounded-lg flex-shrink-0 mt-0.5">
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-5 space-y-4 overflow-y-auto">
+              {/* PDF preview link */}
+              <a
+                href={`${API}${selectedDoc.archivo_ruta}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-100 text-emerald-600 hover:text-emerald-700"
+              >
+                <FileText className="w-5 h-5" />
+                <span className="text-sm truncate">{selectedDoc.archivo_nombre || "Ver PDF"}</span>
+                <ExternalLink className="w-4 h-4 ml-auto flex-shrink-0" />
+              </a>
+
+              {/* Observation */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Observación (opcional)
+                </label>
+                <textarea
+                  value={docObservacion}
+                  onChange={(e) => setDocObservacion(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-sm"
+                  placeholder="Escribe una observación para el contratista..."
+                  disabled={evaluatingDoc}
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end pt-2 flex-wrap">
+                <button
+                  onClick={() => { setSelectedDoc(null); setDocObservacion("") }}
+                  className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  disabled={evaluatingDoc}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => handleEvaluarDocumento(selectedDoc.id, "RECHAZADO")}
+                  disabled={evaluatingDoc}
+                  className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                >
+                  {evaluatingDoc ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                  Rechazar
+                </button>
+                <button
+                  onClick={() => handleEvaluarDocumento(selectedDoc.id, "APROBADO")}
+                  disabled={evaluatingDoc}
+                  className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                >
+                  {evaluatingDoc ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  Aprobar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content Popup */}
       <ContentPopup
         open={popup.open}
@@ -553,8 +797,6 @@ export default function EvaluacionDashboardPage() {
         content={popup.content}
         type={popup.type}
       />
-
-      {/* Missing imports for popup */}
     </div>
   )
 }

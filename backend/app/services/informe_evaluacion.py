@@ -56,6 +56,21 @@ def _build_context(contratista: dict, contratos: list, resumen: dict) -> dict:
 
     total_ev = resumen.get("total_actividades", total_actividades) or 1
 
+    # Agrupar documentos contractuales por estado
+    total_docs = 0
+    docs_aprobados = 0
+    docs_rechazados = 0
+    docs_pendientes = 0
+    for c in contratos:
+        for doc in c.get("documentos", []):
+            total_docs += 1
+            if doc["estado"] == "APROBADO":
+                docs_aprobados += 1
+            elif doc["estado"] == "RECHAZADO":
+                docs_rechazados += 1
+            else:
+                docs_pendientes += 1
+
     return {
         "logo_base64": _cargar_logo_base64(),
         "nombre": contratista.get("nombre", ""),
@@ -77,7 +92,12 @@ def _build_context(contratista: dict, contratos: list, resumen: dict) -> dict:
         "pct_pendientes": round(resumen.get("pendientes", 0) / total_ev * 100, 1),
         "pct_sin_evidencia": round(resumen.get("sin_evidencia", 0) / total_ev * 100, 1),
         "contratos": contratos,
-        "observaciones": []
+        "observaciones": [],
+        "documentos": contratos[0].get("documentos", []) if contratos else [],
+        "total_documentos": total_docs,
+        "documentos_aprobados": docs_aprobados,
+        "documentos_rechazados": docs_rechazados,
+        "documentos_pendientes": docs_pendientes,
     }
 
 
@@ -392,6 +412,72 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
                                size=8, color=(150, 150, 150))
 
         doc.add_paragraph()
+
+    # ─── 3. Documentos Contractuales ─────────────────────────────────
+    doc.add_paragraph()
+    _add_styled_paragraph(doc, "3. Documentos Contractuales",
+                          bold=True, size=10.5, space_after=4)
+
+    docs_global = []
+    for c in contratos:
+        for d in c.get("documentos", []):
+            docs_global.append({
+                "contrato_numero": c["numero_contrato"],
+                **d
+            })
+
+    if docs_global:
+        table_docs = doc.add_table(rows=1, cols=5)
+        table_docs.style = "Table Grid"
+        table_docs.alignment = WD_TABLE_ALIGNMENT.LEFT
+
+        # Column widths
+        for row in table_docs.rows:
+            row.cells[0].width = Cm(0.8)
+            row.cells[1].width = Cm(4.5)
+            row.cells[2].width = Cm(7)
+            row.cells[3].width = Cm(2.2)
+            row.cells[4].width = Cm(3.5)
+
+        # Header row
+        for j, h in enumerate(["#", "Tipo", "Archivo", "Estado", "Observación"]):
+            cell = table_docs.rows[0].cells[j]
+            _add_cell_text(cell, h, bold=True, size=7,
+                           color=(255, 255, 255),
+                           alignment=WD_ALIGN_PARAGRAPH.CENTER)
+            _set_cell_shading(cell, "1A3A5C")
+
+        tipo_nombres = {
+            "CUENTA_COBRO": "Cuenta de Cobro",
+            "RETENCION": "Retención formato",
+            "LISTADO_ASISTENCIA": "Listado de asistencia",
+            "PLANILLA_SEGURIDAD": "Planilla de seguridad social",
+            "CERTIFICACION_BANCARIA": "Certificación bancaria",
+            "ARL": "ARL",
+        }
+
+        for i, doc_item in enumerate(docs_global):
+            row = table_docs.add_row()
+            _add_cell_text(row.cells[0], str(i + 1),
+                           bold=True, alignment=WD_ALIGN_PARAGRAPH.CENTER)
+            _add_cell_text(row.cells[1],
+                tipo_nombres.get(doc_item["tipo_documento"], doc_item["tipo_documento"]),
+                size=8)
+            _add_cell_text(row.cells[2], doc_item.get("archivo_nombre", ""), size=8)
+
+            estado_label = {
+                "APROBADO": "✓ Aprobado",
+                "RECHAZADO": "✗ Rechazado",
+                "PENDIENTE": "⏳ Pendiente",
+            }.get(doc_item["estado"], doc_item["estado"])
+
+            _add_cell_text(row.cells[3], estado_label, size=8,
+                           alignment=WD_ALIGN_PARAGRAPH.CENTER)
+            _add_cell_text(row.cells[4], doc_item.get("observacion") or "—", size=8)
+    else:
+        _add_styled_paragraph(doc,
+            "No se han cargado documentos contractuales para este período.",
+            size=9, color=(150, 150, 150))
 
     # ─── Firmas ────────────────────────────────────────────────────────
     doc.add_paragraph()
