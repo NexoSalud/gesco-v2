@@ -280,9 +280,13 @@ export default function EvaluacionDashboardPage() {
   const descargarInforme = (formato: "pdf" | "docx") => {
     if (!selectedContratista) return
     if (selectedContratista.tipo === "APOYO") {
-      // Abrir informe mensual de apoyo
-      const url = `${API}/api/v1/apoyo/informe-mensual?mes=${new Date().getMonth() + 1}&anio=${new Date().getFullYear()}`
+      // Abrir informe mensual de apoyo en nueva pestaña
       const token = localStorage.getItem("token")
+      const url = `${API}/api/v1/apoyo/informe-mensual?mes=${new Date().getMonth() + 1}&anio=${new Date().getFullYear()}`
+      const a = document.createElement("a")
+      a.href = url
+      a.target = "_blank"
+      // Pasar token como query param no es seguro, usar download con auth header
       const xhr = new XMLHttpRequest()
       xhr.open("GET", url)
       xhr.setRequestHeader("Authorization", `Bearer ${token}`)

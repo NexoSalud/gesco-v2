@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react"
 import {
   Loader2, Search, User, Plus, Pencil, Trash2, X,
   Save, Phone, Mail, RefreshCw, FileText, ListChecks,
-  Upload, FileSpreadsheet, CheckCircle2,
+  Upload, FileSpreadsheet, CheckCircle2, Download,
 } from "lucide-react"
 import {
   getApoyos, crearApoyo, actualizarApoyo, eliminarApoyo,
@@ -255,6 +255,29 @@ export default function ApoyoPage() {
           </button>
           <button onClick={() => setImportOpen(true)} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg border border-gray-200">
             <FileSpreadsheet className="w-4 h-4" /> Importar
+          </button>
+          <button
+            onClick={() => {
+              const token = localStorage.getItem("token")
+              const url = `${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1/apoyo/informe-mensual?mes=${new Date().getMonth() + 1}&anio=${new Date().getFullYear()}`
+              const xhr = new XMLHttpRequest()
+              xhr.open("GET", url)
+              xhr.setRequestHeader("Authorization", `Bearer ${token}`)
+              xhr.responseType = "blob"
+              xhr.onload = () => {
+                if (xhr.status === 200) {
+                  const link = document.createElement("a")
+                  link.href = URL.createObjectURL(new Blob([xhr.response]))
+                  link.download = `INFORME_ACTIVIDADES_APOYO_ADVO_EBS.docx`
+                  link.click()
+                  URL.revokeObjectURL(link.href)
+                }
+              }
+              xhr.send()
+            }}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            <Download className="w-4 h-4" /> Informe
           </button>
           <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700">
             <Plus className="w-4 h-4" /> Nuevo
