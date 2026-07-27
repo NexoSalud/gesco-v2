@@ -36,6 +36,7 @@ os.makedirs(EVIDENCIAS_DIR, exist_ok=True)
 
 # ─── CRUD Apoyo Administrativo ─────────────────────────────────────────────
 
+@router.get("", response_model=list[ApoyoOut])
 @router.get("/", response_model=list[ApoyoOut])
 async def listar_apoyos(
     buscar: str | None = Query(None),
@@ -65,6 +66,7 @@ async def obtener_apoyo(
     return apoyo
 
 
+@router.post("", response_model=ApoyoOut, status_code=201)
 @router.post("/", response_model=ApoyoOut, status_code=201)
 async def crear_apoyo(
     data: ApoyoCreate,
