@@ -98,8 +98,11 @@ function EvaluacionDashboard() {
   const handleDocUpload = async () => {
     if (!docUploadModal || !docArchivo) return
 
-    if (!docArchivo.name.toLowerCase().endsWith(".pdf")) {
-      setDocUploadError("Solo se aceptan archivos PDF.")
+    const docName = docArchivo.name.toLowerCase()
+    const validExts = [".pdf", ".jpg", ".jpeg", ".png", ".docx", ".doc"]
+    const docExt = docName.includes(".") ? "." + docName.split(".").pop() : ""
+    if (!validExts.includes(docExt)) {
+      setDocUploadError("Formatos aceptados: PDF, JPG, PNG, DOCX")
       return
     }
 
@@ -636,7 +639,7 @@ function EvaluacionDashboard() {
                 <input
                   id="doc-file-input"
                   type="file"
-                  accept=".pdf"
+                  accept=".pdf,.jpg,.jpeg,.png,.docx,.doc"
                   className="hidden"
                   onChange={(e) => setDocArchivo(e.target.files?.[0] || null)}
                   disabled={docUploading || docUploadSuccess}

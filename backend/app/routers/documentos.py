@@ -10,9 +10,11 @@ Rutas protegidas (requieren JWT):
   PUT    /api/v1/documentos/{id}/evaluar        — aprobar/rechazar
 """
 
+import io
 import logging
 import os
 import uuid
+import tempfile
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy import select, func
@@ -41,8 +43,10 @@ router = APIRouter(prefix="/api/v1/documentos", tags=["Documentos de Contratista
 DOCS_DIR = "/app/uploads/documentos"
 os.makedirs(DOCS_DIR, exist_ok=True)
 
-MAX_FILE_SIZE = 15 * 1024 * 1024  # 15 MB
-ALLOWED_EXTENSIONS = {".pdf"}
+MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
+ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".docx", ".doc"}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+DOCX_EXTENSIONS = {".docx", ".doc"}
 
 
 def _es_pdf_protegido(contenido: bytes) -> tuple[bool, str | None]:
@@ -98,7 +102,7 @@ async def subir_documento(
         ext = "." + archivo.filename.rsplit(".", 1)[-1].lower()
 
     if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(400, "Solo se aceptan archivos PDF.")
+        raise HTTPException(400, f"Formato no válido. Aceptados: PDF, JPG, PNG, DOCX")
 
     # Validar que el contratista existe
     result = await db.execute(
@@ -124,14 +128,81 @@ async def subir_documento(
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(400, f"El archivo excede el tamaño máximo de {MAX_FILE_SIZE // (1024*1024)}MB")
 
-    # Validar PDF (formato + sin contraseña)
-    _validar_pdf(content)
-
-    # Guardar archivo
+    # Convertir a PDF según tipo de archivo
+    original_filename = archivo.filename or "documento"
     safe_name = f"{uuid.uuid4()}.pdf"
     file_path = os.path.join(DOCS_DIR, safe_name)
-    with open(file_path, "wb") as f:
-        f.write(content)
+
+    if ext == ".pdf":
+        # Validar PDF (formato + sin contraseña)
+        _validar_pdf(content)
+        with open(file_path, "wb") as f:
+            f.write(content)
+
+    elif ext in DOCX_EXTENSIONS:
+        # Convertir DOCX a PDF usando python-docx + weasyprint
+        try:
+            from docx import Document as DocxDocument
+            from weasyprint import HTML
+
+            docx_doc = DocxDocument(io.BytesIO(content))
+            html_parts = ["""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+                body { font-family: 'Times New Roman', serif; font-size: 12pt; margin: 2.5cm; }
+                table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+                td, th { border: 1px solid #333; padding: 4px 6px; font-size: 10pt; }
+                th { background: #1a3a5c; color: white; }
+            </style></head><body>
+"""]
+
+            for para in docx_doc.paragraphs:
+                text = para.text.strip()
+                if not text:
+                    continue
+                if para.style.name.startswith("Heading 1"):
+                    html_parts.append(f"<h1>{text}</h1>")
+                elif para.style.name.startswith("Heading 2"):
+                    html_parts.append(f"<h2>{text}</h2>")
+                elif para.style.name.startswith("Heading 3"):
+                    html_parts.append(f"<h3>{text}</h3>")
+                else:
+                    html_parts.append(f"<p>{text}</p>")
+
+            for table in docx_doc.tables:
+                html_parts.append("<table>")
+                for i, row in enumerate(table.rows):
+                    html_parts.append("<tr>")
+                    for cell in row.cells:
+                        tag = "th" if i == 0 else "td"
+                        html_parts.append(f"<{tag}>{cell.text}</{tag}>")
+                    html_parts.append("</tr>")
+                html_parts.append("</table>")
+
+            html_parts.append("</body></html>")
+            html_str = "\n".join(html_parts)
+            pdf_bytes = HTML(string=html_str).write_pdf()
+            content = pdf_bytes
+            with open(file_path, "wb") as f:
+                f.write(content)
+        except Exception as e:
+            logger.error(f"Error convirtiendo DOCX a PDF: {e}")
+            raise HTTPException(500, f"Error al convertir el archivo DOCX a PDF: {str(e)}")
+
+    elif ext in IMAGE_EXTENSIONS:
+        # Convertir imagen a PDF
+        try:
+            from PIL import Image
+            img = Image.open(io.BytesIO(content))
+            # Convertir a RGB si es RGBA o P
+            if img.mode in ("RGBA", "P", "LA", "PA"):
+                img = img.convert("RGB")
+            pdf_buffer = io.BytesIO()
+            img.save(pdf_buffer, format="PDF")
+            content = pdf_buffer.getvalue()
+            with open(file_path, "wb") as f:
+                f.write(content)
+        except Exception as e:
+            logger.error(f"Error convirtiendo imagen a PDF: {e}")
+            raise HTTPException(500, f"Error al convertir la imagen a PDF: {str(e)}")
 
     # Crear registro en BD
     doc = DocumentoContratista(
@@ -139,7 +210,7 @@ async def subir_documento(
         contrato_numero=contrato_numero,
         tipo_documento=tipo_documento,
         archivo_ruta=f"/uploads/documentos/{safe_name}",
-        archivo_nombre=archivo.filename or "",
+        archivo_nombre=original_filename,
         archivo_tamano=len(content),
         estado="PENDIENTE",
     )
