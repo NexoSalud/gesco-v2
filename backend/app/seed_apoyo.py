@@ -7,7 +7,6 @@ import asyncio
 import json
 import logging
 from pathlib import Path
-from docx import Document
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -289,4 +288,5 @@ async def main():
 
 
 if __name__ == "__main__":
+    from docx import Document
     asyncio.run(main())
