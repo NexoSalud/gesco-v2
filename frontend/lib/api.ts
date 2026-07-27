@@ -815,6 +815,15 @@ export const eliminarActividadApoyo = (id: number) =>
 export const seedActividadesApoyo = () =>
   request<any>("/api/v1/apoyo/seed-actividades", { method: "POST" })
 
+export const importarApoyosExcel = (archivo: File) => {
+  const formData = new FormData()
+  formData.append("archivo", archivo)
+  return request<any>("/api/v1/apoyo/importar-excel", {
+    method: "POST",
+    body: formData,
+    headers: {},  // Let browser set multipart boundary
+  })
+}
 
 // ─── Documentos de Contratista ────────────────────────────────────────────────
 

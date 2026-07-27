@@ -1,13 +1,15 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import {
   Loader2, Search, User, Plus, Pencil, Trash2, X,
   Save, Phone, Mail, RefreshCw, FileText, ListChecks,
+  Upload, FileSpreadsheet, CheckCircle2,
 } from "lucide-react"
 import {
   getApoyos, crearApoyo, actualizarApoyo, eliminarApoyo,
   getActividadesApoyo, crearActividadApoyo, eliminarActividadApoyo,
+  importarApoyosExcel,
 } from "@/lib/api"
 import { toast } from "sonner"
 
@@ -147,6 +149,12 @@ export default function ApoyoPage() {
   // Delete confirm
   const [deleteId, setDeleteId] = useState<number | null>(null)
 
+  // Import Excel
+  const [importOpen, setImportOpen] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<any>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
   const load = useCallback(async (q?: string) => {
     setLoading(true)
     try {
@@ -206,6 +214,30 @@ export default function ApoyoPage() {
     } catch { toast.error("Error") }
   }
 
+  const handleImport = async (file: File) => {
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      toast.error("Debes seleccionar un archivo Excel (.xlsx o .xls)")
+      return
+    }
+    setImporting(true)
+    setImportResult(null)
+    try {
+      const result = await importarApoyosExcel(file)
+      setImportResult(result)
+      toast.success(`Importación completada: ${result.creados} creados, ${result.actualizados} actualizados`)
+      load(search)
+    } catch {
+      toast.error("Error al importar. Verifica el formato del archivo.")
+    }
+    setImporting(false)
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) handleImport(file)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
   return (
     <div className="space-y-5 max-w-full pb-8">
       {/* Header */}
@@ -220,6 +252,9 @@ export default function ApoyoPage() {
         <div className="flex gap-2">
           <button onClick={() => load(search)} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg border border-gray-200">
             <RefreshCw className="w-4 h-4" />
+          </button>
+          <button onClick={() => setImportOpen(true)} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg border border-gray-200">
+            <FileSpreadsheet className="w-4 h-4" /> Importar
           </button>
           <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700">
             <Plus className="w-4 h-4" /> Nuevo
@@ -391,6 +426,68 @@ export default function ApoyoPage() {
           <button onClick={handleDelete} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-1">
             <Trash2 className="w-4 h-4" /> Eliminar
           </button>
+        </div>
+      </Modal>
+
+      {/* Import Excel Modal */}
+      <Modal open={importOpen} onClose={() => { setImportOpen(false); setImportResult(null) }} title="Importar desde Excel">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Selecciona un archivo Excel con las columnas:{' '}
+            <span className="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded">PERFIL | NOMBRE_COMPLETO | ORDEN | ACTIVIDAD</span>
+          </p>
+          <p className="text-xs text-gray-400">
+            Si el apoyo ya existe, se actualizarán sus actividades. Si no existe, se creará automáticamente.
+          </p>
+
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+
+          {!importResult ? (
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={importing}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
+            >
+              {importing ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Importando...</>
+              ) : (
+                <><Upload className="w-4 h-4" /> Seleccionar archivo Excel</>
+              )}
+            </button>
+          ) : (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2">
+              <div className="flex items-center gap-2 text-emerald-700 font-medium">
+                <CheckCircle2 className="w-5 h-5" />
+                Importación completada
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="bg-white rounded-lg p-2">
+                  <p className="text-lg font-bold text-purple-600">{importResult.creados}</p>
+                  <p className="text-xs text-gray-500">Creados</p>
+                </div>
+                <div className="bg-white rounded-lg p-2">
+                  <p className="text-lg font-bold text-emerald-600">{importResult.actualizados}</p>
+                  <p className="text-xs text-gray-500">Actualizados</p>
+                </div>
+                <div className="bg-white rounded-lg p-2">
+                  <p className="text-lg font-bold text-blue-600">{importResult.total_actividades}</p>
+                  <p className="text-xs text-gray-500">Actividades</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setImportOpen(false); setImportResult(null) }}
+                className="w-full mt-2 px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          )}
         </div>
       </Modal>
     </div>

@@ -476,3 +476,133 @@ async def seed_actividades(
 
     await db.commit()
     return {"actividades_creadas": creadas, "actividades_omitidas": omitidas}
+
+
+@router.post("/importar-excel", status_code=200)
+async def importar_apoyos_excel(
+    archivo: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    """Importa apoyos administrativos y sus actividades desde un archivo Excel.
+
+    Formato esperado (columnas):
+        PERFIL | NOMBRE_COMPLETO | ORDEN | ACTIVIDAD
+
+    - Si el apoyo ya existe (por nombre exacto), se reemplazan todas sus actividades.
+    - Si no existe, se crea con identificación autogenerada.
+    - Las actividades se asignan en el orden indicado.
+    """
+    if not archivo.filename or not archivo.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(400, "Debe subir un archivo Excel (.xlsx o .xls)")
+
+    import openpyxl
+
+    content = await archivo.read()
+    wb = openpyxl.load_workbook(io.BytesIO(content))
+    ws = wb.active
+
+    if ws is None:
+        raise HTTPException(400, "El archivo Excel está vacío")
+
+    # Validate headers
+    headers = [str(c.value).strip().upper() if c.value else "" for c in ws[1]]
+    required = {"PERFIL", "NOMBRE_COMPLETO", "ORDEN", "ACTIVIDAD"}
+    if not required.issubset(set(headers)):
+        raise HTTPException(400, f"Columnas requeridas: PERFIL, NOMBRE_COMPLETO, ORDEN, ACTIVIDAD. Encontradas: {headers}")
+
+    # Map column indices
+    col_map = {}
+    for i, h in enumerate(headers):
+        col_map[h] = i
+
+    # Read all rows (skip header)
+    groups = {}  # key: (perfil_lower, nombre_lower) -> {perfil, nombre, actividades: [(orden, texto)]}
+    for row in ws.iter_rows(min_row=2, values_only=False):
+        perfil = str(row[col_map["PERFIL"]].value or "").strip()
+        nombre = str(row[col_map["NOMBRE_COMPLETO"]].value or "").strip()
+        orden_val = row[col_map["ORDEN"]].value
+        actividad = str(row[col_map["ACTIVIDAD"]].value or "").strip()
+
+        if not perfil or not nombre or not actividad:
+            continue
+
+        try:
+            orden = int(orden_val) if orden_val else 0
+        except (ValueError, TypeError):
+            orden = 0
+
+        key = (perfil.upper(), nombre.upper())
+        if key not in groups:
+            groups[key] = {
+                "perfil": perfil,
+                "nombre": nombre,
+                "actividades": [],
+            }
+        groups[key]["actividades"].append((orden, actividad))
+
+    if not groups:
+        raise HTTPException(400, "No se encontraron datos válidos en el archivo")
+
+    creados = 0
+    actualizados = 0
+    total_actividades = 0
+
+    for key, group in groups.items():
+        perfil = group["perfil"]
+        nombre = group["nombre"]
+        actividades = sorted(group["actividades"], key=lambda x: x[0])
+
+        # Buscar apoyo existente por nombre exacto (case-insensitive)
+        result = await db.execute(
+            select(ApoyoAdministrativo).where(
+                func.upper(ApoyoAdministrativo.nombre) == nombre.upper()
+            )
+        )
+        apoyo = result.scalar_one_or_none()
+
+        if apoyo:
+            # Actualizar perfil si cambió
+            if perfil and apoyo.perfil != perfil:
+                apoyo.perfil = perfil
+            actualizados += 1
+        else:
+            # Crear nuevo apoyo con identificación autogenerada
+            apoyo = ApoyoAdministrativo(
+                nombre=nombre,
+                identificacion=f"APOYO-{nombre.split()[0][:10].upper()}-{len(nombre):03d}",
+                telefono=None,
+                correo=None,
+                perfil=perfil,
+                activo=True,
+            )
+            db.add(apoyo)
+            await db.flush()  # Obtener ID
+            creados += 1
+
+        # Eliminar actividades existentes
+        existing = await db.execute(
+            select(ActividadApoyo).where(ActividadApoyo.apoyo_id == apoyo.id)
+        )
+        for act in existing.scalars().all():
+            await db.delete(act)
+
+        # Crear nuevas actividades
+        for orden, descripcion in actividades:
+            db.add(ActividadApoyo(
+                apoyo_id=apoyo.id,
+                descripcion=descripcion,
+                tipo="GENERAL",
+                orden=orden,
+            ))
+            total_actividades += 1
+
+    await db.commit()
+
+    return {
+        "mensaje": "Importación completada",
+        "creados": creados,
+        "actualizados": actualizados,
+        "total_actividades": total_actividades,
+        "perfiles_cargados": len(groups),
+    }
