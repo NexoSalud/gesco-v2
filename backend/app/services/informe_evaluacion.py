@@ -105,16 +105,69 @@ def _build_context(contratista: dict, contratos: list, resumen: dict) -> dict:
 
 # ─── Generador PDF ────────────────────────────────────────────────────────
 
+def _recolectar_anexos(contratos: list) -> list[dict]:
+    """Recolecta los PDFs de documentos contractuales aprobados para anexar."""
+    anexos = []
+    for c in contratos:
+        for doc in c.get("documentos", []):
+            if doc.get("estado") != "APROBADO":
+                continue
+            archivo_ruta = doc.get("archivo_ruta", "")
+            if not archivo_ruta:
+                continue
+            pdf_path = archivo_ruta.lstrip("/")
+            if pdf_path.startswith("uploads/"):
+                pdf_path = os.path.join("/app", pdf_path)
+            else:
+                pdf_path = os.path.join("/app/uploads", pdf_path)
+            if os.path.exists(pdf_path):
+                anexos.append({
+                    "ruta": pdf_path,
+                    "tipo": doc.get("tipo_documento", ""),
+                    "nombre": doc.get("archivo_nombre", "documento"),
+                })
+    return anexos
+
+
 def generar_pdf(contratista: dict, contratos: list, resumen: dict) -> bytes:
-    """Genera el PDF del informe de evaluación."""
+    """Genera el PDF del informe de evaluación con documentos contractuales anexados."""
     ctx = _build_context(contratista, contratos, resumen)
 
     env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
     template = env.get_template("informe_evaluacion.html")
     html_str = template.render(**ctx)
 
+    # Generar PDF principal
     pdf_bytes = HTML(string=html_str).write_pdf()
-    return pdf_bytes
+
+    # Anexar documentos contractuales aprobados
+    anexos = _recolectar_anexos(contratos)
+    if not anexos:
+        return pdf_bytes
+
+    try:
+        from pikepdf import Pdf
+
+        with Pdf.open(io.BytesIO(pdf_bytes)) as main_pdf:
+            for anexo in anexos:
+                try:
+                    with Pdf.open(anexo["ruta"]) as doc_pdf:
+                        main_pdf.pages.extend(doc_pdf.pages)
+                        logger.info(f"Anexado: {anexo['nombre']} ({len(doc_pdf.pages)} páginas)")
+                except Exception as e:
+                    logger.warning(f"No se pudo anexar {anexo['nombre']}: {e}")
+                    continue
+
+            output = io.BytesIO()
+            main_pdf.save(output)
+            logger.info(f"PDF generado con {len(anexos)} anexos contractuales")
+            return output.getvalue()
+    except ImportError:
+        logger.warning("pikepdf no disponible — se omite anexado de documentos")
+        return pdf_bytes
+    except Exception as e:
+        logger.error(f"Error anexando documentos contractuales: {e}")
+        return pdf_bytes
 
 
 # ─── Generador DOCX ───────────────────────────────────────────────────────
@@ -417,7 +470,7 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
 
     # ─── 3. Documentos Contractuales ─────────────────────────────────
     doc.add_paragraph()
-    _add_styled_paragraph(doc, "3. Documentos Contractuales",
+    _add_styled_paragraph(doc, "3. Documentos Contractuales Anexos",
                           bold=True, size=10.5, space_after=4)
 
     docs_global = []
@@ -429,53 +482,65 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
             })
 
     if docs_global:
-        table_docs = doc.add_table(rows=1, cols=5)
-        table_docs.style = "Table Grid"
-        table_docs.alignment = WD_TABLE_ALIGNMENT.LEFT
-
-        # Column widths
-        for row in table_docs.rows:
-            row.cells[0].width = Cm(0.8)
-            row.cells[1].width = Cm(4.5)
-            row.cells[2].width = Cm(7)
-            row.cells[3].width = Cm(2.2)
-            row.cells[4].width = Cm(3.5)
-
-        # Header row
-        for j, h in enumerate(["#", "Tipo", "Archivo", "Estado", "Observación"]):
-            cell = table_docs.rows[0].cells[j]
-            _add_cell_text(cell, h, bold=True, size=7,
-                           color=(255, 255, 255),
-                           alignment=WD_ALIGN_PARAGRAPH.CENTER)
-            _set_cell_shading(cell, "1A3A5C")
-
-        tipo_nombres = {
-            "CUENTA_COBRO": "Cuenta de Cobro",
-            "RETENCION": "Retención formato",
-            "LISTADO_ASISTENCIA": "Listado de asistencia",
-            "PLANILLA_SEGURIDAD": "Planilla de seguridad social",
-            "CERTIFICACION_BANCARIA": "Certificación bancaria",
-            "ARL": "ARL",
-        }
+        _add_styled_paragraph(doc,
+            "A continuación se listan los documentos contractuales adjuntos al presente informe.",
+            size=9, color=(68, 68, 68), space_after=6)
 
         for i, doc_item in enumerate(docs_global):
-            row = table_docs.add_row()
-            _add_cell_text(row.cells[0], str(i + 1),
-                           bold=True, alignment=WD_ALIGN_PARAGRAPH.CENTER)
-            _add_cell_text(row.cells[1],
-                tipo_nombres.get(doc_item["tipo_documento"], doc_item["tipo_documento"]),
-                size=8)
-            _add_cell_text(row.cells[2], doc_item.get("archivo_nombre", ""), size=8)
+            tipo_nombres = {
+                "CUENTA_COBRO": "Cuenta de Cobro",
+                "RETENCION": "Retención formato",
+                "LISTADO_ASISTENCIA": "Listado de asistencia",
+                "PLANILLA_SEGURIDAD": "Planilla de seguridad social",
+                "CERTIFICACION_BANCARIA": "Certificación bancaria",
+                "ARL": "ARL",
+            }
+            tipo_label = tipo_nombres.get(doc_item["tipo_documento"], doc_item["tipo_documento"])
 
-            estado_label = {
-                "APROBADO": "✓ Aprobado",
-                "RECHAZADO": "✗ Rechazado",
-                "PENDIENTE": "⏳ Pendiente",
-            }.get(doc_item["estado"], doc_item["estado"])
+            _add_styled_paragraph(doc,
+                f"{i+1}. {tipo_label} — {doc_item.get('contrato_numero', '')}",
+                bold=True, size=9, color=(26, 58, 92), space_after=2)
 
-            _add_cell_text(row.cells[3], estado_label, size=8,
-                           alignment=WD_ALIGN_PARAGRAPH.CENTER)
-            _add_cell_text(row.cells[4], doc_item.get("observacion") or "—", size=8)
+            _add_styled_paragraph(doc,
+                f"Archivo: {doc_item.get('archivo_nombre', '')}",
+                size=8, color=(100, 100, 100), space_after=1)
+
+            _add_styled_paragraph(doc,
+                f"Estado: {'✓ Aprobado' if doc_item.get('estado') == 'APROBADO' else '✗ Rechazado' if doc_item.get('estado') == 'RECHAZADO' else '⏳ Pendiente'}",
+                size=8, space_after=2)
+
+            if doc_item.get("observacion"):
+                _add_styled_paragraph(doc,
+                    f"Observación: {doc_item['observacion']}",
+                    size=8, color=(125, 102, 8), space_after=4)
+
+            # Intentar incrustar imagen si es un archivo de imagen
+            archivo_ruta = doc_item.get("archivo_ruta", "")
+            if archivo_ruta:
+                pdf_path = archivo_ruta.lstrip("/")
+                if pdf_path.startswith("uploads/"):
+                    pdf_path = os.path.join("/app", pdf_path)
+                else:
+                    pdf_path = os.path.join("/app/uploads", pdf_path)
+
+                if os.path.exists(pdf_path):
+                    try:
+                        from PIL import Image as _PILDoc
+                        with _PILDoc.open(pdf_path) as img_check:
+                            # Es una imagen incrustable
+                            doc.add_picture(pdf_path, width=Cm(14))
+                            doc.add_paragraph()
+                    except Exception:
+                        # No es imagen, es PDF (se anexa en la versión PDF)
+                        _add_styled_paragraph(doc,
+                            "📎 Documento anexado al final del informe en formato PDF.",
+                            size=7.5, color=(100, 100, 100), space_after=6)
+
+        doc.add_paragraph()
+        _add_styled_paragraph(doc,
+            "— Fin de anexos —",
+            size=8, color=(150, 150, 150),
+            alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=6)
     else:
         _add_styled_paragraph(doc,
             "No se han cargado documentos contractuales para este período.",

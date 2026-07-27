@@ -433,64 +433,54 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     SECTION 3 — DOCUMENTOS CONTRACTUALES
+     SECTION 3 — DOCUMENTOS CONTRACTUALES (ANEXOS)
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="section">
-  <div class="section-title">3. Documentos Contractuales</div>
+  <div class="section-title">3. Documentos Contractuales Anexos</div>
 
   {% if total_documentos > 0 %}
+    {% set tipo_nombres = {
+      "CUENTA_COBRO": "Cuenta de Cobro",
+      "RETENCION": "Retención formato",
+      "LISTADO_ASISTENCIA": "Listado de asistencia",
+      "PLANILLA_SEGURIDAD": "Planilla de seguridad social",
+      "CERTIFICACION_BANCARIA": "Certificación bancaria",
+      "ARL": "ARL",
+    } %}
+    <p style="font-size:8.5pt; color:#444; margin-bottom:8px;">
+      A continuación se relacionan los documentos contractuales anexados al presente informe:
+    </p>
+
     {% for contrato in contratos %}
       {% set docs = contrato.get("documentos", []) %}
       {% if docs and docs|length > 0 %}
       <div style="margin: 10px 0 4px 0; font-weight: bold; color: #1a3a5c; font-size: 9pt;">
         Contrato: {{ contrato.numero_contrato }}
       </div>
-      <table class="act-table">
-        <thead>
-          <tr>
-            <th style="width:30px;">#</th>
-            <th>Tipo de Documento</th>
-            <th style="width:90px;">Archivo</th>
-            <th style="width:80px;">Estado</th>
-            <th>Observación</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for doc in docs %}
-          <tr>
-            <td class="num-col" style="vertical-align:middle;"><strong>{{ loop.index }}</strong></td>
-            <td style="vertical-align:middle; padding:5px 4px;">
-              {% set tipo_nombres = {
-                "CUENTA_COBRO": "Cuenta de Cobro",
-                "RETENCION": "Retención formato",
-                "LISTADO_ASISTENCIA": "Listado de asistencia",
-                "PLANILLA_SEGURIDAD": "Planilla de seguridad social",
-                "CERTIFICACION_BANCARIA": "Certificación bancaria",
-                "ARL": "ARL",
-              } %}
-              {{ tipo_nombres.get(doc.tipo_documento, doc.tipo_documento) }}
-            </td>
-            <td style="vertical-align:middle; text-align:center; padding:5px 4px;">
-              <span style="font-size:7.5pt; color:#555;">{{ doc.archivo_nombre }}</span>
-            </td>
-            <td class="estado-col" style="vertical-align:middle;">
-              {% if doc.estado == "APROBADO" %}
-                <span class="est-aprobado">✓ Aprobado</span>
-              {% elif doc.estado == "RECHAZADO" %}
-                <span class="est-rechazado">✗ Rechazado</span>
-              {% else %}
-                <span class="est-pendiente">⏳ Pendiente</span>
-              {% endif %}
-            </td>
-            <td style="vertical-align:middle; padding:5px 4px; font-size:7.5pt;">
-              {{ doc.observacion or '—' }}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div style="margin:4px 0 8px 4px;">
+      {% for doc in docs %}
+        <div style="margin: 3px 0; padding: 3px 0; border-bottom: 1px dotted #ddd;">
+          <strong style="font-size:9pt;">{{ tipo_nombres.get(doc.tipo_documento, doc.tipo_documento) }}</strong><br>
+          <span style="font-size:7.5pt; color:#555;">{{ doc.archivo_nombre }}</span>
+          {% if doc.estado == "APROBADO" %}
+            — <span class="est-aprobado" style="font-size:7.5pt;">✓ Aprobado</span>
+          {% elif doc.estado == "RECHAZADO" %}
+            — <span class="est-rechazado" style="font-size:7.5pt;">✗ Rechazado</span>
+          {% else %}
+            — <span class="est-pendiente" style="font-size:7.5pt;">⏳ Pendiente</span>
+          {% endif %}
+          {% if doc.observacion %}
+            <br><span style="font-size:7pt; color:#7d6608;">Obs: {{ doc.observacion }}</span>
+          {% endif %}
+        </div>
+      {% endfor %}
+      </div>
       {% endif %}
     {% endfor %}
+
+    <p style="text-align:center; font-size:7.5pt; color:#999; margin-top:12px;">
+      — Los documentos aprobados se adjuntan al final de este informe —
+    </p>
   {% else %}
     <p style="color:#999; font-style:italic; font-size:9pt;">
       No se han cargado documentos contractuales para este período.
