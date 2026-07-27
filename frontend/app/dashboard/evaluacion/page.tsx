@@ -152,14 +152,19 @@ export default function EvaluacionDashboardPage() {
   const loadContratistas = useCallback(async (q?: string) => {
     setLoadingContratistas(true)
     try {
-      const [contratistasList, apoyosList] = await Promise.all([
+      const [contratistasResult, apoyosResult] = await Promise.allSettled([
         listarContratistasEvaluacion(q || undefined),
         listarApoyosEvaluacion(q || undefined),
       ])
-      const contratistasItems = (contratistasList as any[]).map(c => ({ ...c, tipo: c.tipo || "CONTRATISTA" }))
-      const apoyosItems = (apoyosList as any[]).map(a => ({ ...a, tipo: "APOYO" }))
-      // Sort by name, merge lists
-      setContratistas([...contratistasItems, ...apoyosItems].sort((a, b) => a.nombre.localeCompare(b.nombre)))
+      const items: ContratistaListItem[] = []
+      if (contratistasResult.status === "fulfilled") {
+        items.push(...(contratistasResult.value as any[]).map(c => ({ ...c, tipo: c.tipo || "CONTRATISTA" })))
+      }
+      if (apoyosResult.status === "fulfilled") {
+        items.push(...(apoyosResult.value as any[]).map(a => ({ ...a, tipo: "APOYO" })))
+      }
+      items.sort((a, b) => a.nombre.localeCompare(b.nombre))
+      setContratistas(items)
     } catch (err) {
       console.error("Error cargando contratistas/apoyos:", err)
     }
