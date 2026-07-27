@@ -53,6 +53,33 @@ async def listar_apoyos(
     return result.scalars().all()
 
 
+@router.get("/informe-mensual")
+async def descargar_informe_mensual(
+    mes: int = Query(..., ge=1, le=12, description="Número del mes (1-12)"),
+    anio: int = Query(..., ge=2020, description="Año"),
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    """Descarga el informe mensual de actividades de Apoyo Administrativo en DOCX."""
+    from app.services.informe_apoyo_docx import generar_informe_apoyo
+    from fastapi.responses import StreamingResponse
+
+    buf = await generar_informe_apoyo(db, mes, anio)
+    mes_nombre = [
+        "", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
+        "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE",
+    ][mes]
+    filename = f"INFORME_ACTIVIDADES_APOYO_ADVO_EBS_{mes_nombre}_{anio}.docx"
+
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
+
+
 @router.get("/{apoyo_id}", response_model=ApoyoOut)
 async def obtener_apoyo(
     apoyo_id: int,
@@ -609,30 +636,3 @@ async def importar_apoyos_excel(
         "total_actividades": total_actividades,
         "perfiles_cargados": len(groups),
     }
-
-
-@router.get("/informe-mensual")
-async def descargar_informe_mensual(
-    mes: int = Query(..., ge=1, le=12, description="Número del mes (1-12)"),
-    anio: int = Query(..., ge=2020, description="Año"),
-    db: AsyncSession = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
-):
-    """Descarga el informe mensual de actividades de Apoyo Administrativo en DOCX."""
-    from app.services.informe_apoyo_docx import generar_informe_apoyo
-    from fastapi.responses import StreamingResponse
-
-    buf = await generar_informe_apoyo(db, mes, anio)
-    mes_nombre = [
-        "", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
-        "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE",
-    ][mes]
-    filename = f"INFORME_ACTIVIDADES_APOYO_ADVO_EBS_{mes_nombre}_{anio}.docx"
-
-    return StreamingResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
-        },
-    )
