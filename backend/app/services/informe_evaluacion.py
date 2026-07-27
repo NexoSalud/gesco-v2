@@ -108,11 +108,17 @@ def _build_context(contratista: dict, contratos: list, resumen: dict) -> dict:
 def _recolectar_anexos(contratos: list) -> list[dict]:
     """Recolecta los PDFs de documentos contractuales aprobados para anexar."""
     anexos = []
-    for c in contratos:
-        for doc in c.get("documentos", []):
-            if doc.get("estado") != "APROBADO":
-                continue
+    logger.info(f"_recolectar_anexos: {len(contratos)} contratos")
+    for idx, c in enumerate(contratos):
+        docs = c.get("documentos", [])
+        logger.info(f"  Contrato {idx}: {len(docs)} documentos")
+        for doc in docs:
+            estado = doc.get("estado", "?")
+            tipo = doc.get("tipo_documento", "?")
             archivo_ruta = doc.get("archivo_ruta", "")
+            logger.info(f"    Doc: {tipo} estado={estado} ruta={archivo_ruta!r}")
+            if estado != "APROBADO":
+                continue
             if not archivo_ruta:
                 continue
             pdf_path = archivo_ruta.lstrip("/")
@@ -120,12 +126,23 @@ def _recolectar_anexos(contratos: list) -> list[dict]:
                 pdf_path = os.path.join("/app", pdf_path)
             else:
                 pdf_path = os.path.join("/app/uploads", pdf_path)
-            if os.path.exists(pdf_path):
+            exists = os.path.exists(pdf_path)
+            logger.info(f"    -> resolved={pdf_path!r} exists={exists}")
+            if not exists:
+                # Try alternative: maybe the file is directly in /app/uploads/
+                alt_path = os.path.join("/app", archivo_ruta.lstrip("/"))
+                logger.info(f"    -> alt={alt_path!r} exists={os.path.exists(alt_path)}")
+                if os.path.exists(alt_path):
+                    pdf_path = alt_path
+                    exists = True
+            if exists:
                 anexos.append({
                     "ruta": pdf_path,
-                    "tipo": doc.get("tipo_documento", ""),
+                    "tipo": tipo,
                     "nombre": doc.get("archivo_nombre", "documento"),
                 })
+                logger.info(f"    -> AGREGADO como anexo")
+    logger.info(f"_recolectar_anexos: {len(anexos)} anexos encontrados")
     return anexos
 
 
@@ -142,31 +159,39 @@ def generar_pdf(contratista: dict, contratos: list, resumen: dict) -> bytes:
 
     # Anexar documentos contractuales aprobados
     anexos = _recolectar_anexos(contratos)
+    logger.info(f"generar_pdf: {len(anexos)} anexos para merge")
     if not anexos:
+        logger.info("generar_pdf: sin anexos, PDF sin documentos contractuales")
         return pdf_bytes
 
     try:
         from pikepdf import Pdf
+        logger.info("generar_pdf: pikepdf importado correctamente")
 
         with Pdf.open(io.BytesIO(pdf_bytes)) as main_pdf:
+            logger.info(f"generar_pdf: PDF principal tiene {len(main_pdf.pages)} páginas")
             for anexo in anexos:
                 try:
                     with Pdf.open(anexo["ruta"]) as doc_pdf:
+                        doc_pages = len(doc_pdf.pages)
                         main_pdf.pages.extend(doc_pdf.pages)
-                        logger.info(f"Anexado: {anexo['nombre']} ({len(doc_pdf.pages)} páginas)")
+                        logger.info(f"Anexado: {anexo['nombre']} ({doc_pages} páginas)")
                 except Exception as e:
                     logger.warning(f"No se pudo anexar {anexo['nombre']}: {e}")
                     continue
 
             output = io.BytesIO()
             main_pdf.save(output)
-            logger.info(f"PDF generado con {len(anexos)} anexos contractuales")
-            return output.getvalue()
-    except ImportError:
-        logger.warning("pikepdf no disponible — se omite anexado de documentos")
+            result = output.getvalue()
+            logger.info(f"PDF generado con {len(anexos)} anexos contractuales ({len(result)} bytes)")
+            return result
+    except ImportError as e:
+        logger.warning(f"pikepdf no disponible ({e}) — se omite anexado de documentos")
         return pdf_bytes
     except Exception as e:
         logger.error(f"Error anexando documentos contractuales: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return pdf_bytes
 
 
