@@ -9,7 +9,12 @@ export const api = {
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const isFormData = options?.body instanceof FormData
   const reqHeaders = { ...api.headers, ...(options?.headers || {}) } as any
+  // Si es FormData, dejar que el browser setee Content-Type con el boundary correcto
+  if (isFormData) {
+    delete reqHeaders["Content-Type"]
+  }
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("token")
     if (token) {
