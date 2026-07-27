@@ -287,7 +287,8 @@ async def subir_evidencia(
             ActividadApoyo.apoyo_id == apoyo_id,
         )
     )
-    if not result.scalar_one_or_none():
+    actividad = result.scalar_one_or_none()
+    if not actividad:
         raise HTTPException(404, "Actividad no encontrada para ese apoyo")
 
     # Validar apoyo
