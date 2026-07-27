@@ -50,7 +50,9 @@ def _build_context(contratista: dict, contratos: list, resumen: dict) -> dict:
             act["observacion"] = None
             if evs:
                 act["estado_global"] = "APROBADO"
-                act["observacion"] = evs[0].get("observacion_coordinadora")
+                # Ocultar observaciones cuando hay evidencias aprobadas
+                for ev in evs:
+                    ev["observacion_coordinadora"] = None
             else:
                 act["estado_global"] = "SIN_EVIDENCIA"
 
