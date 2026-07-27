@@ -1,5 +1,5 @@
 """Servicio de generación de Informe de Evaluación de Cumplimiento.
-Genera PDF (WeasyPrint) y DOCX (python-docx) con la misma estructura formal.
+Genera PDF (WeasyPrint) y DOCX (python-docx) con estilo profesional tipo documento formal.
 """
 
 import io
@@ -41,7 +41,6 @@ def _build_context(contratista: dict, contratos: list, resumen: dict) -> dict:
     today = datetime.now()
     fecha_informe = f"{today.day:02d} de {MESES[today.month]} de {today.year}"
 
-    # Preparar actividades con estado global
     total_actividades = 0
     for c in contratos:
         for act in c.get("actividades", []):
@@ -51,7 +50,6 @@ def _build_context(contratista: dict, contratos: list, resumen: dict) -> dict:
             act["observacion"] = None
             if evs:
                 act["estado_global"] = "APROBADO"
-                # Usar observación de la primera evidencia
                 act["observacion"] = evs[0].get("observacion_coordinadora")
             else:
                 act["estado_global"] = "SIN_EVIDENCIA"
@@ -124,11 +122,11 @@ def _add_cell_text(cell, text, bold=False, size=9, color=None, alignment=None):
     run = p.add_run(str(text))
     run.bold = bold
     run.font.size = Pt(size)
+    run.font.name = "Times New Roman"
     if color:
         run.font.color.rgb = RGBColor(*color)
     if alignment is not None:
         p.alignment = alignment
-    # Cell shading
     return cell
 
 
@@ -139,17 +137,16 @@ def _set_cell_shading(cell, color_hex):
 
 
 def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
-    """Genera el DOCX del informe de evaluación."""
+    """Genera el DOCX del informe de evaluación con estilo profesional."""
     ctx = _build_context(contratista, contratos, resumen)
     doc = Document()
 
-    # ─── Estilos de párrafo ────────────────────────────────────────────
+    # ─── Estilos base ───────────────────────────────────────────────────
     style = doc.styles["Normal"]
-    style.font.name = "Calibri"
-    style.font.size = Pt(10)
+    style.font.name = "Times New Roman"
+    style.font.size = Pt(11)
 
-    # ─── Header ────────────────────────────────────────────────────────
-    # Logo
+    # ─── Letterhead: Logo + entidad ──────────────────────────────────────
     logo_b64 = ctx["logo_base64"]
     if logo_b64:
         import tempfile
@@ -157,7 +154,7 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
             tmp.write(base64.b64decode(logo_b64))
             logo_path = tmp.name
         try:
-            doc.add_picture(logo_path, width=Cm(3))
+            doc.add_picture(logo_path, width=Cm(4.5))
         except Exception:
             pass
         finally:
@@ -166,35 +163,44 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
             except Exception:
                 pass
 
-    _add_styled_paragraph(doc, "", space_after=2)
     _add_styled_paragraph(doc, "ESE NORTE 3 E.S.E.",
-                          bold=True, size=14, color=(26, 82, 118),
-                          alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=2)
+                          bold=True, size=13,
+                          alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=1)
+    _add_styled_paragraph(doc, "NIT: 900.146.438-8",
+                          bold=False, size=8.5, color=(68, 68, 68),
+                          alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=1)
     _add_styled_paragraph(doc, "Equipos Básicos de Salud",
-                          bold=False, size=11, color=(44, 62, 80),
-                          alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=6)
+                          bold=False, size=8.5, color=(68, 68, 68),
+                          alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=10)
+
+    # ─── Separator ──────────────────────────────────────────────────────
+    sep_p = doc.add_paragraph()
+    sep_p.paragraph_format.space_before = Pt(0)
+    sep_p.paragraph_format.space_after = Pt(8)
+    run_sep = sep_p.add_run("_" * 85)
+    run_sep.font.size = Pt(6)
+    run_sep.font.color.rgb = RGBColor(0, 0, 0)
 
     # ─── Title ─────────────────────────────────────────────────────────
     title_p = doc.add_paragraph()
     title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    title_p.paragraph_format.space_before = Pt(6)
-    title_p.paragraph_format.space_after = Pt(12)
+    title_p.paragraph_format.space_before = Pt(8)
+    title_p.paragraph_format.space_after = Pt(14)
     run = title_p.add_run("INFORME DE EVALUACIÓN DE CUMPLIMIENTO")
     run.bold = True
     run.font.size = Pt(12)
-    run.font.color.rgb = RGBColor(26, 82, 118)
+    run.font.name = "Times New Roman"
 
     # ─── 1. Datos del Contratista ──────────────────────────────────────
-    _add_styled_paragraph(doc, "1. DATOS DEL CONTRATISTA",
-                          bold=True, size=10, color=(26, 82, 118),
-                          space_after=4)
+    _add_styled_paragraph(doc, "1. Datos del Contratista",
+                          bold=True, size=10.5, space_after=4)
 
     info_data = [
         ("Nombre:", ctx["nombre"]),
         ("Identificación:", ctx["identificacion"]),
         ("Teléfono:", ctx["telefono"] or "—"),
-        ("Correo:", ctx["correo"] or "—"),
-        ("Contrato:", ctx["contrato"]),
+        ("Correo electrónico:", ctx["correo"] or "—"),
+        ("Contrato No.:", ctx["contrato"]),
         ("Perfil:", ctx["perfil"] or "—"),
         ("Periodo evaluado:", ctx["periodo"]),
         ("Fecha del informe:", ctx["fecha_informe"]),
@@ -204,49 +210,14 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
     table_info.style = "Table Grid"
     table_info.alignment = WD_TABLE_ALIGNMENT.LEFT
     for i, (label, value) in enumerate(info_data):
-        _add_cell_text(table_info.rows[i].cells[0], label, bold=True, size=9)
-        _add_cell_text(table_info.rows[i].cells[1], value, bold=False, size=9)
+        _add_cell_text(table_info.rows[i].cells[0], label, bold=True, size=10)
+        _add_cell_text(table_info.rows[i].cells[1], value, bold=False, size=10)
 
     doc.add_paragraph()  # spacer
 
-    # ─── 2. Resumen ────────────────────────────────────────────────────
-    _add_styled_paragraph(doc, "2. RESUMEN DE CUMPLIMIENTO",
-                          bold=True, size=10, color=(26, 82, 118),
-                          space_after=4)
-
-    res_data = [
-        ("Actividades", ctx["total_actividades"]),
-        ("Aprobadas", ctx["aprobadas"]),
-        ("Rechazadas", ctx["rechazadas"]),
-        ("Pendientes", ctx["pendientes"]),
-        ("Sin evidencia", ctx["sin_evidencia"]),
-    ]
-
-    table_res = doc.add_table(rows=1, cols=len(res_data))
-    table_res.style = "Table Grid"
-    table_res.alignment = WD_TABLE_ALIGNMENT.CENTER
-    for j, (label, value) in enumerate(res_data):
-        cell = table_res.rows[0].cells[j]
-        _add_cell_text(cell, str(value), bold=True, size=14,
-                       alignment=WD_ALIGN_PARAGRAPH.CENTER)
-        cell2 = table_res.add_row().cells[j]
-        _add_cell_text(cell2, label.upper(), bold=False, size=7,
-                       color=(102, 102, 102),
-                       alignment=WD_ALIGN_PARAGRAPH.CENTER)
-        _set_cell_shading(cell, "F0F8FF")
-        _set_cell_shading(cell2, "F0F8FF")
-
-    doc.add_paragraph()
-
-    # Cumplimiento percentage
-    _add_styled_paragraph(doc,
-        f"Porcentaje de cumplimiento: {ctx['porcentaje']}%",
-        bold=True, size=10, color=(26, 164, 78), space_after=6)
-
-    # ─── 3. Detalle de Actividades ─────────────────────────────────────
-    _add_styled_paragraph(doc, "3. DETALLE DE ACTIVIDADES POR CONTRATO",
-                          bold=True, size=10, color=(26, 82, 118),
-                          space_after=4)
+    # ─── 2. Detalle de Actividades por Contrato ─────────────────────────
+    _add_styled_paragraph(doc, "2. Detalle de Actividades por Contrato",
+                          bold=True, size=10.5, space_after=4)
 
     from docx.oxml.ns import qn as _qn
     from docx.oxml import parse_xml as _parse_xml
@@ -255,7 +226,7 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
         _add_styled_paragraph(doc,
             f"Contrato: {c['numero_contrato']}" +
             (f" — {c.get('perfil', '')}" if c.get('perfil') else ""),
-            bold=True, size=9, color=(26, 82, 118), space_after=2)
+            bold=True, size=9, color=(26, 58, 92), space_after=2)
 
         acts = c.get("actividades", [])
         if not acts:
@@ -280,7 +251,7 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
             _add_cell_text(cell, h, bold=True, size=7,
                            color=(255, 255, 255),
                            alignment=WD_ALIGN_PARAGRAPH.CENTER)
-            _set_cell_shading(cell, "1A5276")
+            _set_cell_shading(cell, "1A3A5C")
 
         for i, act in enumerate(acts):
             estado = act.get("estado_global", "SIN_EVIDENCIA")
@@ -297,7 +268,6 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
             _add_cell_text(row_act.cells[1], act.get("descripcion", ""), size=8)
             _add_cell_text(row_act.cells[2], estado_label, size=8,
                            alignment=WD_ALIGN_PARAGRAPH.CENTER)
-            # Shading
             for cell in row_act.cells:
                 _set_cell_shading(cell, "F0F4F8")
 
@@ -309,7 +279,6 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
             evidencias = act.get("evidencias", [])
             if evidencias:
                 ev_cell.text = ""
-                # Group by type
                 imgs = [e for e in evidencias if e.get("tipo") == "IMAGEN"]
                 textos = [e for e in evidencias if e.get("tipo") == "TEXTO"]
                 archivos = [e for e in evidencias if e.get("tipo") == "ARCHIVO"]
@@ -326,7 +295,6 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
                     r_l.font.color.rgb = RGBColor(136, 136, 136)
                     r_l.bold = True
 
-                    # Create a sub-table or inline paragraphs for images
                     for ev in imgs:
                         img_b64 = ev.get("img_base64")
                         if img_b64:
@@ -339,7 +307,6 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
                                 with _PILImg.open(tmp_path) as img_pil:
                                     orig_w, orig_h = img_pil.size
                                 ratio = orig_w / orig_h if orig_h > 0 else 1
-                                # Larger images: 14cm for landscape, 10cm for portrait
                                 if ratio > 1.3:
                                     disp_w = min(Cm(14), Cm(orig_w * 14 / orig_h))
                                     disp_h = Cm(float(disp_w / ratio))
@@ -362,7 +329,6 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
                             r_f = p_fallback.add_run(f"  {ev.get('archivo_nombre', 'Imagen')}")
                             r_f.font.size = Pt(8)
 
-                    # Observations for images
                     for ev in imgs:
                         if ev.get("observacion_coordinadora"):
                             p_obs = ev_cell.add_paragraph()
@@ -427,7 +393,7 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
 
         doc.add_paragraph()
 
-    # ─── 4. Firmas ──────────────────────────────────────────────────────
+    # ─── Firmas ────────────────────────────────────────────────────────
     doc.add_paragraph()
     doc.add_paragraph()
 
@@ -446,16 +412,19 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
         p_line.paragraph_format.space_before = Pt(20)
         r = p_line.add_run("_" * 35)
         r.font.size = Pt(9)
+        r.font.name = "Times New Roman"
         p_name = cell.add_paragraph()
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r2 = p_name.add_run(titulo)
         r2.bold = True
         r2.font.size = Pt(9)
+        r2.font.name = "Times New Roman"
         p_sub = cell.add_paragraph()
         p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r3 = p_sub.add_run(sub)
         r3.font.size = Pt(8)
-        r3.font.color.rgb = RGBColor(102, 102, 102)
+        r3.font.color.rgb = RGBColor(85, 85, 85)
+        r3.font.name = "Times New Roman"
 
     # ─── Footer ────────────────────────────────────────────────────────
     doc.add_paragraph()
@@ -465,8 +434,9 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
         f"ESE Norte 3 E.S.E. — Equipos Básicos de Salud\n"
         f"Documento generado el {ctx['fecha_informe']} — GESCO V2"
     )
-    run_f.font.size = Pt(7)
-    run_f.font.color.rgb = RGBColor(136, 136, 136)
+    run_f.font.size = Pt(7.5)
+    run_f.font.color.rgb = RGBColor(102, 102, 102)
+    run_f.font.name = "Times New Roman"
 
     # ─── Output ────────────────────────────────────────────────────────
     buf = io.BytesIO()

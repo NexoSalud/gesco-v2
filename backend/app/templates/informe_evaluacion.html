@@ -5,137 +5,101 @@
 <style>
   @page {
     size: letter;
-    margin: 2cm 2.5cm;
-    @top-center {
-      content: "";
-    }
+    margin: 2.5cm 2.8cm 2.2cm 2.8cm;
     @bottom-center {
       content: "Página " counter(page) " de " counter(pages);
-      font-size: 8pt;
-      color: #666;
-      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 7.5pt;
+      color: #555;
+      font-family: 'Times New Roman', Times, serif;
     }
   }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: 'Segoe UI', Arial, sans-serif;
-    font-size: 10pt;
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 11pt;
     line-height: 1.5;
-    color: #222;
-    margin: 0;
-    padding: 0;
+    color: #000;
   }
 
-  /* Header */
-  .header {
+  /* ─── Header / Letterhead ───────────────────────────────────────────── */
+  .letterhead {
     text-align: center;
-    border-bottom: 2px solid #1a5276;
-    padding-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #000;
     margin-bottom: 20px;
   }
-  .header .logo {
-    max-height: 70px;
-    margin-bottom: 6px;
+  .letterhead .logo {
+    max-height: 65px;
+    margin-bottom: 5px;
   }
-  .header h1 {
+  .letterhead .entity-name {
     font-size: 13pt;
-    color: #1a5276;
-    margin: 4px 0;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  .header h2 {
-    font-size: 11pt;
-    color: #2c3e50;
-    margin: 2px 0;
-    font-weight: normal;
-  }
-  .header p {
-    font-size: 8pt;
-    color: #666;
-    margin: 2px 0;
-  }
-
-  /* Title */
-  .title {
-    text-align: center;
-    margin: 20px 0;
-    padding: 10px;
-    background: #eaf2f8;
-    border: 1px solid #aed6f1;
-    border-radius: 4px;
-  }
-  .title h3 {
-    font-size: 12pt;
-    color: #1a5276;
-    margin: 0;
+    font-weight: bold;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    margin: 3px 0 1px 0;
+  }
+  .letterhead .entity-nit {
+    font-size: 8.5pt;
+    color: #444;
+    margin: 0;
+  }
+  .letterhead .entity-dept {
+    font-size: 8.5pt;
+    color: #444;
+    margin: 1px 0 0 0;
   }
 
-  /* Sections */
+  /* ─── Title ──────────────────────────────────────────────────────────── */
+  .doc-title {
+    text-align: center;
+    margin: 16px 0 20px 0;
+  }
+  .doc-title h2 {
+    font-size: 12pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid #000;
+    display: inline-block;
+    padding: 5px 20px;
+    margin: 0;
+  }
+
+  /* ─── Sections ───────────────────────────────────────────────────────── */
   .section {
-    margin: 16px 0;
+    margin: 14px 0;
     page-break-inside: avoid;
   }
   .section-title {
-    font-size: 10pt;
+    font-size: 10.5pt;
     font-weight: bold;
-    color: #1a5276;
     text-transform: uppercase;
-    border-bottom: 1px solid #aed6f1;
-    padding-bottom: 3px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 2px;
     margin-bottom: 8px;
   }
 
-  /* Info table */
+  /* ─── Info Table ─────────────────────────────────────────────────────── */
   .info-table {
     width: 100%;
     border-collapse: collapse;
     margin: 6px 0;
   }
+  .info-table tr {
+    border-bottom: 1px solid #ddd;
+  }
   .info-table td {
-    padding: 3px 6px;
+    padding: 4px 6px;
     vertical-align: top;
-    font-size: 9.5pt;
+    font-size: 10pt;
   }
   .info-table .label {
-    width: 160px;
+    width: 170px;
     font-weight: bold;
-    color: #444;
-  }
-  .info-table .value {
-    color: #222;
   }
 
-  /* Summary cards */
-  .summary-grid {
-    display: flex;
-    gap: 8px;
-    margin: 10px 0;
-    flex-wrap: wrap;
-  }
-  .summary-card {
-    flex: 1;
-    min-width: 80px;
-    text-align: center;
-    padding: 8px 4px;
-    border-radius: 4px;
-    border: 1px solid #ddd;
-  }
-  .summary-card .num {
-    font-size: 16pt;
-    font-weight: bold;
-    display: block;
-  }
-  .summary-card .lbl {
-    font-size: 7pt;
-    text-transform: uppercase;
-    color: #666;
-    margin-top: 2px;
-  }
-
-  /* Activity table */
+  /* ─── Activity table ─────────────────────────────────────────────────── */
   .act-table {
     width: 100%;
     border-collapse: collapse;
@@ -143,7 +107,7 @@
     margin: 8px 0;
   }
   .act-table th {
-    background: #1a5276;
+    background: #1a3a5c;
     color: white;
     padding: 5px 4px;
     text-align: left;
@@ -163,7 +127,7 @@
   .act-table .num-col { width: 25px; text-align: center; }
   .act-table .estado-col { width: 80px; text-align: center; }
 
-  /* Evidence items container */
+  /* ─── Evidence items ─────────────────────────────────────────────────── */
   .evidencia-row {
     display: flex;
     align-items: flex-start;
@@ -196,7 +160,6 @@
     text-transform: uppercase;
     letter-spacing: 0.3px;
   }
-  /* Contenedor de imágenes en fila */
   .evidencia-imgs {
     display: flex;
     flex-wrap: wrap;
@@ -212,8 +175,8 @@
     max-width: 100%;
     height: auto;
     display: block;
-    border-radius: 3px;
-    border: 1px solid #ddd;
+    border-radius: 2px;
+    border: 1px solid #ccc;
   }
   .evidencia-img.landscape {
     max-height: 180px;
@@ -234,11 +197,11 @@
     white-space: pre-wrap;
     background: #fafafa;
     padding: 4px 6px;
-    border-radius: 3px;
+    border-radius: 2px;
     border: 1px solid #eee;
   }
 
-  /* Status colors */
+  /* ─── Status colors ──────────────────────────────────────────────────── */
   .est-aprobado {
     color: #1a7a2e;
     font-weight: bold;
@@ -248,7 +211,7 @@
     font-weight: bold;
   }
   .est-pendiente {
-    color: #d4a017;
+    color: #b8860b;
     font-weight: bold;
   }
   .est-sin-ev {
@@ -256,63 +219,24 @@
     font-style: italic;
   }
 
-  /* Observations */
+  /* ─── Observations ───────────────────────────────────────────────────── */
   .obs-box {
     background: #fef9e7;
-    border: 1px solid #f9e79f;
-    border-radius: 4px;
-    padding: 8px 10px;
-    margin: 4px 0;
-    font-size: 9pt;
+    border: 1px solid #f0dca0;
+    padding: 6px 8px;
+    margin: 3px 0;
+    font-size: 7.5pt;
     page-break-inside: avoid;
   }
   .obs-box strong {
     color: #7d6608;
   }
 
-  /* Bar chart */
-  .bar-container {
-    margin: 6px 0;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .bar-label {
-    width: 100px;
-    font-size: 8pt;
-    text-align: right;
-    color: #555;
-  }
-  .bar-track {
-    flex: 1;
-    height: 16px;
-    background: #eee;
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  .bar-fill {
-    height: 100%;
-    border-radius: 8px;
-  }
-  .bar-pct {
-    width: 50px;
-    font-size: 8pt;
-    font-weight: bold;
-  }
-
-  /* Footer */
-  .footer {
-    margin-top: 30px;
-    padding-top: 10px;
-    border-top: 1px solid #ccc;
-    text-align: center;
-    font-size: 7.5pt;
-    color: #888;
-  }
+  /* ─── Signatures ─────────────────────────────────────────────────────── */
   .signatures {
     display: flex;
     justify-content: space-between;
-    margin-top: 40px;
+    margin-top: 50px;
     page-break-inside: avoid;
   }
   .signature-box {
@@ -320,111 +244,73 @@
     width: 45%;
   }
   .signature-box .line {
-    border-top: 1px solid #333;
-    margin-top: 40px;
+    border-top: 1px solid #000;
+    margin-top: 45px;
     padding-top: 6px;
     font-size: 9pt;
     font-weight: bold;
   }
   .signature-box .sub {
+    font-size: 8pt;
+    color: #555;
+    margin-top: 1px;
+  }
+
+  /* ─── Footer ─────────────────────────────────────────────────────────── */
+  .footer {
+    margin-top: 30px;
+    padding-top: 8px;
+    border-top: 1px solid #ccc;
+    text-align: center;
     font-size: 7.5pt;
     color: #666;
-    margin-top: 2px;
   }
 </style>
 </head>
 <body>
 
-<!-- Header -->
-<div class="header">
+<!-- ═══════════════════════════════════════════════════════════════════════
+     LETTERHEAD
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="letterhead">
   <img src="data:image/png;base64,{{ logo_base64 }}" class="logo" alt="ESE Norte 3" />
-  <h1>ESE NORTE 3 E.S.E.</h1>
-  <h2>NIT: 900.000.000-0</h2>
-  <p>Departamento de Equipos Básicos de Salud</p>
+  <div class="entity-name">ESE Norte 3 E.S.E.</div>
+  <div class="entity-nit">NIT: 900.146.438-8</div>
+  <div class="entity-dept">Equipos Básicos de Salud</div>
 </div>
 
-<!-- Title -->
-<div class="title">
-  <h3>Informe de Evaluación de Cumplimiento</h3>
+<!-- ═══════════════════════════════════════════════════════════════════════
+     TITLE
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="doc-title">
+  <h2>Informe de Evaluación de Cumplimiento</h2>
 </div>
 
-<!-- Datos del contratista -->
+<!-- ═══════════════════════════════════════════════════════════════════════
+     SECTION 1 — DATOS DEL CONTRATISTA
+     ═══════════════════════════════════════════════════════════════════════ -->
 <div class="section">
   <div class="section-title">1. Datos del Contratista</div>
   <table class="info-table">
-    <tr><td class="label">Nombre:</td><td class="value">{{ nombre }}</td></tr>
-    <tr><td class="label">Identificación:</td><td class="value">{{ identificacion }}</td></tr>
-    <tr><td class="label">Teléfono:</td><td class="value">{{ telefono or '—' }}</td></tr>
-    <tr><td class="label">Correo:</td><td class="value">{{ correo or '—' }}</td></tr>
-    <tr><td class="label">Contrato:</td><td class="value">{{ contrato }}</td></tr>
-    <tr><td class="label">Perfil:</td><td class="value">{{ perfil or '—' }}</td></tr>
-    <tr><td class="label">Periodo evaluado:</td><td class="value">{{ periodo }}</td></tr>
-    <tr><td class="label">Fecha del informe:</td><td class="value">{{ fecha_informe }}</td></tr>
+    <tr><td class="label">Nombre:</td><td>{{ nombre }}</td></tr>
+    <tr><td class="label">Identificación:</td><td>{{ identificacion }}</td></tr>
+    <tr><td class="label">Teléfono:</td><td>{{ telefono or '—' }}</td></tr>
+    <tr><td class="label">Correo electrónico:</td><td>{{ correo or '—' }}</td></tr>
+    <tr><td class="label">Contrato No.:</td><td>{{ contrato }}</td></tr>
+    <tr><td class="label">Perfil:</td><td>{{ perfil or '—' }}</td></tr>
+    <tr><td class="label">Periodo evaluado:</td><td>{{ periodo }}</td></tr>
+    <tr><td class="label">Fecha del informe:</td><td>{{ fecha_informe }}</td></tr>
   </table>
 </div>
 
-<!-- Resumen -->
+<!-- ═══════════════════════════════════════════════════════════════════════
+     SECTION 2 — DETALLE DE ACTIVIDADES POR CONTRATO
+     ═══════════════════════════════════════════════════════════════════════ -->
 <div class="section">
-  <div class="section-title">2. Resumen de Cumplimiento</div>
-
-  <div class="summary-grid">
-    <div class="summary-card" style="border-color:#3498db;">
-      <span class="num" style="color:#3498db;">{{ total_actividades }}</span>
-      <span class="lbl">Actividades</span>
-    </div>
-    <div class="summary-card" style="border-color:#27ae60;">
-      <span class="num" style="color:#27ae60;">{{ aprobadas }}</span>
-      <span class="lbl">Aprobadas</span>
-    </div>
-    <div class="summary-card" style="border-color:#e74c3c;">
-      <span class="num" style="color:#e74c3c;">{{ rechazadas }}</span>
-      <span class="lbl">Rechazadas</span>
-    </div>
-    <div class="summary-card" style="border-color:#f39c12;">
-      <span class="num" style="color:#f39c12;">{{ pendientes }}</span>
-      <span class="lbl">Pendientes</span>
-    </div>
-    <div class="summary-card" style="border-color:#8e44ad;">
-      <span class="num" style="color:#8e44ad;">{{ sin_evidencia }}</span>
-      <span class="lbl">Sin Evidencia</span>
-    </div>
-    <div class="summary-card" style="border-color:#1abc9c;">
-      <span class="num" style="color:#1abc9c;">{{ porcentaje }}%</span>
-      <span class="lbl">Cumplimiento</span>
-    </div>
-  </div>
-
-  <!-- Visual bars -->
-  <div style="margin-top: 10px;">
-    <div class="bar-container">
-      <div class="bar-label">Aprobadas</div>
-      <div class="bar-track"><div class="bar-fill" style="width:{{ pct_aprobadas }}%;background:#27ae60;"></div></div>
-      <div class="bar-pct">{{ aprobadas }}</div>
-    </div>
-    <div class="bar-container">
-      <div class="bar-label">Rechazadas</div>
-      <div class="bar-track"><div class="bar-fill" style="width:{{ pct_rechazadas }}%;background:#e74c3c;"></div></div>
-      <div class="bar-pct">{{ rechazadas }}</div>
-    </div>
-    <div class="bar-container">
-      <div class="bar-label">Pendientes</div>
-      <div class="bar-track"><div class="bar-fill" style="width:{{ pct_pendientes }}%;background:#f39c12;"></div></div>
-      <div class="bar-pct">{{ pendientes }}</div>
-    </div>
-    <div class="bar-container">
-      <div class="bar-label">Sin evidencia</div>
-      <div class="bar-track"><div class="bar-fill" style="width:{{ pct_sin_evidencia }}%;background:#bdc3c7;"></div></div>
-      <div class="bar-pct">{{ sin_evidencia }}</div>
-    </div>
-  </div>
-</div>
-
-<!-- Detalle de actividades -->
-<div class="section">
-  <div class="section-title">3. Detalle de Actividades por Contrato</div>
+  <div class="section-title">2. Detalle de Actividades por Contrato</div>
 
   {% for contrato in contratos %}
-  <div style="margin: 12px 0 6px 0; font-weight: bold; color: #1a5276;">
+  <div style="margin: 12px 0 6px 0; font-weight: bold; color: #1a3a5c;">
     Contrato: {{ contrato.numero_contrato }}
     {% if contrato.perfil %} — {{ contrato.perfil }}{% endif %}
   </div>
@@ -546,9 +432,9 @@
   {% endfor %}
 </div>
 
-<!-- Observaciones generales (ahora inline en cada evidencia) -->
-
-<!-- Firmas -->
+<!-- ═══════════════════════════════════════════════════════════════════════
+     FIRMAS
+     ═══════════════════════════════════════════════════════════════════════ -->
 <div class="signatures">
   <div class="signature-box">
     <div class="line">COORDINADOR DE SUPERVISIÓN</div>
@@ -560,6 +446,9 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════════════════════════════ -->
 <div class="footer">
   ESE Norte 3 E.S.E. — Equipos Básicos de Salud — Documento generado el {{ fecha_informe }}<br>
   Sistema de Gestión de Contratos — GESCO V2
