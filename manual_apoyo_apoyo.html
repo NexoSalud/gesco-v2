@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Manual del Apoyo — Apoyo Administrativo</title>
+<style>
+  @page { margin: 2cm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; color: #1f2937; line-height: 1.6; margin: 0; padding: 0; }
+  .page { max-width: 21cm; margin: 0 auto; padding: 2em; }
+
+  .cover { text-align: center; padding: 4em 2em; page-break-after: always; }
+  .cover .logo { width: 100px; height: 100px; object-fit: contain; }
+  .cover h1 { font-size: 2em; color: #059669; margin: 0.5em 0 0.2em; }
+  .cover h2 { font-size: 1.3em; color: #6b7280; font-weight: 400; margin: 0 0 1.5em; }
+  .cover .meta { color: #9ca3af; font-size: 0.9em; line-height: 1.8; }
+  .cover .badge { display: inline-block; background: #059669; color: white; padding: 0.4em 1.2em; border-radius: 999px; font-size: 0.85em; font-weight: 600; margin-top: 1em; }
+
+  h2 { font-size: 1.3em; color: #059669; border-bottom: 3px solid #059669; padding-bottom: 0.3em; margin-top: 1.5em; break-after: avoid; }
+  h3 { font-size: 1.1em; color: #374151; margin-top: 1.2em; break-after: avoid; }
+  p, li { font-size: 0.95em; }
+  ul, ol { padding-left: 1.5em; }
+  li { margin-bottom: 0.3em; }
+
+  .step { background: #f0fdf4; border-left: 4px solid #059669; padding: 0.8em 1em; margin: 0.8em 0; border-radius: 0 8px 8px 0; }
+  .step strong { color: #059669; }
+
+  .tip { background: #fefce8; border: 1px solid #fde68a; padding: 0.8em 1em; margin: 0.8em 0; border-radius: 8px; }
+  .tip strong { color: #92400e; }
+  .warning { background: #fef2f2; border: 1px solid #fecaca; padding: 0.8em 1em; margin: 0.8em 0; border-radius: 8px; }
+  .warning strong { color: #991b1b; }
+  .info { background: #eff6ff; border: 1px solid #bfdbfe; padding: 0.8em 1em; margin: 0.8em 0; border-radius: 8px; }
+  .info strong { color: #1e40af; }
+
+  .screenshot { text-align: center; margin: 1em 0; page-break-inside: avoid; }
+  .screenshot img { max-width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .screenshot .caption { font-size: 0.8em; color: #9ca3af; margin-top: 0.3em; font-style: italic; }
+
+  table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.9em; page-break-inside: avoid; }
+  th, td { border: 1px solid #e5e7eb; padding: 0.5em 0.8em; text-align: left; }
+  th { background: #059669; color: white; font-weight: 600; }
+  tr:nth-child(even) { background: #f9fafb; }
+
+  .badge-pending { background: #fef3c7; color: #92400e; padding: 0.15em 0.6em; border-radius: 999px; font-size: 0.8em; font-weight: 600; }
+  .badge-approved { background: #d1fae5; color: #065f46; padding: 0.15em 0.6em; border-radius: 999px; font-size: 0.8em; font-weight: 600; }
+  .badge-rejected { background: #fee2e2; color: #991b1b; padding: 0.15em 0.6em; border-radius: 999px; font-size: 0.8em; font-weight: 600; }
+
+  .toc { page-break-after: always; }
+  .toc ul { list-style: none; padding: 0; }
+  .toc li { padding: 0.4em 0; border-bottom: 1px dotted #e5e7eb; }
+  .toc a { color: #059669; text-decoration: none; font-weight: 500; }
+
+  .footer { text-align: center; color: #9ca3af; font-size: 0.8em; margin-top: 2em; border-top: 1px solid #e5e7eb; padding-top: 1em; }
+
+  @media print {
+    .page { padding: 0; }
+    .screenshot img { max-width: 90%; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <!-- COVER -->
+  <div class="cover">
+    <img src="/home/marvin/.openclaw/workspace/gesco-v2/frontend/public/logo_es.png" alt="ESE Norte 3" class="logo">
+    <h1>Módulo de Apoyo Administrativo</h1>
+    <h2>Manual del Apoyo Administrativo</h2>
+    <div class="badge">ESE NORTE 3</div>
+    <div class="meta">
+      <p>Sistema de Gestión de Contratos — Gesco V2</p>
+      <p>Versión 2.0 · Julio 2026</p>
+      <p>https://contratos.esenorte3.lat/evaluacion</p>
+    </div>
+  </div>
+
+  <!-- TABLE OF CONTENTS -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ul>
+      <li><a href="#intro">1. Introducción</a></li>
+      <li><a href="#acceso">2. Acceso al Portal de Evaluación</a></li>
+      <li><a href="#dashboard">3. Tu Panel de Actividades</a></li>
+      <li><a href="#subir-evidencias">4. Cómo Subir Evidencias</a></li>
+      <li><a href="#imagen">4.1. Subir una imagen</a></li>
+      <li><a href="#archivo">4.2. Subir un archivo</a></li>
+      <li><a href="#texto">4.3. Agregar un texto</a></li>
+      <li><a href="#revisar">5. Cómo Revisar tus Evidencias</a></li>
+      <li><a href="#estados">6. Estados de las Evidencias</a></li>
+      <li><a href="#consejos">7. Consejos para Buenas Evidencias</a></li>
+      <li><a href="#faq">8. Preguntas Frecuentes</a></li>
+    </ul>
+  </div>
+
+  <!-- 1. INTRODUCCIÓN -->
+  <h2 id="intro">1. Introducción</h2>
+  <p>Como parte del equipo de Apoyo Administrativo de la ESE Norte 3, debes reportar mensualmente las actividades que realizas. El sistema de <strong>Evaluación de Cumplimiento</strong> te permite:</p>
+  <ul>
+    <li>Ver la lista de actividades que debes reportar</li>
+    <li>Subir evidencias de tu trabajo (fotos, documentos, textos)</li>
+    <li>Conocer el estado de cada evidencia (aprobada, pendiente, rechazada)</li>
+    <li>Leer las observaciones de tu coordinador</li>
+    <li>Reemplazar evidencias rechazadas con versiones corregidas</li>
+  </ul>
+
+  <div class="info">
+    <strong>📌 ¿Qué necesitas?</strong> Solo tu número de cédula para ingresar. No necesitas usuario ni contraseña.
+  </div>
+
+  <!-- 2. ACCESO -->
+  <h2 id="acceso">2. Acceso al Portal de Evaluación</h2>
+  <p>Desde cualquier navegador (Chrome, Edge, Firefox) en tu computador o celular:</p>
+
+  <div class="step">
+    <strong>1.</strong> Abre <strong>https://contratos.esenorte3.lat/evaluacion</strong><br>
+    <strong>2.</strong> Se mostrará la pantalla de Evaluación de Cumplimiento<br>
+    <strong>3.</strong> Ingresa tu número de <strong>cédula</strong> en el campo de búsqueda<br>
+    <strong>4.</strong> Haz clic en <strong>Consultar mis contratos</strong>
+  </div>
+
+  <div class="screenshot">
+    <img src="manual_screenshots/evaluacion_portal_full.png" alt="Portal de evaluación">
+    <div class="caption">Portal de Evaluación de Cumplimiento — ingresa tu cédula</div>
+  </div>
+
+  <div class="tip">
+    <strong>💡 ¿No encuentras tus actividades?</strong> Si al ingresar tu cédula no ves tus actividades, espera unos segundos. Si el problema persiste, contacta a tu coordinador para que verifique que estás registrado en el sistema.
+  </div>
+
+  <!-- 3. DASHBOARD -->
+  <h2 id="dashboard">3. Tu Panel de Actividades</h2>
+  <p>Al ingresar tu cédula, verás tu información personal y la lista de actividades que debes reportar.</p>
+
+  <div class="screenshot">
+    <img src="manual_screenshots/evaluacion_dashboard_apoyo.png" alt="Dashboard de actividades">
+    <div class="caption">Panel de actividades — vista general</div>
+  </div>
+
+  <p>En la parte superior verás:</p>
+  <ul>
+    <li><strong>Tu nombre</strong> y número de identificación</li>
+    <li><strong>Tu perfil</strong> (ej: APOYO CONTABLE, COORDINACIÓN OPERATIVA, etc.)</li>
+    <li><strong>Resumen:</strong> número de actividades y evidencias aprobadas</li>
+  </ul>
+
+  <p>Debajo, la lista completa de tus actividades. Cada actividad tiene un estado:</p>
+  <ul>
+    <li><span class="badge-pending">⏳ Pendiente</span> — Subiste evidencia pero aún no ha sido revisada</li>
+    <li><span class="badge-approved">✅ Aprobado</span> — Tu evidencia fue aprobada por el coordinador</li>
+    <li><span class="badge-rejected">❌ Rechazado</span> — Tu evidencia fue rechazada (revisa la observación)</li>
+    <li><em>Sin evidencia</em> — Aún no has subido nada para esta actividad</li>
+  </ul>
+
+  <!-- 4. SUBIR EVIDENCIAS -->
+  <h2 id="subir-evidencias">4. Cómo Subir Evidencias</h2>
+  <p>Para cada actividad, puedes subir evidencias de tres tipos: <strong>imagen</strong>, <strong>archivo</strong> o <strong>texto</strong>.</p>
+
+  <h3 id="imagen">4.1. Subir una imagen</h3>
+  <p>Ideal para: fotos de reuniones, pantallazos, documentos escaneados, registros fotográficos.</p>
+  <div class="step">
+    <strong>1.</strong> Expande la actividad haciendo clic sobre ella (si está colapsada).<br>
+    <strong>2.</strong> Haz clic en el botón <strong>🖼️ Subir imagen</strong>.<br>
+    <strong>3.</strong> Selecciona la imagen desde tu computador o celular.<br>
+    <strong>4.</strong> Confirma la subida haciendo clic en <strong>Subir evidencia</strong>.
+  </div>
+
+  <div class="tip">
+    <strong>💡 Recomendaciones para imágenes:</strong><br>
+    • Formatos aceptados: JPG, PNG, WebP<br>
+    • Tamaño máximo: 10 MB por archivo<br>
+    • Toma fotos con buena iluminación y enfoque<br>
+    • Si son documentos, asegúrate de que el texto sea legible
+  </div>
+
+  <h3 id="archivo">4.2. Subir un archivo</h3>
+  <p>Ideal para: documentos PDF, informes en Word, hojas de cálculo, formatos diligenciados.</p>
+  <div class="step">
+    <strong>1.</strong> Expande la actividad y haz clic en <strong>📄 Subir archivo</strong>.<br>
+    <strong>2.</strong> Selecciona el archivo desde tu dispositivo.<br>
+    <strong>3.</strong> Haz clic en <strong>Subir evidencia</strong>.
+  </div>
+
+  <div class="warning">
+    <strong>⚠️ Importante:</strong> Los archivos PDF con contraseña serán rechazados automáticamente. Asegúrate de que tus PDFs no tengan restricciones de seguridad.
+  </div>
+
+  <h3 id="texto">4.3. Agregar un texto</h3>
+  <p>Ideal para: descripciones detalladas de actividades, informes narrativos, justificaciones.</p>
+  <div class="step">
+    <strong>1.</strong> Expande la actividad y haz clic en <strong>💬 Agregar texto</strong>.<br>
+    <strong>2.</strong> Escribe tu descripción en el campo de texto.<br>
+    <strong>3.</strong> Sé específico: incluye lugar, fecha, personas involucradas y resultados.<br>
+    <strong>4.</strong> Haz clic en <strong>Subir evidencia</strong>.
+  </div>
+
+  <div class="info">
+    <strong>📝 Ejemplo de buena evidencia textual:</strong><br>
+    "El día 15 de marzo de 2026, realicé la conciliación bancaria del mes de febrero en las instalaciones de la ESE Norte 3. Se revisaron 3 cuentas bancarias, identificando y corrigiendo 2 diferencias menores. El informe fue entregado a la coordinación financiera."
+  </div>
+
+  <!-- 5. REVISAR -->
+  <h2 id="revisar">5. Cómo Revisar tus Evidencias</h2>
+  <p>Para ver el detalle de cada evidencia que has subido:</p>
+  <div class="step">
+    <strong>1.</strong> Expande la actividad haciendo clic sobre ella.<br>
+    <strong>2.</strong> Se mostrarán todas las evidencias que has subido para esa actividad.<br>
+    <strong>3.</strong> Cada evidencia muestra: tipo (icono), fecha de subida, estado y observaciones.<br>
+    <strong>4.</strong> Para ver un archivo o imagen, haz clic en el icono 👁️ (ojo).<br>
+    <strong>5.</strong> Las observaciones del coordinador aparecen en un recuadro de color.
+  </div>
+
+  <p><strong>Observaciones del coordinador:</strong></p>
+  <ul>
+    <li>Recuadro <span style="background:#d1fae5;padding:0.1em 0.5em;border-radius:4px;">verde</span> → Observación positiva o informativa</li>
+    <li>Recuadro <span style="background:#fee2e2;padding:0.1em 0.5em;border-radius:4px;">rojo</span> → Observación de corrección (tu evidencia fue rechazada)</li>
+  </ul>
+
+  <!-- 6. ESTADOS -->
+  <h2 id="estados">6. Estados de las Evidencias</h2>
+  <table>
+    <tr><th>Estado</th><th>Significado</th><th>¿Qué hacer?</th></tr>
+    <tr>
+      <td><span class="badge-approved">✅ Aprobado</span></td>
+      <td>Tu evidencia fue aceptada por el coordinador</td>
+      <td>Nada, sigue así 👍</td>
+    </tr>
+    <tr>
+      <td><span class="badge-pending">⏳ Pendiente</span></td>
+      <td>El coordinador aún no la ha revisado</td>
+      <td>Espera la revisión. Si pasa mucho tiempo, consulta con tu coordinador</td>
+    </tr>
+    <tr>
+      <td><span class="badge-rejected">❌ Rechazado</span></td>
+      <td>No fue aceptada. Revisa la observación</td>
+      <td>Sube una nueva evidencia corregida siguiendo las indicaciones</td>
+    </tr>
+  </table>
+
+  <div class="tip">
+    <strong>💡 Si tu evidencia fue rechazada:</strong><br>
+    1. Lee atentamente la observación del coordinador<br>
+    2. Prepara una nueva evidencia que cumpla con lo solicitado<br>
+    3. Sube la nueva evidencia usando los mismos botones (Subir imagen/archivo/texto)<br>
+    4. No elimines la evidencia rechazada — el sistema la conserva para referencia
+  </div>
+
+  <!-- 7. CONSEJOS -->
+  <h2 id="consejos">7. Consejos para Buenas Evidencias</h2>
+
+  <h3>✅ Para imágenes:</h3>
+  <ul>
+    <li>Buena iluminación y enfoque</li>
+    <li>Si es un documento, que se vea completo y legible</li>
+    <li>Si es una reunión, incluye a los asistentes en la foto</li>
+    <li>Nombres descriptivos ayudan (ej: "reunion_equipo_marzo.jpg")</li>
+  </ul>
+
+  <h3>✅ Para archivos:</h3>
+  <ul>
+    <li>Verifica que el archivo no tenga contraseña</li>
+    <li>Que el contenido sea claro y esté completo</li>
+    <li>Usa formatos estándar (PDF preferiblemente)</li>
+    <li>Tamaño máximo: 10 MB</li>
+  </ul>
+
+  <h3>✅ Para textos:</h3>
+  <ul>
+    <li>Sé descriptivo pero conciso</li>
+    <li>Incluye: qué hiciste, cuándo, dónde, con quién, resultado</li>
+    <li>Un párrafo de 5-8 líneas suele ser suficiente</li>
+    <li>Revisa la ortografía antes de enviar</li>
+  </ul>
+
+  <h3>❌ Errores comunes:</h3>
+  <ul>
+    <li>Subir imágenes borrosas o ilegibles</li>
+    <li>Subir PDF protegido con contraseña (será rechazado)</li>
+    <li>Descripciones muy cortas como "todo ok" o "se hizo"</li>
+    <li>Subir evidencias en la actividad equivocada</li>
+  </ul>
+
+  <!-- 8. FAQ -->
+  <h2 id="faq">8. Preguntas Frecuentes</h2>
+
+  <h3>¿Qué hago si no recuerdo mi cédula?</h3>
+  <p>Comunícate con tu coordinador para que te ayude con el ingreso.</p>
+
+  <h3>¿Puedo subir evidencias desde mi celular?</h3>
+  <p>Sí. El portal funciona en cualquier dispositivo con navegador web: computador, tableta o celular. Las fotos las puedes tomar directamente y subirlas.</p>
+
+  <h3>¿Cuántas evidencias puedo subir por actividad?</h3>
+  <p>Las que necesites. Puedes subir múltiples imágenes, archivos y textos para una misma actividad.</p>
+
+  <h3>¿Qué pasa si subo algo por error?</h3>
+  <p>Actualmente no puedes eliminar evidencias por ti mismo. Si subiste algo incorrecto, avisa a tu coordinador.</p>
+
+  <h3>¿Cuándo debo subir las evidencias?</h3>
+  <p>Las evidencias se reportan mensualmente. Tu coordinador te indicará la fecha límite de cada mes. Puedes subirlas en cualquier momento antes de esa fecha.</p>
+
+  <h3>¿Puedo ver el informe que genera el coordinador?</h3>
+  <p>El informe mensual es generado por el coordinador. Puedes solicitarle una copia si lo necesitas.</p>
+
+  <h3>¿Qué significa que mi evidencia esté "Pendiente" por mucho tiempo?</h3>
+  <p>El coordinador puede estar revisando varias evidencias. Si han pasado más de 5 días hábiles, puedes preguntarle amablemente si ha tenido oportunidad de revisar.</p>
+
+  <div class="footer">
+    <p>ESE Norte 3 — Sistema de Gestión de Contratos Gesco V2</p>
+    <p>https://contratos.esenorte3.lat/evaluacion · Documento generado el julio 2026</p>
+  </div>
+</div>
+</body>
+</html>

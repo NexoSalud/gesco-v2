@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Manual del Coordinador — Apoyo Administrativo</title>
+<style>
+  @page { margin: 2cm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; color: #1f2937; line-height: 1.6; margin: 0; padding: 0; }
+  .page { max-width: 21cm; margin: 0 auto; padding: 2em; }
+
+  /* Cover */
+  .cover { text-align: center; padding: 4em 2em; page-break-after: always; }
+  .cover .logo { width: 100px; height: 100px; object-fit: contain; }
+  .cover h1 { font-size: 2em; color: #7c3aed; margin: 0.5em 0 0.2em; }
+  .cover h2 { font-size: 1.3em; color: #6b7280; font-weight: 400; margin: 0 0 1.5em; }
+  .cover .meta { color: #9ca3af; font-size: 0.9em; line-height: 1.8; }
+  .cover .badge { display: inline-block; background: #7c3aed; color: white; padding: 0.4em 1.2em; border-radius: 999px; font-size: 0.85em; font-weight: 600; margin-top: 1em; }
+
+  /* Content */
+  h2 { font-size: 1.3em; color: #7c3aed; border-bottom: 3px solid #7c3aed; padding-bottom: 0.3em; margin-top: 1.5em; break-after: avoid; }
+  h3 { font-size: 1.1em; color: #374151; margin-top: 1.2em; break-after: avoid; }
+  h4 { font-size: 1em; color: #4b5563; margin-top: 1em; }
+  p, li { font-size: 0.95em; }
+  ul, ol { padding-left: 1.5em; }
+  li { margin-bottom: 0.3em; }
+
+  /* Steps */
+  .step { background: #f9fafb; border-left: 4px solid #7c3aed; padding: 0.8em 1em; margin: 0.8em 0; border-radius: 0 8px 8px 0; }
+  .step strong { color: #7c3aed; }
+
+  /* Tips */
+  .tip { background: #fefce8; border: 1px solid #fde68a; padding: 0.8em 1em; margin: 0.8em 0; border-radius: 8px; }
+  .tip strong { color: #92400e; }
+  .warning { background: #fef2f2; border: 1px solid #fecaca; padding: 0.8em 1em; margin: 0.8em 0; border-radius: 8px; }
+  .warning strong { color: #991b1b; }
+  .info { background: #eff6ff; border: 1px solid #bfdbfe; padding: 0.8em 1em; margin: 0.8em 0; border-radius: 8px; }
+  .info strong { color: #1e40af; }
+
+  /* Screenshot */
+  .screenshot { text-align: center; margin: 1em 0; page-break-inside: avoid; }
+  .screenshot img { max-width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .screenshot .caption { font-size: 0.8em; color: #9ca3af; margin-top: 0.3em; font-style: italic; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.9em; page-break-inside: avoid; }
+  th, td { border: 1px solid #e5e7eb; padding: 0.5em 0.8em; text-align: left; }
+  th { background: #7c3aed; color: white; font-weight: 600; }
+  tr:nth-child(even) { background: #f9fafb; }
+
+  /* Status badges */
+  .badge-pending { background: #fef3c7; color: #92400e; padding: 0.15em 0.6em; border-radius: 999px; font-size: 0.8em; font-weight: 600; }
+  .badge-approved { background: #d1fae5; color: #065f46; padding: 0.15em 0.6em; border-radius: 999px; font-size: 0.8em; font-weight: 600; }
+  .badge-rejected { background: #fee2e2; color: #991b1b; padding: 0.15em 0.6em; border-radius: 999px; font-size: 0.8em; font-weight: 600; }
+
+  /* TOC */
+  .toc { page-break-after: always; }
+  .toc ul { list-style: none; padding: 0; }
+  .toc li { padding: 0.4em 0; border-bottom: 1px dotted #e5e7eb; }
+  .toc a { color: #7c3aed; text-decoration: none; font-weight: 500; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* Footer */
+  .footer { text-align: center; color: #9ca3af; font-size: 0.8em; margin-top: 2em; border-top: 1px solid #e5e7eb; padding-top: 1em; }
+
+  @media print {
+    .page { padding: 0; }
+    .screenshot img { max-width: 90%; }
+    a { color: #7c3aed; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <!-- COVER -->
+  <div class="cover">
+    <img src="/home/marvin/.openclaw/workspace/gesco-v2/frontend/public/logo_es.png" alt="ESE Norte 3" class="logo">
+    <h1>Módulo de Apoyo Administrativo</h1>
+    <h2>Manual del Coordinador</h2>
+    <div class="badge">ESE NORTE 3</div>
+    <div class="meta">
+      <p>Sistema de Gestión de Contratos — Gesco V2</p>
+      <p>Versión 2.0 · Julio 2026</p>
+      <p>https://contratos.esenorte3.lat</p>
+    </div>
+  </div>
+
+  <!-- TABLE OF CONTENTS -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ul>
+      <li><a href="#intro">1. Introducción</a></li>
+      <li><a href="#acceso">2. Acceso al Sistema</a></li>
+      <li><a href="#dashboard-apoyo">3. Gestión de Personal de Apoyo</a></li>
+      <li><a href="#actividades">4. Administración de Actividades</a></li>
+      <li><a href="#evaluacion-listado">5. Evaluación de Evidencias</a></li>
+      <li><a href="#evaluacion-detalle">6. Revisión Detallada y Calificación</a></li>
+      <li><a href="#resumen">7. Resumen de Cumplimiento</a></li>
+      <li><a href="#informe">8. Informe Mensual</a></li>
+      <li><a href="#importar">9. Importación desde Excel</a></li>
+      <li><a href="#faq">10. Preguntas Frecuentes</a></li>
+    </ul>
+  </div>
+
+  <!-- 1. INTRODUCCIÓN -->
+  <h2 id="intro">1. Introducción</h2>
+  <p>El módulo de <strong>Apoyo Administrativo</strong> de Gesco V2 permite gestionar el personal de apoyo administrativo de la ESE Norte 3. Incluye:</p>
+  <ul>
+    <li>Registro y administración del personal de apoyo</li>
+    <li>Asignación de actividades por perfil</li>
+    <li>Sistema de reporte de evidencias (imágenes, archivos, textos)</li>
+    <li>Evaluación y calificación de evidencias por parte del coordinador</li>
+    <li>Generación de informes mensuales de actividades</li>
+    <li>Importación masiva desde Excel</li>
+  </ul>
+
+  <p>Este manual está dirigido al <strong>Coordinador</strong>, encargado de administrar el personal, revisar evidencias y generar informes.</p>
+
+  <!-- 2. ACCESO -->
+  <h2 id="acceso">2. Acceso al Sistema</h2>
+  <p>Ingresa a <strong>https://contratos.esenorte3.lat</strong> y accede con tu usuario y contraseña (proporcionados por sistemas).</p>
+
+  <div class="screenshot">
+    <img src="manual_screenshots/login_full.png" alt="Pantalla de inicio de sesión">
+    <div class="caption">Pantalla de inicio de sesión del dashboard</div>
+  </div>
+
+  <p>Una vez autenticado, verás el panel principal con todas las secciones del sistema.</p>
+
+  <div class="screenshot">
+    <img src="manual_screenshots/dashboard_main.png" alt="Dashboard principal">
+    <div class="caption">Dashboard principal</div>
+  </div>
+
+  <div class="tip">
+    <strong>💡 Nota:</strong> Si no ves el módulo de Apoyo Administrativo en el menú lateral, solicita a sistemas que habilite los permisos correspondientes a tu rol.
+  </div>
+
+  <!-- 3. GESTIÓN DE PERSONAL -->
+  <h2 id="dashboard-apoyo">3. Gestión de Personal de Apoyo</h2>
+  <p>Desde la sección <strong>Apoyo Administrativo</strong> del menú lateral puedes gestionar todo el personal de apoyo.</p>
+
+  <div class="screenshot">
+    <img src="manual_screenshots/apoyo_admin_page.png" alt="Página de gestión de apoyo administrativo">
+    <div class="caption">Página principal de Apoyo Administrativo</div>
+  </div>
+
+  <h3>3.1. Crear un nuevo apoyo</h3>
+  <div class="step">
+    <strong>1.</strong> Haz clic en el botón <strong>+ Nuevo</strong> (esquina superior derecha).<br>
+    <strong>2.</strong> Completa los campos: Nombre, Identificación, Perfil/Rol, Teléfono y Correo.<br>
+    <strong>3.</strong> Haz clic en <strong>Crear</strong>.
+  </div>
+
+  <div class="tip">
+    <strong>💡 El perfil</strong> se selecciona de una lista predefinida. Si el perfil que buscas no aparece, selecciona el más cercano.
+  </div>
+
+  <h3>3.2. Editar un apoyo</h3>
+  <p>Haz clic en el icono ✏️ (lápiz) en la fila del apoyo que deseas modificar. Actualiza los campos y guarda los cambios.</p>
+
+  <h3>3.3. Eliminar un apoyo</h3>
+  <p>Haz clic en el icono 🗑️ (papelera). Confirma la eliminación en el diálogo emergente.</p>
+
+  <div class="warning">
+    <strong>⚠️ Importante:</strong> Eliminar un apoyo también eliminará todas sus actividades y evidencias asociadas. Esta acción no se puede deshacer.
+  </div>
+
+  <!-- 4. ACTIVIDADES -->
+  <h2 id="actividades">4. Administración de Actividades</h2>
+  <p>Cada apoyo administrativo tiene un listado de actividades que debe reportar mensualmente.</p>
+
+  <h3>4.1. Ver actividades de un apoyo</h3>
+  <p>Haz clic en el icono 📋 (lista) junto al apoyo. Se desplegará un panel con las actividades registradas.</p>
+
+  <h3>4.2. Agregar actividad</h3>
+  <div class="step">
+    <strong>1.</strong> En el panel de actividades del apoyo, escribe la descripción en el campo "Nueva actividad...".<br>
+    <strong>2.</strong> Presiona Enter o haz clic en <strong>Agregar</strong>.
+  </div>
+
+  <h3>4.3. Eliminar actividad</h3>
+  <p>Haz clic en el icono 🗑️ junto a la actividad que deseas eliminar.</p>
+
+  <div class="info">
+    <strong>📌 Nota:</strong> Las actividades se ordenan automáticamente. Al crear actividades desde el formulario, el orden se asigna secuencialmente. Si necesitas un orden específico, usa la importación desde Excel.
+  </div>
+
+  <!-- 5. EVALUACIÓN -->
+  <h2 id="evaluacion-listado">5. Evaluación de Evidencias</h2>
+  <p>Desde la sección <strong>Evaluación</strong> del menú lateral puedes revisar y calificar las evidencias subidas por el personal de apoyo.</p>
+
+  <h3>5.1. Listado de personal para evaluar</h3>
+  <p>La pantalla de evaluación muestra todos los contratistas y apoyos activos con sus evidencias pendientes.</p>
+
+  <div class="screenshot">
+    <img src="manual_screenshots/evaluacion_admin_list.png" alt="Listado de evaluación">
+    <div class="caption">Listado de personal para evaluación</div>
+  </div>
+
+  <p>Los apoyos se identifican con una etiqueta <span class="badge-pending">APOYO</span> de color púrpura. Cada tarjeta muestra:</p>
+  <ul>
+    <li>Nombre y cédula del apoyo</li>
+    <li>Perfil profesional</li>
+    <li>Número de evidencias pendientes <span class="badge-pending">⏳ N pend.</span></li>
+    <li>Total de evidencias subidas</li>
+  </ul>
+
+  <h3>5.2. Seleccionar un apoyo</h3>
+  <p>Haz clic en la tarjeta del apoyo que deseas evaluar. Se abrirá la vista detallada con toda la información.</p>
+
+  <!-- 6. REVISIÓN DETALLADA -->
+  <h2 id="evaluacion-detalle">6. Revisión Detallada y Calificación</h2>
+
+  <h3>6.1. Indicadores de cumplimiento</h3>
+  <p>Al seleccionar un apoyo, la parte superior muestra indicadores clave:</p>
+  <table>
+    <tr><th>Indicador</th><th>Descripción</th></tr>
+    <tr><td>Actividades</td><td>Total de actividades asignadas al apoyo</td></tr>
+    <tr><td>Aprobadas</td><td>Evidencias que has aprobado</td></tr>
+    <tr><td>Rechazadas</td><td>Evidencias que has rechazado</td></tr>
+    <tr><td>Pendientes</td><td>Evidencias que aún no has revisado</td></tr>
+    <tr><td>Cumplimiento</td><td>Porcentaje de evidencias aprobadas vs total</td></tr>
+  </table>
+
+  <h3>6.2. Lista de actividades y evidencias</h3>
+  <p>Cada actividad se muestra con su estado general:</p>
+  <ul>
+    <li><span class="badge-approved">✅ Aprobado</span> — Al menos una evidencia fue aprobada</li>
+    <li><span class="badge-pending">⏳ Pendiente</span> — Hay evidencias sin revisar</li>
+    <li><span class="badge-rejected">❌ Rechazado</span> — Evidencias rechazadas</li>
+    <li><em>Sin evidencia</em> — El apoyo aún no ha subido nada</li>
+  </ul>
+
+  <h3>6.3. Calificar una evidencia</h3>
+  <div class="step">
+    <strong>1.</strong> Expande la actividad haciendo clic sobre ella.<br>
+    <strong>2.</strong> Revisa la evidencia: si es imagen/archivo, haz clic en el icono 👁️ para verlo; si es texto, léelo directamente.<br>
+    <strong>3.</strong> Si la evidencia está <span class="badge-pending">Pendiente</span>, haz clic en el botón <strong>Evaluar</strong>.<br>
+    <strong>4.</strong> Escribe una <strong>observación</strong> (opcional pero recomendada si vas a rechazar).<br>
+    <strong>5.</strong> Haz clic en <strong>✅ Aprobar</strong> o <strong>❌ Rechazar</strong>.
+  </div>
+
+  <div class="tip">
+    <strong>💡 Buenas prácticas:</strong><br>
+    • Al aprobar, una breve observación positiva refuerza el buen trabajo.<br>
+    • Al rechazar, explica claramente qué falta o qué debe corregirse.<br>
+    • Si el apoyo subió una imagen borrosa o ilegible, indícalo en la observación para que pueda reemplazarla.
+  </div>
+
+  <h3>6.4. Visualización de observaciones</h3>
+  <p>Las observaciones que escribas al evaluar se mostrarán al apoyo cuando consulte su portal, permitiéndole saber qué mejorar.</p>
+
+  <!-- 7. RESUMEN -->
+  <h2 id="resumen">7. Resumen de Cumplimiento</h2>
+  <p>Al seleccionar un apoyo, los indicadores en la parte superior te dan una visión rápida de su estado de cumplimiento. El porcentaje de cumplimiento se calcula como:</p>
+  <p style="text-align:center;font-size:1.1em;font-weight:600;color:#7c3aed;">Cumplimiento = (Evidencias Aprobadas / Total Evidencias) × 100</p>
+
+  <div class="info">
+    <strong>📊 Interpretación:</strong><br>
+    • &gt; 80%: Rendimiento sobresaliente<br>
+    • 60-80%: Rendimiento aceptable<br>
+    • &lt; 60%: Requiere mejora — considera una reunión para alinear expectativas
+  </div>
+
+  <!-- 8. INFORME -->
+  <h2 id="informe">8. Informe Mensual</h2>
+  <p>El sistema permite descargar un informe mensual en formato DOCX con todas las actividades y evidencias aprobadas del mes.</p>
+
+  <h3>8.1. Desde la página de Apoyo Administrativo</h3>
+  <div class="step">
+    <strong>1.</strong> Ve a la sección <strong>Apoyo Administrativo</strong>.<br>
+    <strong>2.</strong> Haz clic en el botón <strong>📄 Informe</strong> (esquina superior derecha).<br>
+    <strong>3.</strong> El informe se descargará automáticamente para el mes y año actual.
+    </div>
+
+  <h3>8.2. Desde la evaluación de un apoyo</h3>
+  <div class="step">
+    <strong>1.</strong> Selecciona un apoyo de tipo APOYO en la sección Evaluación.<br>
+    <strong>2.</strong> Haz clic en el botón <strong>📄 Informe mensual</strong>.<br>
+    <strong>3.</strong> El DOCX se descargará con las actividades y evidencias aprobadas.
+  </div>
+
+  <div class="tip">
+    <strong>💡 El informe incluye:</strong> nombre del apoyo, perfil, mes y año, actividades realizadas, evidencias aprobadas con imágenes incrustadas, resumen de cumplimiento, y firma del coordinador.
+  </div>
+
+  <!-- 9. IMPORTACIÓN -->
+  <h2 id="importar">9. Importación desde Excel</h2>
+  <p>Para cargar varios apoyos masivamente o actualizar sus actividades, usa la importación desde Excel.</p>
+
+  <h3>9.1. Formato del archivo</h3>
+  <p>El Excel debe tener las siguientes columnas:</p>
+  <table>
+    <tr><th>PERFIL</th><th>NOMBRE_COMPLETO</th><th>ORDEN</th><th>ACTIVIDAD</th></tr>
+    <tr><td>COORDINACIÓN OPERATIVA...</td><td>María García López</td><td>1</td><td>Elaborar informes...</td></tr>
+    <tr><td>APOYO CONTABLE</td><td>Carlos Pérez Ruiz</td><td>1</td><td>Conciliaciones bancarias...</td></tr>
+    <tr><td>APOYO CONTABLE</td><td>Carlos Pérez Ruiz</td><td>2</td><td>Registro de facturas...</td></tr>
+  </table>
+
+  <h3>9.2. Cómo importar</h3>
+  <div class="step">
+    <strong>1.</strong> En la página de Apoyo Administrativo, haz clic en <strong>📊 Importar</strong>.<br>
+    <strong>2.</strong> Selecciona el archivo Excel.<br>
+    <strong>3.</strong> El sistema procesará el archivo y te mostrará:<br>
+    — <strong>Creados:</strong> nuevos apoyos que no existían<br>
+    — <strong>Actualizados:</strong> apoyos existentes (se reemplazan sus actividades)<br>
+    — <strong>Actividades:</strong> total de actividades creadas/actualizadas
+  </div>
+
+  <div class="warning">
+    <strong>⚠️ Importante:</strong> La importación reemplaza TODAS las actividades del apoyo existente por las del archivo. Si el apoyo ya había subido evidencias, estas no se eliminan.
+  </div>
+
+  <!-- 10. FAQ -->
+  <h2 id="faq">10. Preguntas Frecuentes</h2>
+
+  <h3>¿Qué hago si un apoyo no aparece en la lista de evaluación?</h3>
+  <p>Verifica que esté registrado en la sección Apoyo Administrativo. Si aparece allí pero no en evaluación, confirma que tenga actividades asignadas — sin actividades, no hay nada que evaluar.</p>
+
+  <h3>¿Puedo cambiar la calificación de una evidencia?</h3>
+  <p>Actualmente no. Si cometiste un error, comunícate con sistemas para realizar el ajuste en la base de datos.</p>
+
+  <h3>¿El apoyo puede ver mis observaciones?</h3>
+  <p>Sí. Cuando el apoyo consulta su portal por cédula, puede ver el estado de cada evidencia y tus observaciones. Esto le permite corregir y mejorar.</p>
+
+  <h3>¿Qué pasa si rechazo una evidencia?</h3>
+  <p>El apoyo verá que fue rechazada con tu observación. Podrá subir una nueva evidencia corregida para reemplazarla.</p>
+
+  <h3>¿El informe mensual incluye a todos los apoyos o solo a uno?</h3>
+  <p>El informe descargado incluye <strong>todos</strong> los apoyos activos con sus actividades y evidencias aprobadas del mes seleccionado.</p>
+
+  <h3>¿Puedo personalizar el logo en los informes?</h3>
+  <p>Sí. En la sección Configuración del sistema puedes subir los logos que aparecerán en los encabezados de los documentos.</p>
+
+  <div class="footer">
+    <p>ESE Norte 3 — Sistema de Gestión de Contratos Gesco V2</p>
+    <p>https://contratos.esenorte3.lat · Documento generado el julio 2026</p>
+  </div>
+</div>
+</body>
+</html>
