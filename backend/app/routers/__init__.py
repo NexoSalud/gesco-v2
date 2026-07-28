@@ -15,3 +15,4 @@ from app.routers.usuarios import router as seguridad_router
 from app.routers.evaluacion import router as evaluacion_router
 from app.routers.documentos import router as documentos_router
 from app.routers.apoyo_administrativo import router as apoyo_router
+from app.routers.maintenance import router as maintenance_router
