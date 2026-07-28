@@ -169,16 +169,7 @@ def _add_actividad_row_with_evidence(table, values: list[str], evidencias: list,
                             img_p = cell.add_paragraph()
                             img_p.alignment = WD_ALIGN_PARAGRAPH.LEFT
                             img_run = img_p.add_run()
-                            # Escalar a max 12cm de ancho o 8cm de alto
                             img_run.add_picture(local_path, width=Cm(10))
-                            # Nombre del archivo debajo
-                            cap_p = cell.add_paragraph()
-                            cap_p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                            cap_run = cap_p.add_run(f"(Imagen: {ev.archivo_nombre or 'sin nombre'})")
-                            cap_run.font.name = FONT_NAME
-                            cap_run.font.size = Pt(7)
-                            cap_run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
-                            cap_run.italic = True
                         except Exception as img_err:
                             logger.warning(f"Error al incrustar imagen {local_path}: {img_err}")
                     else:
