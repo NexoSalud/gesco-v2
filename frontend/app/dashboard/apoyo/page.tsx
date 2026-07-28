@@ -424,8 +424,28 @@ export default function ApoyoPage() {
           </div>
           <div>
             <label className="text-xs font-medium text-gray-600">Perfil / Rol</label>
-            <input type="text" value={form.perfil} onChange={e => setForm({ ...form, perfil: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            <select value={form.perfil} onChange={e => setForm({ ...form, perfil: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white">
+              <option value="">Seleccionar perfil...</option>
+              {(() => {
+                const existentes = Array.from(new Set(apoyos.map(a => a.perfil).filter(Boolean))) as string[]
+                const predefinidos = [
+                  "COORDINACIÓN OPERATIVA Y DE SEGUIMIENTO",
+                  "COORDINACIÓN DE FACTURACIÓN",
+                  "SISTEMAS, TECNOLOGÍA Y COMUNICACIONES",
+                  "PROGRAMACIÓN, AUTOMATIZACIÓN Y DESARROLLO",
+                  "CONTRATACIÓN",
+                  "APOYO AL PROCESO DE CONTRATACIÓN",
+                  "APOYO CONTABLE",
+                  "APOYO A LA GESTIÓN",
+                  "APOYO A LA GESTIÓN COMUNITARIA",
+                ]
+                const todos = [...new Set([...predefinidos, ...existentes])].sort()
+                return todos.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))
+              })()}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
