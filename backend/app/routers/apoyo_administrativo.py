@@ -373,6 +373,134 @@ async def subir_evidencia(
     )
 
 
+@router.put("/evidencias/{evidencia_id}/editar", response_model=EvidenciaApoyoOut)
+async def editar_evidencia_apoyo(
+    evidencia_id: int,
+    tipo: str = Form(...),
+    contenido_texto: str | None = Form(None),
+    archivo: UploadFile | None = File(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Edita una evidencia de apoyo existente (público, sin auth).
+    Al editar, la evidencia vuelve a estado PENDIENTE para revisión.
+    """
+    if tipo not in ("ARCHIVO", "TEXTO", "IMAGEN"):
+        raise HTTPException(400, "Tipo debe ser ARCHIVO, TEXTO o IMAGEN")
+
+    result = await db.execute(
+        select(EvidenciaApoyo).where(EvidenciaApoyo.id == evidencia_id)
+    )
+    ev = result.scalar_one_or_none()
+    if not ev:
+        raise HTTPException(404, "Evidencia no encontrada")
+
+    ev.tipo = tipo
+
+    if tipo == "TEXTO":
+        if not contenido_texto:
+            raise HTTPException(400, "Para tipo TEXTO debe proporcionar contenido_texto")
+        ev.contenido_texto = contenido_texto
+        if ev.archivo_ruta:
+            old_path = os.path.join("/app", ev.archivo_ruta.lstrip("/"))
+            if os.path.exists(old_path):
+                try:
+                    os.remove(old_path)
+                except OSError:
+                    pass
+            ev.archivo_ruta = None
+            ev.archivo_nombre = None
+            ev.archivo_tipo = None
+
+    elif tipo in ("ARCHIVO", "IMAGEN"):
+        if not archivo:
+            raise HTTPException(400, "Para tipo ARCHIVO o IMAGEN debe proporcionar un archivo")
+        ev.contenido_texto = None
+
+        if ev.archivo_ruta:
+            old_path = os.path.join("/app", ev.archivo_ruta.lstrip("/"))
+            if os.path.exists(old_path):
+                try:
+                    os.remove(old_path)
+                except OSError:
+                    pass
+
+        content = await archivo.read()
+        if len(content) > 10 * 1024 * 1024:
+            raise HTTPException(400, "El archivo excede el tamaño máximo de 10MB")
+
+        ext = ""
+        if archivo.filename and "." in archivo.filename:
+            ext = archivo.filename.rsplit(".", 1)[-1]
+        safe_name = f"{uuid.uuid4()}.{ext}"
+        file_path = os.path.join(EVIDENCIAS_DIR, safe_name)
+
+        with open(file_path, "wb") as f:
+            f.write(content)
+
+        ev.archivo_ruta = f"/uploads/evidencias_apoyo/{safe_name}"
+        ev.archivo_nombre = archivo.filename
+        ev.archivo_tipo = archivo.content_type
+
+    # Resetear estado a PENDIENTE y limpiar evaluación
+    ev.estado = "PENDIENTE"
+    ev.observacion_coordinadora = None
+    ev.evaluated_by = None
+    ev.evaluated_at = None
+
+    await db.commit()
+    await db.refresh(ev)
+
+    act_result = await db.execute(
+        select(ActividadApoyo.descripcion).where(ActividadApoyo.id == ev.actividad_apoyo_id)
+    )
+    act_desc = act_result.scalar_one_or_none()
+
+    return EvidenciaApoyoOut(
+        id=ev.id,
+        actividad_apoyo_id=ev.actividad_apoyo_id,
+        apoyo_id=ev.apoyo_id,
+        tipo=ev.tipo,
+        contenido_texto=ev.contenido_texto,
+        archivo_ruta=ev.archivo_ruta,
+        archivo_nombre=ev.archivo_nombre,
+        archivo_tipo=ev.archivo_tipo,
+        estado=ev.estado,
+        observacion_coordinadora=ev.observacion_coordinadora,
+        created_at=ev.created_at,
+        evaluated_at=ev.evaluated_at,
+        evaluated_by=ev.evaluated_by,
+        actividad_descripcion=act_desc,
+    )
+
+
+@router.delete("/evidencias/{evidencia_id}", status_code=204)
+async def eliminar_evidencia_apoyo(
+    evidencia_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Elimina una evidencia de apoyo (público, sin auth).
+    También elimina el archivo físico si existe.
+    """
+    result = await db.execute(
+        select(EvidenciaApoyo).where(EvidenciaApoyo.id == evidencia_id)
+    )
+    ev = result.scalar_one_or_none()
+    if not ev:
+        raise HTTPException(404, "Evidencia no encontrada")
+
+    if ev.archivo_ruta:
+        file_path = os.path.join("/app", ev.archivo_ruta.lstrip("/"))
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
+
+    await db.delete(ev)
+    await db.commit()
+    return None
+
+
 @router.put("/evidencias/{evidencia_id}", response_model=EvidenciaApoyoOut)
 async def evaluar_evidencia(
     evidencia_id: int,

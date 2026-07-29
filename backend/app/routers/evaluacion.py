@@ -275,6 +275,152 @@ async def listar_evidencias(
     return out
 
 
+@router.put("/evidencias/{evidencia_id}/editar", response_model=EvidenciaOut)
+async def editar_evidencia(
+    evidencia_id: int,
+    tipo: str = Form(...),
+    contenido_texto: str | None = Form(None),
+    archivo: UploadFile | None = File(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Edita una evidencia existente (público, sin auth).
+    Al editar, la evidencia vuelve a estado PENDIENTE para revisión.
+    """
+    if tipo not in ("ARCHIVO", "TEXTO", "IMAGEN"):
+        raise HTTPException(400, "Tipo debe ser ARCHIVO, TEXTO o IMAGEN")
+
+    result = await db.execute(
+        select(Evidencia).where(Evidencia.id == evidencia_id)
+    )
+    evidencia = result.scalar_one_or_none()
+    if not evidencia:
+        raise HTTPException(404, "Evidencia no encontrada")
+
+    # Actualizar tipo si cambió
+    evidencia.tipo = tipo
+
+    # Si es TEXTO, actualizar contenido
+    if tipo == "TEXTO":
+        if not contenido_texto:
+            raise HTTPException(400, "Para tipo TEXTO debe proporcionar contenido_texto")
+        evidencia.contenido_texto = contenido_texto
+        # Limpiar archivo anterior si existía
+        if evidencia.archivo_ruta:
+            old_path = os.path.join("/app", evidencia.archivo_ruta.lstrip("/"))
+            if os.path.exists(old_path):
+                try:
+                    os.remove(old_path)
+                except OSError:
+                    pass
+            evidencia.archivo_ruta = None
+            evidencia.archivo_nombre = None
+            evidencia.archivo_tipo = None
+
+    # Si es ARCHIVO o IMAGEN, reemplazar archivo
+    elif tipo in ("ARCHIVO", "IMAGEN"):
+        if not archivo:
+            raise HTTPException(400, "Para tipo ARCHIVO o IMAGEN debe proporcionar un archivo")
+        evidencia.contenido_texto = None
+
+        # Eliminar archivo anterior
+        if evidencia.archivo_ruta:
+            old_path = os.path.join("/app", evidencia.archivo_ruta.lstrip("/"))
+            if os.path.exists(old_path):
+                try:
+                    os.remove(old_path)
+                except OSError:
+                    pass
+
+        # Guardar nuevo archivo
+        content = await archivo.read()
+        if len(content) > 10 * 1024 * 1024:
+            raise HTTPException(400, "El archivo excede el tamaño máximo de 10MB")
+
+        ext = ""
+        if archivo.filename and "." in archivo.filename:
+            ext = archivo.filename.rsplit(".", 1)[-1]
+        safe_name = f"{uuid.uuid4()}.{ext}"
+        file_path = os.path.join(EVIDENCIAS_DIR, safe_name)
+
+        with open(file_path, "wb") as f:
+            f.write(content)
+
+        evidencia.archivo_ruta = f"/uploads/evidencias/{safe_name}"
+        evidencia.archivo_nombre = archivo.filename
+        evidencia.archivo_tipo = archivo.content_type
+
+    # Resetear estado a PENDIENTE y limpiar evaluación
+    evidencia.estado = "PENDIENTE"
+    evidencia.observacion_coordinadora = None
+    evidencia.evaluated_by = None
+    evidencia.evaluated_at = None
+
+    await db.commit()
+    await db.refresh(evidencia)
+
+    # Obtener descripción de la actividad
+    act_result = await db.execute(
+        select(ActividadContrato.descripcion).where(
+            ActividadContrato.id == evidencia.actividad_contrato_id
+        )
+    )
+    act_desc = act_result.scalar_one_or_none()
+
+    # Obtener nombre del contratista
+    cont_result = await db.execute(
+        select(Contratista.nombre).where(Contratista.id == evidencia.contratista_id)
+    )
+    cont_nombre = cont_result.scalar_one_or_none()
+
+    return EvidenciaOut(
+        id=evidencia.id,
+        actividad_contrato_id=evidencia.actividad_contrato_id,
+        contratista_id=evidencia.contratista_id,
+        contrato_id=evidencia.contrato_id,
+        tipo=evidencia.tipo,
+        contenido_texto=evidencia.contenido_texto,
+        archivo_ruta=evidencia.archivo_ruta,
+        archivo_nombre=evidencia.archivo_nombre,
+        archivo_tipo=evidencia.archivo_tipo,
+        estado=evidencia.estado,
+        observacion_coordinadora=evidencia.observacion_coordinadora,
+        created_at=evidencia.created_at,
+        evaluated_at=evidencia.evaluated_at,
+        evaluated_by=evidencia.evaluated_by,
+        actividad_descripcion=act_desc,
+        contratista_nombre=cont_nombre,
+    )
+
+
+@router.delete("/evidencias/{evidencia_id}", status_code=204)
+async def eliminar_evidencia(
+    evidencia_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Elimina una evidencia (público, sin auth).
+    También elimina el archivo físico si existe.
+    """
+    result = await db.execute(
+        select(Evidencia).where(Evidencia.id == evidencia_id)
+    )
+    evidencia = result.scalar_one_or_none()
+    if not evidencia:
+        raise HTTPException(404, "Evidencia no encontrada")
+
+    # Eliminar archivo físico si existe
+    if evidencia.archivo_ruta:
+        file_path = os.path.join("/app", evidencia.archivo_ruta.lstrip("/"))
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
+
+    await db.delete(evidencia)
+    await db.commit()
+    return None
+
+
 @router.put("/evidencias/{evidencia_id}", response_model=EvidenciaOut)
 async def evaluar_evidencia(
     evidencia_id: int,

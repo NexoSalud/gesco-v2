@@ -8,7 +8,7 @@ import {
   CheckCircle2, XCircle, Clock, ExternalLink,
   User, Phone, Mail, FileCheck, ShieldCheck, ArrowLeft,
   Eye, HelpCircle, Lock, Download, Trash2, Info, X,
-  ListChecks,
+  ListChecks, Pencil,
 } from "lucide-react"
 import type { DashboardContratista, ContratoEvaluacion, ActividadConEvidencias, DocumentoContratista } from "@/lib/api"
 import { TIPOS_DOCUMENTO } from "@/lib/api"
@@ -71,6 +71,19 @@ function EvaluacionDashboard() {
   const [apoyoUploading, setApoyoUploading] = useState(false)
   const [apoyoUploadError, setApoyoUploadError] = useState<string | null>(null)
   const [apoyoUploadSuccess, setApoyoUploadSuccess] = useState(false)
+
+  // Edit evidence state
+  const [editModal, setEditModal] = useState<{ activo: boolean; evidencia: any } | null>(null)
+  const [editTipo, setEditTipo] = useState<"ARCHIVO" | "IMAGEN" | "TEXTO">("ARCHIVO")
+  const [editTextoEvidencia, setEditTextoEvidencia] = useState("")
+  const [editArchivoEvidencia, setEditArchivoEvidencia] = useState<File | null>(null)
+  const [editUploading, setEditUploading] = useState(false)
+  const [editUploadError, setEditUploadError] = useState<string | null>(null)
+  const [editUploadSuccess, setEditUploadSuccess] = useState(false)
+
+  // Delete confirmation state
+  const [deleteConfirm, setDeleteConfirm] = useState<{ activo: boolean; evidenciaId: number } | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Cargar documentos de todos los contratos
   const loadDocumentos = useCallback(async () => {
@@ -379,6 +392,97 @@ function EvaluacionDashboard() {
     setUploading(false)
   }
 
+  // ─── Edit Evidence ────────────────────────────────────────────────────
+  const openEditModal = (evidencia: any) => {
+    setEditModal({ activo: true, evidencia })
+    setEditTipo(evidencia.tipo)
+    setEditTextoEvidencia(evidencia.contenido_texto || "")
+    setEditArchivoEvidencia(null)
+    setEditUploadError(null)
+    setEditUploadSuccess(false)
+  }
+
+  const handleEditEvidence = async () => {
+    if (!editModal) return
+    const ev = editModal.evidencia
+
+    if (editTipo === "TEXTO" && !editTextoEvidencia.trim()) {
+      setEditUploadError("Debes escribir un texto de evidencia.")
+      return
+    }
+    if ((editTipo === "ARCHIVO" || editTipo === "IMAGEN") && !editArchivoEvidencia) {
+      setEditUploadError("Debes seleccionar un archivo.")
+      return
+    }
+
+    setEditUploading(true)
+    setEditUploadError(null)
+
+    try {
+      const formData = new FormData()
+      formData.append("tipo", editTipo)
+      if (editTipo === "TEXTO") {
+        formData.append("contenido_texto", editTextoEvidencia)
+      }
+      if (editArchivoEvidencia) {
+        formData.append("archivo", editArchivoEvidencia)
+      }
+
+      const isApoyo = tipo === "apoyo"
+      const endpoint = isApoyo
+        ? `${API}/api/v1/apoyo/evidencias/${ev.id}/editar`
+        : `${API}/api/v1/evaluacion/evidencias/${ev.id}/editar`
+
+      const res = await fetch(endpoint, {
+        method: "PUT",
+        body: formData,
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text.slice(0, 200))
+      }
+
+      setEditUploadSuccess(true)
+      setTimeout(() => {
+        setEditModal(null)
+        loadData()
+      }, 1500)
+    } catch (err: any) {
+      setEditUploadError(err.message || "Error al editar la evidencia.")
+    }
+    setEditUploading(false)
+  }
+
+  // ─── Delete Evidence ──────────────────────────────────────────────────
+  const handleDeleteEvidence = async () => {
+    if (!deleteConfirm) return
+    const evidenciaId = deleteConfirm.evidenciaId
+
+    setDeleting(true)
+    try {
+      const isApoyo = tipo === "apoyo"
+      const endpoint = isApoyo
+        ? `${API}/api/v1/apoyo/evidencias/${evidenciaId}`
+        : `${API}/api/v1/evaluacion/evidencias/${evidenciaId}`
+
+      const res = await fetch(endpoint, {
+        method: "DELETE",
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text.slice(0, 200))
+      }
+
+      setDeleteConfirm(null)
+      loadData()
+    } catch (err: any) {
+      alert("Error al eliminar la evidencia: " + (err.message || "Error desconocido"))
+    }
+    setDeleting(false)
+  }
+
   const getEstadoBadge = (estado: string) => {
     switch (estado) {
       case "APROBADO":
@@ -436,6 +540,8 @@ function EvaluacionDashboard() {
             data={data}
             cedula={cedula}
             API={API}
+            onEditarEvidencia={(ev) => openEditModal(ev)}
+            onEliminarEvidencia={(id) => setDeleteConfirm({ activo: true, evidenciaId: id })}
           />
         ) : (
           <>
@@ -510,6 +616,8 @@ function EvaluacionDashboard() {
                     onSubirArchivo={openSubirArchivo}
                     onSubirImagen={openSubirImagen}
                     onSubirTexto={openSubirTexto}
+                    onEditarEvidencia={(ev) => openEditModal(ev)}
+                    onEliminarEvidencia={(id) => setDeleteConfirm({ activo: true, evidenciaId: id })}
                     getEstadoBadge={getEstadoBadge}
                     getTipoIcon={getTipoIcon}
                   />
@@ -1012,6 +1120,206 @@ function EvaluacionDashboard() {
         </div>
       )}
 
+      {/* ═══════════════════════════════════════════════════════════════════
+          EDIT EVIDENCE MODAL
+          ═══════════════════════════════════════════════════════════════════ */}
+      {editModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  {editTipo === "ARCHIVO" && "Editar archivo"}
+                  {editTipo === "IMAGEN" && "Editar imagen"}
+                  {editTipo === "TEXTO" && "Editar texto"}
+                </h3>
+                <button
+                  onClick={() => setEditModal(null)}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                Al editar, la evidencia volverá a estado pendiente para revisión del coordinador.
+              </p>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {editUploadError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {editUploadError}
+                </div>
+              )}
+              {editUploadSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-700 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Evidencia actualizada correctamente
+                </div>
+              )}
+
+              {/* Tipo selector */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de evidencia</label>
+                <div className="flex gap-2">
+                  {[
+                    { value: "ARCHIVO" as const, label: "Archivo", icon: FileText },
+                    { value: "IMAGEN" as const, label: "Imagen", icon: Image },
+                    { value: "TEXTO" as const, label: "Texto", icon: MessageSquareText },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setEditTipo(opt.value)
+                        setEditUploadError(null)
+                      }}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                        editTipo === opt.value
+                          ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                          : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                      }`}
+                    >
+                      <opt.icon className="w-4 h-4" />
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {editTipo === "TEXTO" ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Contenido de la evidencia
+                  </label>
+                  <textarea
+                    value={editTextoEvidencia}
+                    onChange={(e) => setEditTextoEvidencia(e.target.value)}
+                    rows={10}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-y text-sm leading-relaxed"
+                    placeholder="Describe en detalle cómo se ejecutó la actividad..."
+                    disabled={editUploading || editUploadSuccess}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {editTipo === "IMAGEN" ? "Seleccionar nueva imagen" : "Seleccionar nuevo archivo"}
+                  </label>
+                  <div
+                    className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-emerald-400 transition-colors cursor-pointer"
+                    onClick={() => document.getElementById("edit-file-input")?.click()}
+                  >
+                    {editArchivoEvidencia ? (
+                      <div className="space-y-2">
+                        <FileText className="w-8 h-8 text-emerald-500 mx-auto" />
+                        <p className="text-sm font-medium text-gray-700">{editArchivoEvidencia.name}</p>
+                        <p className="text-xs text-gray-400">
+                          {(editArchivoEvidencia.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Upload className="w-8 h-8 text-gray-300 mx-auto" />
+                        <p className="text-sm text-gray-500">
+                          Haz click para seleccionar un archivo
+                        </p>
+                        {editModal.evidencia.archivo_nombre && (
+                          <p className="text-xs text-gray-400">
+                            Actual: {editModal.evidencia.archivo_nombre}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    id="edit-file-input"
+                    type="file"
+                    accept={editTipo === "IMAGEN" ? "image/*" : undefined}
+                    className="hidden"
+                    onChange={(e) => setEditArchivoEvidencia(e.target.files?.[0] || null)}
+                    disabled={editUploading || editUploadSuccess}
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-3 justify-end pt-2">
+                <button
+                  onClick={() => setEditModal(null)}
+                  className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  disabled={editUploading}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleEditEvidence}
+                  disabled={editUploading || editUploadSuccess}
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
+                  {editUploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Pencil className="w-4 h-4" />
+                      Guardar cambios
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          DELETE CONFIRMATION MODAL
+          ═══════════════════════════════════════════════════════════════════ */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800">
+                Eliminar evidencia
+              </h3>
+              <p className="text-sm text-gray-500 mt-2">
+                ¿Estás seguro de eliminar esta evidencia? Esta acción no se puede deshacer.
+              </p>
+            </div>
+            <div className="flex gap-3 px-6 pb-6">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                disabled={deleting}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteEvidence}
+                disabled={deleting}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Eliminando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Eliminar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 mt-8">
         <div className="max-w-5xl mx-auto px-4 py-4 text-center text-xs text-gray-400">
@@ -1232,6 +1540,7 @@ function ContratoCard({
   contrato, expanded, onToggle,
   expandedActividades, onToggleActividad,
   onSubirArchivo, onSubirImagen, onSubirTexto,
+  onEditarEvidencia, onEliminarEvidencia,
   getEstadoBadge, getTipoIcon,
 }: {
   contrato: ContratoEvaluacion
@@ -1242,6 +1551,8 @@ function ContratoCard({
   onSubirArchivo: (actividadId: number, contratoId: string) => void
   onSubirImagen: (actividadId: number, contratoId: string) => void
   onSubirTexto: (actividadId: number, contratoId: string) => void
+  onEditarEvidencia: (evidencia: any) => void
+  onEliminarEvidencia: (evidenciaId: number) => void
   getEstadoBadge: (estado: string) => React.ReactNode
   getTipoIcon: (tipo: string) => React.ReactNode
 }) {
@@ -1301,6 +1612,8 @@ function ContratoCard({
                   onSubirArchivo={onSubirArchivo}
                   onSubirImagen={onSubirImagen}
                   onSubirTexto={onSubirTexto}
+                  onEditarEvidencia={onEditarEvidencia}
+                  onEliminarEvidencia={onEliminarEvidencia}
                   getEstadoBadge={getEstadoBadge}
                   getTipoIcon={getTipoIcon}
                 />
@@ -1318,6 +1631,7 @@ function ContratoCard({
 function ActividadRow({
   actividad, contratoId, expanded, onToggle,
   onSubirArchivo, onSubirImagen, onSubirTexto,
+  onEditarEvidencia, onEliminarEvidencia,
   getEstadoBadge, getTipoIcon,
 }: {
   actividad: ActividadConEvidencias
@@ -1327,6 +1641,8 @@ function ActividadRow({
   onSubirArchivo: (actividadId: number, contratoId: string) => void
   onSubirImagen: (actividadId: number, contratoId: string) => void
   onSubirTexto: (actividadId: number, contratoId: string) => void
+  onEditarEvidencia: (evidencia: any) => void
+  onEliminarEvidencia: (evidenciaId: number) => void
   getEstadoBadge: (estado: string) => React.ReactNode
   getTipoIcon: (tipo: string) => React.ReactNode
 }) {
@@ -1389,7 +1705,23 @@ function ActividadRow({
                         })}
                       </p>
                     </div>
-                    {getEstadoBadge(ev.estado)}
+                    <div className="flex items-center gap-1">
+                      {getEstadoBadge(ev.estado)}
+                      <button
+                        onClick={() => onEditarEvidencia(ev)}
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Editar evidencia"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => onEliminarEvidencia(ev.id)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Eliminar evidencia"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                   {/* Fila separada para la observación */}
                   {ev.observacion_coordinadora && (
@@ -1450,10 +1782,12 @@ function ActividadRow({
 
 // ─── Apoyo Dashboard Content Component ──────────────────────────────────────
 
-function ApoyoDashboardContent({ data, cedula, API: apiUrl }: {
+function ApoyoDashboardContent({ data, cedula, API: apiUrl, onEditarEvidencia, onEliminarEvidencia }: {
   data: any
   cedula: string
   API: string
+  onEditarEvidencia: (evidencia: any) => void
+  onEliminarEvidencia: (evidenciaId: number) => void
 }) {
   const [expandedActividades, setExpandedActividades] = useState<Set<number>>(new Set())
 
@@ -1624,7 +1958,23 @@ function ApoyoDashboardContent({ data, cedula, API: apiUrl }: {
                                     }) : ""}
                                   </p>
                                 </div>
-                                {getEstadoBadge(ev.estado)}
+                                <div className="flex items-center gap-1">
+                                  {getEstadoBadge(ev.estado)}
+                                  <button
+                                    onClick={() => onEditarEvidencia(ev)}
+                                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="Editar evidencia"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => onEliminarEvidencia(ev.id)}
+                                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Eliminar evidencia"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </div>
                               {ev.observacion_coordinadora && (
                                 <div className={`mt-2 p-3 rounded-lg border text-sm ${
