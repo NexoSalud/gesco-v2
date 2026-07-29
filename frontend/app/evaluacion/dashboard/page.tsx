@@ -1683,7 +1683,7 @@ function ActividadRow({
                     {getTipoIcon(ev.tipo)}
                     <div className="flex-1 min-w-0">
                       {ev.tipo === "TEXTO" ? (
-                        <p className="text-sm text-gray-700 line-clamp-2 break-words">{ev.contenido_texto}</p>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{ev.contenido_texto}</p>
                       ) : (
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-gray-700 truncate">{ev.archivo_nombre || "Archivo"}</span>
@@ -1941,7 +1941,7 @@ function ApoyoDashboardContent({ data, cedula, API: apiUrl, onEditarEvidencia, o
                                 {getTipoIcon(ev.tipo)}
                                 <div className="flex-1 min-w-0">
                                   {ev.tipo === "TEXTO" ? (
-                                    <p className="text-sm text-gray-700 line-clamp-2 break-words">{ev.contenido_texto}</p>
+                                    <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{ev.contenido_texto}</p>
                                   ) : (
                                     <div className="flex items-center gap-2">
                                       <span className="text-sm text-gray-700 truncate">{ev.archivo_nombre || "Archivo"}</span>

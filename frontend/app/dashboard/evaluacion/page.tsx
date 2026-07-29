@@ -523,7 +523,7 @@ export default function EvaluacionDashboardPage() {
                                                 </span>
                                               </div>
                                               {ev.tipo === "TEXTO" && ev.contenido_texto && (
-                                                <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap line-clamp-2">{ev.contenido_texto}</p>
+                                                <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap">{ev.contenido_texto}</p>
                                               )}
                                               {(ev.tipo === "ARCHIVO" || ev.tipo === "IMAGEN") && ev.archivo_ruta && (
                                                 <div className="flex items-center gap-2 mt-1">
