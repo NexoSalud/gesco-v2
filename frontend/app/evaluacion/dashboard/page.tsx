@@ -234,23 +234,47 @@ function EvaluacionDashboard() {
       let res = await fetch(`${API}/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(cedula)}`)
       let esApoyo = false
 
-      if (!res.ok && res.status === 404) {
-        res = await fetch(`${API}/api/v1/apoyo/evaluacion/buscar?cedula=${encodeURIComponent(cedula)}`)
-        esApoyo = true
-      }
-
-      if (!res.ok) {
-        if (res.status === 404) {
-          setError("No se encontró ningún registro con esa cédula.")
-        } else {
-          setError("Error al consultar los datos.")
+      if (res.ok) {
+        const json = await res.json()
+        // Si tiene contratos, mostrar como contratista
+        if (json.contratos && json.contratos.length > 0) {
+          setData(json)
+          setTipo("contratista")
+          setLoading(false)
+          return
         }
+        // Si no tiene contratos, intentar como apoyo (puede ser ambas)
+        res = await fetch(`${API}/api/v1/apoyo/evaluacion/buscar?cedula=${encodeURIComponent(cedula)}`)
+        if (res.ok) {
+          const apoyoJson = await res.json()
+          setData(apoyoJson)
+          setTipo("apoyo")
+          setLoading(false)
+          return
+        }
+        // Si apoyo tampoco existe, mostrar contratista sin contratos
+        setData(json)
+        setTipo("contratista")
         setLoading(false)
         return
       }
-      const json = await res.json()
-      setData(json)
-      setTipo(esApoyo ? "apoyo" : "contratista")
+
+      if (res.status === 404) {
+        // No es contratista, buscar como apoyo
+        res = await fetch(`${API}/api/v1/apoyo/evaluacion/buscar?cedula=${encodeURIComponent(cedula)}`)
+        if (res.ok) {
+          const apoyoJson = await res.json()
+          setData(apoyoJson)
+          setTipo("apoyo")
+          setLoading(false)
+          return
+        }
+        setError("No se encontró ningún registro con esa cédula.")
+        setLoading(false)
+        return
+      }
+
+      setError("Error al consultar los datos.")
     } catch {
       setError("Error de conexión.")
     }

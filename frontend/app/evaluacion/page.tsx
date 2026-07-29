@@ -23,20 +23,39 @@ export default function EvaluacionPage() {
       // Primero buscar como contratista
       let res = await fetch(`${API}/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(cedula.trim())}`)
 
-      if (!res.ok && res.status === 404) {
-        // Si no es contratista, buscar como apoyo administrativo
+      if (res.ok) {
+        const json = await res.json()
+        // Si tiene contratos, redirigir como contratista
+        if (json.contratos && json.contratos.length > 0) {
+          router.push(`/evaluacion/dashboard?cedula=${encodeURIComponent(cedula.trim())}`)
+          return
+        }
+        // Si no tiene contratos, puede ser apoyo — buscamos
         res = await fetch(`${API}/api/v1/apoyo/evaluacion/buscar?cedula=${encodeURIComponent(cedula.trim())}`)
+        if (res.ok) {
+          router.push(`/evaluacion/dashboard?cedula=${encodeURIComponent(cedula.trim())}`)
+          return
+        }
+        // No es apoyo, mostrar contratista sin contratos igual
+        router.push(`/evaluacion/dashboard?cedula=${encodeURIComponent(cedula.trim())}`)
+        return
       }
 
-      if (!res.ok) {
-        if (res.status === 404) {
-          setError("No se encontró ningún registro con esa cédula. Verifica el número e intenta de nuevo.")
-        } else {
-          setError("Error al consultar. Intenta de nuevo más tarde.")
+      if (res.status === 404) {
+        // Buscar como apoyo administrativo
+        res = await fetch(`${API}/api/v1/apoyo/evaluacion/buscar?cedula=${encodeURIComponent(cedula.trim())}`)
+        if (res.ok) {
+          router.push(`/evaluacion/dashboard?cedula=${encodeURIComponent(cedula.trim())}`)
+          return
         }
+        setError("No se encontró ningún registro con esa cédula. Verifica el número e intenta de nuevo.")
         setLoading(false)
         return
       }
+
+      setError("Error al consultar. Intenta de nuevo más tarde.")
+      setLoading(false)
+      return
 
       router.push(`/evaluacion/dashboard?cedula=${encodeURIComponent(cedula.trim())}`)
     } catch {
