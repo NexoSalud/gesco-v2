@@ -28,6 +28,18 @@ MESES = [
     "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE",
 ]
 
+MESES_TITULO = [
+    "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+]
+
+FONT_NAME = "Arial"
+FONT_SIZE = Pt(10)
+FONT_SIZE_TITLE = Pt(14)
+
+COLOR_PRIMARY = RGBColor(0, 51, 102)
+COLOR_TEXT = RGBColor(51, 51, 51)
+
 # ─── Renderizado común ───────────────────────────────────────────────────
 
 def _cargar_logo_base64() -> str:
@@ -239,387 +251,300 @@ def _set_cell_shading(cell, color_hex):
     cell._tc.get_or_add_tcPr().append(shading_elm)
 
 
+# ─── Helpers para el nuevo formato INFORME DE ACTIVIDADES ──────────────
+
+def _set_cell_margins(cell, top=28, bottom=28, left=57, right=57):
+    tc = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+    tcMar = parse_xml(
+        f'<w:tcMar {nsdecls("w")}>'
+        f'  <w:top w:w="{top}" w:type="dxa"/>'
+        f'  <w:bottom w:w="{bottom}" w:type="dxa"/>'
+        f'  <w:start w:w="{left}" w:type="dxa"/>'
+        f'  <w:end w:w="{right}" w:type="dxa"/>'
+        f'</w:tcMar>'
+    )
+    tcPr.append(tcMar)
+
+
+def _set_table_borders(table, sz="4", color="000000"):
+    tbl = table._tbl
+    tblPr = tbl.tblPr if tbl.tblPr is not None else parse_xml(f'<w:tblPr {nsdecls("w")}></w:tblPr>')
+    borders = parse_xml(
+        f'<w:tblBorders {nsdecls("w")}>'
+        f'  <w:top w:val="single" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+        f'  <w:left w:val="single" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+        f'  <w:bottom w:val="single" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+        f'  <w:right w:val="single" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+        f'  <w:insideH w:val="single" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+        f'  <w:insideV w:val="single" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+        f'</w:tblBorders>'
+    )
+    tblPr.append(borders)
+
+
+def _add_paragraph(doc, text, bold=False, size=10, color=COLOR_TEXT,
+                   alignment=WD_ALIGN_PARAGRAPH.JUSTIFY, space_before=0, space_after=6):
+    p = doc.add_paragraph()
+    p.alignment = alignment
+    p.paragraph_format.space_before = Pt(space_before)
+    p.paragraph_format.space_after = Pt(space_after)
+    run = p.add_run(text)
+    run.bold = bold
+    run.font.size = Pt(size)
+    run.font.name = FONT_NAME
+    if color:
+        run.font.color.rgb = color
+    return p
+
+
+def _make_header_row(table, text, num_cols, bg="003366"):
+    row = table.rows[0] if table.rows else table.add_row()
+    if num_cols > 1:
+        row.cells[0].merge(row.cells[num_cols - 1])
+    cell = row.cells[0]
+    _set_cell_shading(cell, bg)
+    cell.text = ""
+    p = cell.paragraphs[0]
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r = p.add_run(text)
+    r.bold = True
+    r.font.size = Pt(10)
+    r.font.name = FONT_NAME
+    r.font.color.rgb = RGBColor(255, 255, 255)
+    _set_cell_margins(cell)
+    return row
+
+
+def _make_col_header_row(table, headers, col_widths=None):
+    row = table.add_row()
+    for i, h in enumerate(headers):
+        cell = row.cells[i]
+        _set_cell_shading(cell, "DAE9F7")
+        cell.text = ""
+        p = cell.paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        r = p.add_run(h)
+        r.bold = True
+        r.font.size = Pt(9)
+        r.font.name = FONT_NAME
+        r.font.color.rgb = RGBColor(0, 51, 102)
+        _set_cell_margins(cell)
+        if col_widths and i < len(col_widths):
+            cell.width = Cm(col_widths[i])
+    return row
+
+
+def _formatear_numero(valor: float | int) -> str:
+    entero = int(valor)
+    decimales = int(round((valor - entero) * 100))
+    s = f"{entero:,}".replace(",", ".")
+    return f"${s}.{decimales:02d}"
+
+
 def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
-    """Genera el DOCX del informe de evaluación con estilo profesional."""
-    ctx = _build_context(contratista, contratos, resumen)
+    """Genera DOCX con estructura INFORME DE ACTIVIDADES.
+
+    Formato basado en el documento de referencia:
+      - Título centrado: INFORME DE ACTIVIDADES No. XX-2026
+      - Párrafo introductorio
+      - Tabla IDENTIFICACIÓN CONTRACTUAL
+      - Tabla ACTIVIDADES GENERALES (4 cols)
+      - Tabla ACTIVIDADES ESPECÍFICAS (4 cols)
+      - Firma del contratista
+      - ANEXOS
+    """
     doc = Document()
-
-    # ─── Estilos base ───────────────────────────────────────────────────
     style = doc.styles["Normal"]
-    style.font.name = "Times New Roman"
-    style.font.size = Pt(11)
+    style.font.name = FONT_NAME
+    style.font.size = FONT_SIZE
 
-    # ─── Letterhead: Logo + entidad ──────────────────────────────────────
-    logo_b64 = ctx["logo_base64"]
-    if logo_b64:
-        import tempfile
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-            tmp.write(base64.b64decode(logo_b64))
-            logo_path = tmp.name
+    # Margins
+    for section in doc.sections:
+        section.top_margin = Cm(2.5)
+        section.bottom_margin = Cm(2.5)
+        section.left_margin = Cm(2.5)
+        section.right_margin = Cm(2.5)
+
+    today = datetime.now()
+    c = contratos[0] if contratos else {}
+    perfil = c.get("perfil", "") or ""
+
+    # ─── TITLE ───────────────────────────────────────────────────────
+    _add_paragraph(doc, f"INFORME DE ACTIVIDADES No. {c.get('numero_contrato', '')}-{today.year}",
+                   bold=True, size=FONT_SIZE_TITLE, color=COLOR_PRIMARY,
+                   alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=12)
+
+    # ─── INTRO ───────────────────────────────────────────────────────
+    periodo = ""
+    if c.get("fecha_inicio") and c.get("fecha_fin"):
         try:
-            doc.add_picture(logo_path, width=Cm(4.5))
-        except Exception:
-            pass
-        finally:
-            try:
-                os.unlink(logo_path)
-            except Exception:
-                pass
+            fi = datetime.strptime(c["fecha_inicio"], "%Y-%m-%d")
+            ff = datetime.strptime(c["fecha_fin"], "%Y-%m-%d")
+            periodo = f"Del {fi.day:02d} de {MESES_TITULO[fi.month]} al {ff.day:02d} de {MESES_TITULO[ff.month]} del {ff.year}"
+        except (ValueError, TypeError):
+            periodo = f"{MESES_TITULO[today.month]} de {today.year}"
+    else:
+        periodo = f"{MESES_TITULO[today.month]} de {today.year}"
 
-    _add_styled_paragraph(doc, "ESE NORTE 3 E.S.E.",
-                          bold=True, size=13,
-                          alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=1)
-    _add_styled_paragraph(doc, "NIT: 900.146.438-8",
-                          bold=False, size=8.5, color=(68, 68, 68),
-                          alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=1)
-    _add_styled_paragraph(doc, "Equipos Básicos de Salud",
-                          bold=False, size=8.5, color=(68, 68, 68),
-                          alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=10)
+    _add_paragraph(doc,
+        f"De acuerdo con el Contrato suscrito con la Empresa Social del Estado Norte 3 – E.S.E., "
+        f"me permito presentar el informe de actividades ejecutadas durante el periodo mencionado, "
+        f"con el fin de acreditar su cumplimiento:",
+        size=FONT_SIZE, space_after=12)
 
-    # ─── Separator ──────────────────────────────────────────────────────
-    sep_p = doc.add_paragraph()
-    sep_p.paragraph_format.space_before = Pt(0)
-    sep_p.paragraph_format.space_after = Pt(8)
-    run_sep = sep_p.add_run("_" * 85)
-    run_sep.font.size = Pt(6)
-    run_sep.font.color.rgb = RGBColor(0, 0, 0)
+    # ─── TABLE 1: IDENTIFICACIÓN CONTRACTUAL ─────────────────────────
+    t1 = doc.add_table(rows=1, cols=2)
+    _set_table_borders(t1, sz="6", color="003366")
 
-    # ─── Title ─────────────────────────────────────────────────────────
-    title_p = doc.add_paragraph()
-    title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    title_p.paragraph_format.space_before = Pt(8)
-    title_p.paragraph_format.space_after = Pt(14)
-    run = title_p.add_run("INFORME DE EVALUACIÓN DE CUMPLIMIENTO")
-    run.bold = True
-    run.font.size = Pt(12)
-    run.font.name = "Times New Roman"
+    # Header
+    _make_header_row(t1, "IDENTIFICACIÓN CONTRACTUAL", 2, "003366")
 
-    # ─── 1. Datos del Contratista ──────────────────────────────────────
-    _add_styled_paragraph(doc, "1. Datos del Contratista",
-                          bold=True, size=10.5, space_after=4)
+    # Identify fields based on available data
+    tipo_doc = "CC" if contratista.get("tipo_persona") == "NATURAL" else "NIT"
+    obj = c.get("objeto", "")
+    obj_short = obj[:120] + "..." if len(obj) > 120 else obj
 
-    info_data = [
-        ("Nombre:", ctx["nombre"]),
-        ("Identificación:", ctx["identificacion"]),
-        ("Teléfono:", ctx["telefono"] or "—"),
-        ("Correo electrónico:", ctx["correo"] or "—"),
-        ("Contrato No.:", ctx["contrato"]),
-        ("Perfil:", ctx["perfil"] or "—"),
-        ("Periodo evaluado:", ctx["periodo"]),
-        ("Fecha del informe:", ctx["fecha_informe"]),
+    # Determine periodo from contract or pago data
+    periodo_ejecutado = periodo
+    if c.get("periodo_desde") and c.get("periodo_hasta"):
+        periodo_ejecutado = f"{c['periodo_desde']} al {c['periodo_hasta']}"
+
+    # Valor en letras
+    monto = float(c.get("monto_total", 0) or 0)
+    valor_final = float(c.get("valor_final", 0) or monto)
+    valor_letras = c.get("valor_letras", "") or ""
+
+    supervisor_line = c.get("supervisor", "")
+    if c.get("cargo_supervisor"):
+        supervisor_line += f" {c['cargo_supervisor']}"
+    if c.get("unidad_atencion"):
+        supervisor_line += f" de {c['unidad_atencion']}"
+
+    ident_rows = [
+        ("NÚMERO Y FECHA DE CONTRATO", f"{c.get('numero_contrato', '')}{' del ' + c.get('fecha_contrato', '') if c.get('fecha_contrato') else ''}"),
+        ("TIPO DE CONTRATO", "CONTRATO DE PRESTACIÓN DE SERVICIOS PROFESIONALES"),
+        ("CONTRATANTE", "EMPRESA SOCIAL DEL ESTADO NORTE 3 – ESE\nNIT. 900.146.438.-4"),
+        ("CONTRATISTA", contratista.get("nombre", "")),
+        ("IDENTIFICACIÓN", f"{tipo_doc}. {contratista.get('identificacion', '')}"),
+        ("OBJETO DEL CONTRATO", obj_short),
+        ("VALOR DEL CONTRATO", f"{valor_letras} ({_formatear_numero(valor_final)})"),
+        ("TÉRMINO DEL CONTRATO", f"Desde la fecha de suscripción del acta de inicio, previo registro presupuestal y aprobación de garantías, hasta el {c.get('fecha_fin', '')} previo cumplimiento de los requisitos de perfeccionamiento y ejecución del contrato."),
+        ("PERIODO EJECUTADO", periodo_ejecutado),
+        ("SUPERVISOR DESIGNADO", supervisor_line),
     ]
 
-    table_info = doc.add_table(rows=len(info_data), cols=2)
-    table_info.style = "Table Grid"
-    table_info.alignment = WD_TABLE_ALIGNMENT.LEFT
-    for i, (label, value) in enumerate(info_data):
-        _add_cell_text(table_info.rows[i].cells[0], label, bold=True, size=10)
-        _add_cell_text(table_info.rows[i].cells[1], value, bold=False, size=10)
+    for i, (label, value) in enumerate(ident_rows):
+        bg = "F0F4FA" if i % 2 == 0 else "FFFFFF"
+        row = t1.add_row()
+        _set_cell_shading(row.cells[0], bg)
+        _add_cell_text(row.cells[0], label, bold=True, size=9, color=COLOR_TEXT,
+                       alignment=WD_ALIGN_PARAGRAPH.LEFT)
+        _set_cell_margins(row.cells[0])
+        row.cells[0].width = Cm(4.5)
 
-    doc.add_paragraph()  # spacer
+        _set_cell_shading(row.cells[1], bg)
+        _add_cell_text(row.cells[1], value, bold=False, size=9, color=COLOR_TEXT,
+                       alignment=WD_ALIGN_PARAGRAPH.JUSTIFY if len(value) > 60 else WD_ALIGN_PARAGRAPH.LEFT)
+        _set_cell_margins(row.cells[1])
+        row.cells[1].width = Cm(12.0)
 
-    # ─── 2. Detalle de Actividades por Contrato ─────────────────────────
-    _add_styled_paragraph(doc, "2. Detalle de Actividades por Contrato",
-                          bold=True, size=10.5, space_after=4)
+    # Apply cell margins to header too
+    for cell in t1.rows[0].cells:
+        _set_cell_margins(cell)
+    _set_cell_shading(t1.rows[0].cells[0], "003366")
 
-    from docx.oxml.ns import qn as _qn
-    from docx.oxml import parse_xml as _parse_xml
+    _add_paragraph(doc, "", size=6, space_after=6)  # spacer
 
-    for c in contratos:
-        _add_styled_paragraph(doc,
-            f"Contrato: {c['numero_contrato']}" +
-            (f" — {c.get('perfil', '')}" if c.get('perfil') else ""),
-            bold=True, size=9, color=(26, 58, 92), space_after=2)
+    # ─── SPLIT ACTIVITIES: GENERALES vs ESPECÍFICAS ──────────────────
+    acts_generales = [a for a in c.get("actividades", []) if a.get("tipo") == "GENERAL" or a.get("tipo") is None]
+    acts_especificas = [a for a in c.get("actividades", []) if a.get("tipo") == "ESPECIFICA"]
 
-        acts = c.get("actividades", [])
-        if not acts:
-            _add_styled_paragraph(doc, "  Sin actividades registradas.",
-                                  size=9, color=(150, 150, 150))
-            continue
+    # If all activities have the same type or no type, put all as generales
+    if not acts_especificas:
+        acts_especificas = []
+    if not acts_generales and not acts_especificas:
+        acts_generales = c.get("actividades", [])
 
-        # ─── Tabla: 1 fila de actividad + 1 fila de evidencias por cada act ───
-        table_act = doc.add_table(rows=1, cols=3)
-        table_act.style = "Table Grid"
-        table_act.alignment = WD_TABLE_ALIGNMENT.LEFT
+    def _build_activity_table(doc, title, actividades, col_widths=[1.0, 5.5, 6.0, 4.0]):
+        if not actividades:
+            return
 
-        # Column widths
-        for row in table_act.rows:
-            row.cells[0].width = Cm(1)
-            row.cells[1].width = Cm(13.5)
-            row.cells[2].width = Cm(2.5)
+        _add_paragraph(doc, title, bold=True, size=11, color=COLOR_PRIMARY,
+                       alignment=WD_ALIGN_PARAGRAPH.LEFT, space_before=12, space_after=6)
 
-        # Header row
-        for j, h in enumerate(["#", "Actividad", "Estado"]):
-            cell = table_act.rows[0].cells[j]
-            _add_cell_text(cell, h, bold=True, size=7,
-                           color=(255, 255, 255),
-                           alignment=WD_ALIGN_PARAGRAPH.CENTER)
-            _set_cell_shading(cell, "1A3A5C")
+        tbl = doc.add_table(rows=1, cols=4)
+        _set_table_borders(tbl, sz="6", color="003366")
 
-        for i, act in enumerate(acts):
-            estado = act.get("estado_global", "SIN_EVIDENCIA")
-            estado_label = {
-                "APROBADO": "✓ Aprobado",
-                "RECHAZADO": "✗ Rechazado",
-                "PENDIENTE": "⏳ Pendiente",
-            }.get(estado, "— Sin evidencia")
+        # Merged header
+        _make_header_row(tbl, title, 4, "003366")
 
-            # ── Fila 1: Actividad ──
-            row_act = table_act.add_row()
-            _add_cell_text(row_act.cells[0], str(i + 1),
-                           bold=True, alignment=WD_ALIGN_PARAGRAPH.CENTER)
-            _add_cell_text(row_act.cells[1], act.get("descripcion", ""), size=8)
-            _add_cell_text(row_act.cells[2], estado_label, size=8,
-                           alignment=WD_ALIGN_PARAGRAPH.CENTER)
-            for cell in row_act.cells:
-                _set_cell_shading(cell, "F0F4F8")
+        # Column headers
+        _make_col_header_row(tbl, ["No.", "ACTIVIDAD CONTRATADA", "DESCRIPCIÓN DE ACCIONES REALIZADAS", "EVIDENCIAS"], col_widths)
 
-            # ── Fila 2: Evidencias agrupadas por tipo ──
-            row_ev = table_act.add_row()
-            row_ev.cells[0].merge(row_ev.cells[2])
-            ev_cell = row_ev.cells[0]
-
+        # Data rows
+        for i, act in enumerate(actividades):
+            num = i + 1
+            desc = act.get("descripcion", "")
             evidencias = act.get("evidencias", [])
-            if evidencias:
-                ev_cell.text = ""
-                imgs = [e for e in evidencias if e.get("tipo") == "IMAGEN"]
-                textos = [e for e in evidencias if e.get("tipo") == "TEXTO"]
-                archivos = [e for e in evidencias if e.get("tipo") == "ARCHIVO"]
 
-                import tempfile, os as _os_docx
+            # Build description from evidencias (TEXTO type)
+            acciones = desc if desc else ""
+            textos = [e.get("contenido_texto", "") for e in evidencias if e.get("tipo") == "TEXTO" and e.get("contenido_texto")]
+            if textos and not acciones:
+                acciones = "\n".join(textos)
 
-                # IMÁGENES (todas juntas)
-                if imgs:
-                    p_label = ev_cell.add_paragraph()
-                    p_label.paragraph_format.space_before = Pt(4)
-                    p_label.paragraph_format.space_after = Pt(2)
-                    r_l = p_label.add_run(f"📷  IMAGEN ({len(imgs)})")
-                    r_l.font.size = Pt(6.5)
-                    r_l.font.color.rgb = RGBColor(136, 136, 136)
-                    r_l.bold = True
+            # Build evidence text
+            ev_text_parts = []
+            for ev in evidencias:
+                if ev.get("tipo") == "IMAGEN":
+                    ev_text_parts.append(ev.get("archivo_nombre", "Imagen"))
+                elif ev.get("tipo") == "ARCHIVO":
+                    ev_text_parts.append(ev.get("archivo_nombre", "Archivo"))
+                elif ev.get("tipo") == "TEXTO":
+                    txt = ev.get("contenido_texto", "")
+                    if txt and not acciones:
+                        # Already used as description
+                        pass
+            ev_text = "\n".join(ev_text_parts) if ev_text_parts else ""
 
-                    for ev in imgs:
-                        img_b64 = ev.get("img_base64")
-                        if img_b64:
-                            img_data_clean = base64.b64decode(img_b64)
-                            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-                                tmp.write(img_data_clean)
-                                tmp_path = tmp.name
-                            try:
-                                from PIL import Image as _PILImg
-                                with _PILImg.open(tmp_path) as img_pil:
-                                    orig_w, orig_h = img_pil.size
-                                ratio = orig_w / orig_h if orig_h > 0 else 1
-                                if ratio > 1.3:
-                                    disp_w = min(Cm(14), Cm(orig_w * 14 / orig_h))
-                                    disp_h = Cm(float(disp_w / ratio))
-                                elif ratio < 0.7:
-                                    disp_h = min(Cm(10), Cm(orig_h * 10 / orig_w))
-                                    disp_w = Cm(float(disp_h * ratio))
-                                else:
-                                    disp_w = min(Cm(10), Cm(orig_w * 10 / orig_h))
-                                    disp_h = Cm(float(disp_w / ratio))
-                                ev_cell.add_picture(tmp_path, width=Cm(float(disp_w)), height=Cm(float(disp_h)))
-                            except Exception:
-                                pass
-                            finally:
-                                try:
-                                    _os_docx.unlink(tmp_path)
-                                except Exception:
-                                    pass
-                        else:
-                            p_fallback = ev_cell.add_paragraph()
-                            r_f = p_fallback.add_run(f"  {ev.get('archivo_nombre', 'Imagen')}")
-                            r_f.font.size = Pt(8)
+            alt_bg = "F5F8FC" if i % 2 == 0 else "FFFFFF"
+            row = tbl.add_row()
+            for ci, val in enumerate([str(num), desc, acciones, ev_text]):
+                cell = row.cells[ci]
+                _set_cell_shading(cell, alt_bg)
+                align = WD_ALIGN_PARAGRAPH.CENTER if ci == 0 else WD_ALIGN_PARAGRAPH.JUSTIFY
+                _add_cell_text(cell, val, bold=(ci == 0), size=9, color=COLOR_TEXT, alignment=align)
+                _set_cell_margins(cell)
+                if ci < len(col_widths):
+                    cell.width = Cm(col_widths[ci])
 
-                    for ev in imgs:
-                        if ev.get("observacion_coordinadora"):
-                            p_obs = ev_cell.add_paragraph()
-                            p_obs.paragraph_format.space_before = Pt(1)
-                            p_obs.paragraph_format.space_after = Pt(1)
-                            r3 = p_obs.add_run(f"Obs: {ev['observacion_coordinadora']}")
-                            r3.font.size = Pt(7)
-                            r3.font.color.rgb = RGBColor(125, 102, 8)
-                            r3.italic = True
+    # ─── TABLE 2: ACTIVIDADES GENERALES ──────────────────────────────
+    _build_activity_table(doc, "ACTIVIDADES GENERALES", acts_generales)
 
-                # TEXTOS (cada uno en su fila)
-                for ev in textos:
-                    p_t_label = ev_cell.add_paragraph()
-                    p_t_label.paragraph_format.space_before = Pt(4)
-                    p_t_label.paragraph_format.space_after = Pt(1)
-                    r_tl = p_t_label.add_run("📝  TEXTO")
-                    r_tl.font.size = Pt(6.5)
-                    r_tl.font.color.rgb = RGBColor(136, 136, 136)
-                    r_tl.bold = True
+    # ─── TABLE 3: ACTIVIDADES ESPECÍFICAS ────────────────────────────
+    _build_activity_table(doc, "ACTIVIDADES ESPECÍFICAS", acts_especificas)
 
-                    p_text = ev_cell.add_paragraph()
-                    p_text.paragraph_format.space_before = Pt(1)
-                    p_text.paragraph_format.space_after = Pt(2)
-                    r_text = p_text.add_run(ev.get("contenido_texto", "")[:200])
-                    r_text.font.size = Pt(7.5)
-                    r_text.font.color.rgb = RGBColor(68, 68, 68)
+    # ─── CLOSING ─────────────────────────────────────────────────────
+    _add_paragraph(doc, "", size=6, space_after=12)  # spacer
 
-                    if ev.get("observacion_coordinadora"):
-                        p_obs = ev_cell.add_paragraph()
-                        p_obs.paragraph_format.left_indent = Cm(0.5)
-                        r3 = p_obs.add_run(f"Obs: {ev['observacion_coordinadora']}")
-                        r3.font.size = Pt(7)
-                        r3.font.color.rgb = RGBColor(125, 102, 8)
-                        r3.italic = True
+    _add_paragraph(doc, "Cordialmente,", bold=False, size=FONT_SIZE, space_before=12, space_after=18)
 
-                # ARCHIVOS (cada uno en su fila)
-                for ev in archivos:
-                    p_a_label = ev_cell.add_paragraph()
-                    p_a_label.paragraph_format.space_before = Pt(4)
-                    p_a_label.paragraph_format.space_after = Pt(1)
-                    r_al = p_a_label.add_run("📄  ARCHIVO")
-                    r_al.font.size = Pt(6.5)
-                    r_al.font.color.rgb = RGBColor(136, 136, 136)
-                    r_al.bold = True
+    _add_paragraph(doc, contratista.get("nombre", ""),
+                   bold=True, size=FONT_SIZE, color=COLOR_PRIMARY, space_after=2)
+    _add_paragraph(doc, f"CC. {contratista.get('identificacion', '')}",
+                   bold=True, size=FONT_SIZE, color=COLOR_PRIMARY, space_after=2)
+    _add_paragraph(doc, perfil,
+                   bold=False, size=FONT_SIZE, space_after=2)
+    _add_paragraph(doc, "Contratista",
+                   bold=False, size=FONT_SIZE, space_after=12)
 
-                    p_file = ev_cell.add_paragraph()
-                    p_file.paragraph_format.space_before = Pt(1)
-                    p_file.paragraph_format.space_after = Pt(1)
-                    r_file = p_file.add_run(f"  {ev.get('archivo_nombre', 'Archivo')}")
-                    r_file.font.size = Pt(8)
+    # ─── ANEXOS ──────────────────────────────────────────────────────
+    _add_paragraph(doc, "ANEXOS",
+                   bold=True, size=11, color=COLOR_PRIMARY,
+                   alignment=WD_ALIGN_PARAGRAPH.CENTER, space_before=24, space_after=6)
 
-                    if ev.get("observacion_coordinadora"):
-                        p_obs = ev_cell.add_paragraph()
-                        p_obs.paragraph_format.left_indent = Cm(0.5)
-                        r3 = p_obs.add_run(f"Obs: {ev['observacion_coordinadora']}")
-                        r3.font.size = Pt(7)
-                        r3.font.color.rgb = RGBColor(125, 102, 8)
-                        r3.italic = True
-            else:
-                _add_cell_text(ev_cell, "Sin evidencias aprobadas",
-                               size=8, color=(150, 150, 150))
-
-        doc.add_paragraph()
-
-    # ─── 3. Documentos Contractuales ─────────────────────────────────
-    doc.add_paragraph()
-    _add_styled_paragraph(doc, "3. Documentos Contractuales Anexos",
-                          bold=True, size=10.5, space_after=4)
-
-    docs_global = []
-    for c in contratos:
-        for d in c.get("documentos", []):
-            docs_global.append({
-                "contrato_numero": c["numero_contrato"],
-                **d
-            })
-
-    if docs_global:
-        _add_styled_paragraph(doc,
-            "A continuación se listan los documentos contractuales adjuntos al presente informe.",
-            size=9, color=(68, 68, 68), space_after=6)
-
-        for i, doc_item in enumerate(docs_global):
-            tipo_nombres = {
-                "CUENTA_COBRO": "Cuenta de Cobro",
-                "RETENCION": "Retención formato",
-                "LISTADO_ASISTENCIA": "Listado de asistencia",
-                "PLANILLA_SEGURIDAD": "Planilla de seguridad social",
-                "CERTIFICACION_BANCARIA": "Certificación bancaria",
-                "ARL": "ARL",
-            }
-            tipo_label = tipo_nombres.get(doc_item["tipo_documento"], doc_item["tipo_documento"])
-
-            _add_styled_paragraph(doc,
-                f"{i+1}. {tipo_label} — {doc_item.get('contrato_numero', '')}",
-                bold=True, size=9, color=(26, 58, 92), space_after=2)
-
-            _add_styled_paragraph(doc,
-                f"Archivo: {doc_item.get('archivo_nombre', '')}",
-                size=8, color=(100, 100, 100), space_after=1)
-
-            _add_styled_paragraph(doc,
-                f"Estado: {'✓ Aprobado' if doc_item.get('estado') == 'APROBADO' else '✗ Rechazado' if doc_item.get('estado') == 'RECHAZADO' else '⏳ Pendiente'}",
-                size=8, space_after=2)
-
-            if doc_item.get("observacion"):
-                _add_styled_paragraph(doc,
-                    f"Observación: {doc_item['observacion']}",
-                    size=8, color=(125, 102, 8), space_after=4)
-
-            # Intentar incrustar imagen si es un archivo de imagen
-            archivo_ruta = doc_item.get("archivo_ruta", "")
-            if archivo_ruta:
-                pdf_path = archivo_ruta.lstrip("/")
-                if pdf_path.startswith("uploads/"):
-                    pdf_path = os.path.join("/app", pdf_path)
-                else:
-                    pdf_path = os.path.join("/app/uploads", pdf_path)
-
-                if os.path.exists(pdf_path):
-                    try:
-                        from PIL import Image as _PILDoc
-                        with _PILDoc.open(pdf_path) as img_check:
-                            # Es una imagen incrustable
-                            doc.add_picture(pdf_path, width=Cm(14))
-                            doc.add_paragraph()
-                    except Exception:
-                        # No es imagen, es PDF (se anexa en la versión PDF)
-                        _add_styled_paragraph(doc,
-                            "📎 Documento anexado al final del informe en formato PDF.",
-                            size=7.5, color=(100, 100, 100), space_after=6)
-
-        doc.add_paragraph()
-        _add_styled_paragraph(doc,
-            "— Fin de anexos —",
-            size=8, color=(150, 150, 150),
-            alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=6)
-    else:
-        _add_styled_paragraph(doc,
-            "No se han cargado documentos contractuales para este período.",
-            size=9, color=(150, 150, 150))
-
-    # ─── Firmas ────────────────────────────────────────────────────────
-    doc.add_paragraph()
-    doc.add_paragraph()
-
-    sig_table = doc.add_table(rows=1, cols=2)
-    sig_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    for j, (titulo, sub) in enumerate([
-        ("COORDINADOR DE SUPERVISIÓN", "ESE Norte 3 E.S.E."),
-        ("CONTRATISTA", ctx["nombre"]),
-    ]):
-        cell = sig_table.rows[0].cells[j]
-        cell.text = ""
-        for _ in range(3):
-            cell.add_paragraph()
-        p_line = cell.add_paragraph()
-        p_line.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p_line.paragraph_format.space_before = Pt(20)
-        r = p_line.add_run("_" * 35)
-        r.font.size = Pt(9)
-        r.font.name = "Times New Roman"
-        p_name = cell.add_paragraph()
-        p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r2 = p_name.add_run(titulo)
-        r2.bold = True
-        r2.font.size = Pt(9)
-        r2.font.name = "Times New Roman"
-        p_sub = cell.add_paragraph()
-        p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r3 = p_sub.add_run(sub)
-        r3.font.size = Pt(8)
-        r3.font.color.rgb = RGBColor(85, 85, 85)
-        r3.font.name = "Times New Roman"
-
-    # ─── Footer ────────────────────────────────────────────────────────
-    doc.add_paragraph()
-    footer_p = doc.add_paragraph()
-    footer_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_f = footer_p.add_run(
-        f"ESE Norte 3 E.S.E. — Equipos Básicos de Salud\n"
-        f"Documento generado el {ctx['fecha_informe']} — GESCO V2"
-    )
-    run_f.font.size = Pt(7.5)
-    run_f.font.color.rgb = RGBColor(102, 102, 102)
-    run_f.font.name = "Times New Roman"
-
-    # ─── Output ────────────────────────────────────────────────────────
+    # ─── OUTPUT ──────────────────────────────────────────────────────
     buf = io.BytesIO()
     doc.save(buf)
     buf.seek(0)

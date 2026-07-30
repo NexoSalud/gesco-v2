@@ -806,14 +806,32 @@ async def descargar_informe(
             "numero_contrato": c.numero_contrato,
             "perfil": c.perfil,
             "objeto": c.objeto,
+            "fecha_inicio": str(c.fecha_inicio) if c.fecha_inicio else None,
+            "fecha_fin": str(c.fecha_fin) if c.fecha_fin else None,
+            "fecha_contrato": str(c.fecha_contrato) if c.fecha_contrato else None,
+            "monto_total": c.monto_total,
+            "valor_final": c.valor_final or c.monto_total,
+            "valor_letras": c.valor_letras,
+            "supervisor": c.supervisor,
+            "cedula_supervisor": c.cedula_supervisor,
+            "cargo_supervisor": c.cargo_supervisor,
+            "unidad_atencion": c.unidad_atencion,
+            "lugar_ejecucion": c.lugar_ejecucion,
+            "forma_pago": c.forma_pago,
+            "no_cdp": c.no_cdp,
+            "rp": c.rp,
             "actividades": actividades_data,
         })
 
     contratista_dict = {
+        "id": contratista.id,
         "nombre": contratista.nombre,
         "identificacion": contratista.identificacion,
+        "tipo_persona": contratista.tipo_persona,
+        "expedida_en": contratista.expedida_en,
         "telefono": contratista.telefono,
         "correo": contratista.correo,
+        "direccion": contratista.direccion,
     }
 
     # Obtener documentos contractuales de todos los contratos
@@ -999,10 +1017,14 @@ async def descargar_informe_publico(
         })
 
     contratista_dict = {
+        "id": contratista.id,
         "nombre": contratista.nombre,
         "identificacion": contratista.identificacion,
+        "tipo_persona": contratista.tipo_persona,
+        "expedida_en": contratista.expedida_en,
         "telefono": contratista.telefono,
         "correo": contratista.correo,
+        "direccion": contratista.direccion,
     }
 
     # Obtener documentos contractuales de todos los contratos
