@@ -15,7 +15,7 @@ from weasyprint import HTML
 logger = logging.getLogger(__name__)
 
 from docx import Document
-from docx.shared import Pt, Cm, Inches, RGBColor
+from docx.shared import Pt, Cm, Inches, RGBColor, Length
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn, nsdecls
@@ -212,6 +212,18 @@ def generar_pdf(contratista: dict, contratos: list, resumen: dict) -> bytes:
 
 # ─── Generador DOCX ───────────────────────────────────────────────────────
 
+def _coerce_size(size):
+    """Convierte size a Length sin doble conversión.
+
+    Si ya es un Length (p.ej. Pt(10)), se usa tal cual; si es un número,
+    se interpreta como puntos. Evita el bug de Pt(Pt(10)) que produce
+    tamaños de fuente gigantes (una letra por página).
+    """
+    if size is None:
+        return None
+    return size if isinstance(size, Length) else Pt(size)
+
+
 def _add_styled_paragraph(doc, text, style_name=None, bold=False, size=None, color=None, alignment=None, space_after=None):
     """Agrega un párrafo con estilo."""
     p = doc.add_paragraph()
@@ -220,7 +232,7 @@ def _add_styled_paragraph(doc, text, style_name=None, bold=False, size=None, col
     run = p.add_run(text)
     run.bold = bold
     if size:
-        run.font.size = Pt(size)
+        run.font.size = _coerce_size(size)
     if color:
         run.font.color.rgb = RGBColor(*color)
     if alignment is not None:
@@ -236,7 +248,7 @@ def _add_cell_text(cell, text, bold=False, size=9, color=None, alignment=None):
     p = cell.paragraphs[0]
     run = p.add_run(str(text))
     run.bold = bold
-    run.font.size = Pt(size)
+    run.font.size = _coerce_size(size)
     run.font.name = "Times New Roman"
     if color:
         run.font.color.rgb = RGBColor(*color)
@@ -291,7 +303,7 @@ def _add_paragraph(doc, text, bold=False, size=10, color=COLOR_TEXT,
     p.paragraph_format.space_after = Pt(space_after)
     run = p.add_run(text)
     run.bold = bold
-    run.font.size = Pt(size)
+    run.font.size = _coerce_size(size)
     run.font.name = FONT_NAME
     if color:
         run.font.color.rgb = color
