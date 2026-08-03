@@ -265,6 +265,190 @@ def _set_cell_shading(cell, color_hex):
 
 # ─── Helpers para el nuevo formato INFORME DE ACTIVIDADES ──────────────
 
+def _render_html_to_cell(cell, html_text: str, font_size=9):
+    """Renderiza HTML en una celda con formato (bold, saltos de línea, tablas).
+
+    Si el contenido NO es HTML (sin tags), lo escribe como texto plano.
+    Si tiene tags HTML, los renderiza con formato real en la celda.
+    """
+    if not html_text or ('<' not in html_text):
+        # Texto plano — escribir directo
+        cell.text = ""
+        p = cell.paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        run = p.add_run(str(html_text))
+        run.font.size = Pt(font_size)
+        run.font.name = "Times New Roman"
+        return
+
+    import re as _re2
+
+    # Limpiar la celda
+    for p in cell.paragraphs:
+        p.clear()
+
+    # Parsear HTML en tokens: texto plano, <br>, <b>/<strong>, <i>/<em>,
+    # <p>, </p>, <li>, </li>, <table>...</table>
+    # Simplificación: convertir a texto con marcas, luego construir paragraphs
+
+    text = html_text
+    # 1. Reemplazar <br> → salto de línea
+    text = _re2.sub(r'<br\s*/?>', '\n', text, flags=_re2.IGNORECASE)
+    # 2. </p> → doble salto
+    text = _re2.sub(r'</p>', '\n\n', text, flags=_re2.IGNORECASE)
+    # 3. <li> → bullet
+    text = _re2.sub(r'<li[^>]*>', '• ', text, flags=_re2.IGNORECASE)
+    text = _re2.sub(r'</li>', '\n', text, flags=_re2.IGNORECASE)
+    # 4. <td> y <th> → tab
+    text = _re2.sub(r'</t[dh]>', '\t', text, flags=_re2.IGNORECASE)
+    text = _re2.sub(r'</tr>', '\n', text, flags=_re2.IGNORECASE)
+
+    # 5. Extraer contenido de tablas para renderizarlas como tablas DOCX reales
+    table_blocks = list(_re2.finditer(
+        r'<table[^>]*>(.*?)</table>', text, _re2.DOTALL | _re2.IGNORECASE))
+    # Reemplazar tablas por placeholder para procesar después
+    table_placeholders = []
+    for match in table_blocks:
+        table_placeholders.append(match.group(0))
+    text = _re2.sub(
+        r'<table[^>]*>.*?</table>', '<<TABLE_PLACEHOLDER>>',
+        text, flags=_re2.DOTALL | _re2.IGNORECASE)
+
+    # 6. Ahora procesar el texto con formato inline (bold, italic)
+    # Simplificación: tokenizar en (is_bold, text) para cada línea
+    lines = text.split('\n')
+    ph_idx = 0
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        # Si es un placeholder de tabla
+        if '<<TABLE_PLACEHOLDER>>' in line and ph_idx < len(table_placeholders):
+            table_html = table_placeholders[ph_idx]
+            ph_idx += 1
+            # Renderizar tabla simple
+            rows_html = _re2.findall(
+                r'<tr[^>]*>(.*?)</tr>', table_html,
+                _re2.DOTALL | _re2.IGNORECASE)
+            if rows_html:
+                num_cols = max(
+                    len(_re2.findall(r'<t[dh][^>]*>.*?</t[dh]>',
+                                     rh, _re2.DOTALL | _re2.IGNORECASE))
+                    for rh in rows_html)
+                tbl = cell.add_table(rows=0, cols=max(num_cols, 1))
+                _set_table_borders(tbl, sz="4", color="999999")
+                for rh in rows_html:
+                    cells_text = _re2.findall(
+                        r'<t[dh][^>]*>(.*?)</t[dh]>',
+                        rh, _re2.DOTALL | _re2.IGNORECASE)
+                    clean_cells = [_re2.sub(r'<[^>]+>', '', c).strip()
+                                   for c in cells_text]
+                    is_header = '<th' in rh.lower()
+                    row = tbl.add_row()
+                    for ci, ct in enumerate(clean_cells):
+                        if ci < len(row.cells):
+                            cell2 = row.cells[ci]
+                            cell2.text = ""
+                            p2 = cell2.paragraphs[0]
+                            p2.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                            r2 = p2.add_run(ct)
+                            r2.font.size = Pt(font_size - 1)
+                            r2.font.name = "Times New Roman"
+                            r2.bold = is_header
+                            if is_header:
+                                _set_cell_shading(cell2, "E8E8E8")
+                # Párrafo vacío como separador después de tabla
+                sp = cell.add_paragraph()
+                sp.paragraph_format.space_after = Pt(2)
+            continue
+
+        # 7. Limpiar tags HTML restantes pero preservar bold/italic/strikethrough
+        # Estrategia: procesar runs inline
+        remaining = line
+
+        # Añadir un paragraph por línea
+        p = cell.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        p.paragraph_format.space_after = Pt(2)
+        p.paragraph_format.space_before = Pt(0)
+
+        # Parsear inline formatting tags
+        pos = 0
+        while pos < len(remaining):
+            # Buscar próximo tag
+            next_tag = _re2.search(
+                r'<(/?)(b|strong|i|em|u|s|del|strike)\s*>',
+                remaining[pos:], _re2.IGNORECASE)
+
+            if not next_tag:
+                # No más tags — añadir resto del texto
+                plain = remaining[pos:]
+                plain = _re2.sub(r'<[^>]+>', '', plain)  # limpiar otros tags
+                plain = plain.replace('&nbsp;', ' ').replace('&amp;', '&')
+                plain = plain.replace('&lt;', '<').replace('&gt;', '>')
+                if plain.strip():
+                    run = p.add_run(plain)
+                    run.font.size = Pt(font_size)
+                    run.font.name = "Times New Roman"
+                break
+
+            # Texto antes del tag
+            before = remaining[pos:pos + next_tag.start()]
+            before = _re2.sub(r'<[^>]+>', '', before)
+            before = before.replace('&nbsp;', ' ').replace('&amp;', '&')
+            before = before.replace('&lt;', '<').replace('&gt;', '>')
+            if before.strip():
+                run = p.add_run(before)
+                run.font.size = Pt(font_size)
+                run.font.name = "Times New Roman"
+
+            # Avanzar posición
+            tag_name = next_tag.group(2).lower()
+            is_closing = next_tag.group(1) == '/'
+            pos += next_tag.end()
+
+            if is_closing:
+                continue  # ya procesamos el formato en la apertura
+
+            # Buscar texto hasta el cierre del tag
+            close_pattern = _re2.compile(
+                rf'</{tag_name}\s*>', _re2.IGNORECASE)
+            close_match = close_pattern.search(remaining[pos:])
+            if close_match:
+                inner = remaining[pos:pos + close_match.start()]
+                inner = _re2.sub(r'<[^>]+>', '', inner)
+                inner = inner.replace('&nbsp;', ' ').replace('&amp;', '&')
+                inner = inner.replace('&lt;', '<').replace('&gt;', '>')
+                if inner.strip():
+                    run = p.add_run(inner)
+                    run.font.size = Pt(font_size)
+                    run.font.name = "Times New Roman"
+                    if tag_name in ('b', 'strong'):
+                        run.bold = True
+                    elif tag_name in ('i', 'em'):
+                        run.italic = True
+                    elif tag_name == 'u':
+                        run.underline = True
+                    elif tag_name in ('s', 'del', 'strike'):
+                        run.font.strike = True
+                pos = pos + close_match.end()
+            else:
+                # No se encontró cierre — tratar como texto normal
+                pass
+
+    # Si no se añadió nada (celda vacía), poner texto plano
+    if len(cell.paragraphs) == 1 and not cell.paragraphs[0].text.strip():
+        cell.paragraphs[0].clear()
+        clean_text = _re2.sub(r'<[^>]+>', '', html_text)
+        clean_text = clean_text.replace('&nbsp;', ' ').replace('&amp;', '&')
+        clean_text = clean_text.replace('&lt;', '<').replace('&gt;', '>')
+        clean_text = clean_text.strip()
+        run = cell.paragraphs[0].add_run(clean_text)
+        run.font.size = Pt(font_size)
+        run.font.name = "Times New Roman"
+
 def _set_cell_margins(cell, top=28, bottom=28, left=57, right=57):
     tc = cell._tc
     tcPr = tc.get_or_add_tcPr()
@@ -522,14 +706,21 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
 
             alt_bg = "F5F8FC" if i % 2 == 0 else "FFFFFF"
             row = tbl.add_row()
-            for ci, val in enumerate([str(num), desc, acciones, ev_text]):
+            vals = [str(num), desc, acciones, ev_text]
+            for ci, val in enumerate(vals):
                 cell = row.cells[ci]
                 _set_cell_shading(cell, alt_bg)
-                align = WD_ALIGN_PARAGRAPH.CENTER if ci == 0 else WD_ALIGN_PARAGRAPH.JUSTIFY
-                _add_cell_text(cell, val, bold=(ci == 0), size=9, color=COLOR_TEXT, alignment=align)
                 _set_cell_margins(cell)
                 if ci < len(col_widths):
                     cell.width = Cm(col_widths[ci])
+                if ci in (1, 2) and val:
+                    # Columnas con HTML: renderizar con formato real
+                    _render_html_to_cell(cell, val, font_size=9)
+                else:
+                    # Columnas de texto plano (No., Evidencias)
+                    align = WD_ALIGN_PARAGRAPH.CENTER if ci == 0 else WD_ALIGN_PARAGRAPH.JUSTIFY
+                    _add_cell_text(cell, val, bold=(ci == 0), size=9,
+                                   color=COLOR_TEXT, alignment=align)
 
     # ─── TABLE 2: ACTIVIDADES GENERALES ──────────────────────────────
     _build_activity_table(doc, "ACTIVIDADES GENERALES", acts_generales)
