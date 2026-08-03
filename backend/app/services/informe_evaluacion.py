@@ -649,17 +649,10 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
             desc = act.get("descripcion", "")
             evidencias = act.get("evidencias", [])
 
-            # Build description from evidencias (TEXTO type) — always include
-            acciones = desc if desc else ""
+            # Columna DESCRIPCIÓN DE ACCIONES REALIZADAS: solo texto del contratista
             textos = [e.get("contenido_texto", "") for e in evidencias
                       if e.get("tipo") == "TEXTO" and e.get("contenido_texto")]
-            if textos:
-                # Append contractor text evidence to acciones
-                texto_contratista = "\n".join(textos)
-                if acciones:
-                    acciones = acciones + "\n\n" + texto_contratista
-                else:
-                    acciones = texto_contratista
+            acciones = "\n".join(textos) if textos else ""
 
             # Build evidence text
             ev_text_parts = []
