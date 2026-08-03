@@ -1753,6 +1753,7 @@ export default function InventarioPage() {
                       />
                     </th>
                     <th className="p-3">Elemento</th>
+                    <th className="p-3">Marca / Modelo</th>
                     <th className="p-3">S/N / IMEI 1</th>
                     <th className="p-3">IMEI 2</th>
                     <th className="p-3">Resolución</th>
@@ -1781,6 +1782,10 @@ export default function InventarioPage() {
                       <td className="p-3">
                         <p className="font-semibold text-gray-800">{u.articulo?.elemento}</p>
                         <p className="text-[9px] text-gray-400 uppercase tracking-wider">{u.articulo?.categoria}</p>
+                      </td>
+                      <td className="p-3">
+                        <p className="font-semibold text-gray-800">{u.articulo?.marca || "—"}</p>
+                        <p className="text-[9px] text-gray-400">{u.articulo?.modelo || "—"}</p>
                       </td>
                       <td className="p-3 font-mono font-bold text-gray-800">{u.serial || "—"}</td>
                       <td className="p-3 font-mono text-gray-500">{u.imei2 || "N/A"}</td>
