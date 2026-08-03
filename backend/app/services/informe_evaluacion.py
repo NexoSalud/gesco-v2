@@ -275,24 +275,144 @@ def _strip_html(text: str) -> str:
     t = _re3.sub(r'</p>', '\n', t, flags=_re3.IGNORECASE)
     t = _re3.sub(r'</div>', '\n', t, flags=_re3.IGNORECASE)
     t = _re3.sub(r'</li>', '\n', t, flags=_re3.IGNORECASE)
-    t = _re3.sub(r'</tr>', '\n', t, flags=_re3.IGNORECASE)
     t = _re3.sub(r'<li[^>]*>', '• ', t, flags=_re3.IGNORECASE)
     t = _re3.sub(r'<[^>]+>', '', t)
     t = t.replace('&nbsp;', ' ').replace('&amp;', '&')
     t = t.replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"')
     return t.strip()
 
-def _render_html_to_cell(cell, html_text: str, font_size=9):
-    """Escribe texto limpio (sin HTML) en la celda. Siempre preserva TODO el texto."""
-    clean = _strip_html(html_text)
-    if not clean:
+
+def _extract_html_tables(html_text: str) -> list[str]:
+    """Extrae tablas HTML del texto. Retorna lista de strings <table>...</table>."""
+    if '<table' not in html_text.lower():
+        return []
+    import re as _re4
+    return [m.group(0) for m in _re4.finditer(
+        r'<table[^>]*>.*?</table>', html_text, _re4.DOTALL | _re4.IGNORECASE)]
+
+
+def _render_html_table_in_cell(cell, table_html: str, font_size=8):
+    """Renderiza una tabla HTML como tabla DOCX real dentro de la celda."""
+    import re as _re5
+    rows_html = _re5.findall(r'<tr[^>]*>(.*?)</tr>', table_html,
+                             _re5.DOTALL | _re5.IGNORECASE)
+    if not rows_html:
         return
-    cell.text = ""
-    p = cell.paragraphs[0]
-    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    run = p.add_run(clean)
-    run.font.size = Pt(font_size)
-    run.font.name = "Times New Roman"
+
+    num_cols = max(
+        len(_re5.findall(r'<t[dh][^>]*>.*?</t[dh]>', rh,
+                         _re5.DOTALL | _re5.IGNORECASE))
+        for rh in rows_html)
+
+    tbl = cell.add_table(rows=0, cols=max(num_cols, 1))
+    _set_table_borders(tbl, sz="4", color="999999")
+
+    for rh in rows_html:
+        cells_text = _re5.findall(r'<t[dh][^>]*>(.*?)</t[dh]>',
+                                  rh, _re5.DOTALL | _re5.IGNORECASE)
+        clean_cells = [_strip_html(c) for c in cells_text]
+        is_header = '<th' in rh.lower()
+        row = tbl.add_row()
+        for ci, ct in enumerate(clean_cells):
+            if ci < len(row.cells):
+                c2 = row.cells[ci]
+                c2.text = ""
+                p2 = c2.paragraphs[0]
+                r2 = p2.add_run(ct)
+                r2.font.size = Pt(font_size)
+                r2.font.name = "Times New Roman"
+                r2.bold = is_header
+                if is_header:
+                    _set_cell_shading(c2, "E0E0E0")
+
+
+def _render_html_to_cell(cell, html_text: str, font_size=9):
+    """Renderiza HTML en celda: texto plano + tablas DOCX para <table> HTML."""
+    if not html_text:
+        return
+
+    import re as _re6
+
+    # 1. Extraer tablas HTML
+    tables = _extract_html_tables(html_text)
+
+    # 2. Reemplazar tablas por marcadores (sin < > para que _strip_html no los toque)
+    text = html_text
+    for i, tbl in enumerate(tables):
+        text = text.replace(tbl, f'___TBL_{i}___', 1)
+
+    # 3. Convertir texto restante a plano
+    clean_text = _strip_html(text)
+
+    # 4. Si no hay tablas ni texto, salir
+    if not clean_text and not tables:
+        return
+
+    # 5. Limpiar celda
+    for p in cell.paragraphs:
+        p.clear()
+
+    # 6. Renderizar: texto intercalado con tablas
+    if clean_text:
+        parts = clean_text.split('___TBL_')
+        # First part is text before first table marker (or all text)
+        first_text = parts[0].strip()
+        if first_text:
+            p = cell.paragraphs[0] if cell.paragraphs else cell.add_paragraph()
+            # Reuse first paragraph (already cleared)
+            if cell.paragraphs:
+                p = cell.paragraphs[0]
+            else:
+                p = cell.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            p.paragraph_format.space_after = Pt(4)
+            run = p.add_run(first_text)
+            run.font.size = Pt(font_size)
+            run.font.name = "Times New Roman"
+
+        # Process remaining parts (each is "N___ rest_of_text")
+        for part in parts[1:]:
+            if '___' not in part:
+                continue
+            idx_str, rest = part.split('___', 1)
+            try:
+                idx = int(idx_str)
+                if idx < len(tables):
+                    # Add spacer
+                    sp = cell.add_paragraph()
+                    sp.paragraph_format.space_before = Pt(2)
+                    sp.paragraph_format.space_after = Pt(2)
+                    # Render table
+                    _render_html_table_in_cell(cell, tables[idx], font_size=font_size - 1)
+                    # Add spacer after table
+                    sp2 = cell.add_paragraph()
+                    sp2.paragraph_format.space_after = Pt(2)
+                    # Add text after table
+                    rest_text = rest.strip()
+                    if rest_text:
+                        p2 = cell.add_paragraph()
+                        p2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                        p2.paragraph_format.space_after = Pt(4)
+                        r2 = p2.add_run(rest_text)
+                        r2.font.size = Pt(font_size)
+                        r2.font.name = "Times New Roman"
+            except ValueError:
+                pass
+    else:
+        # Only tables, no text
+        for tbl_html in tables:
+            _render_html_table_in_cell(cell, tbl_html, font_size=font_size - 1)
+            sp = cell.add_paragraph()
+            sp.paragraph_format.space_after = Pt(2)
+
+    # Fallback total: si la celda quedó vacía, poner texto limpio
+    if not cell.text.strip():
+        cell.paragraphs[0].clear()
+        fallback = _strip_html(html_text)
+        if fallback:
+            run = cell.paragraphs[0].add_run(fallback)
+            run.font.size = Pt(font_size)
+            run.font.name = "Times New Roman"
 
 def _set_cell_margins(cell, top=28, bottom=28, left=57, right=57):
     tc = cell._tc
@@ -551,14 +671,19 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
 
             alt_bg = "F5F8FC" if i % 2 == 0 else "FFFFFF"
             row = tbl.add_row()
-            for ci, val in enumerate([str(num), _strip_html(desc), _strip_html(acciones), ev_text]):
+            for ci, val in enumerate([str(num), desc, acciones, ev_text]):
                 cell = row.cells[ci]
                 _set_cell_shading(cell, alt_bg)
-                align = WD_ALIGN_PARAGRAPH.CENTER if ci == 0 else WD_ALIGN_PARAGRAPH.JUSTIFY
-                _add_cell_text(cell, val, bold=(ci == 0), size=9, color=COLOR_TEXT, alignment=align)
                 _set_cell_margins(cell)
                 if ci < len(col_widths):
                     cell.width = Cm(col_widths[ci])
+                if ci in (1, 2) and val:
+                    # Columnas con posible HTML: renderizar con _render_html_to_cell
+                    _render_html_to_cell(cell, val, font_size=9)
+                else:
+                    align = WD_ALIGN_PARAGRAPH.CENTER if ci == 0 else WD_ALIGN_PARAGRAPH.JUSTIFY
+                    _add_cell_text(cell, val, bold=(ci == 0), size=9,
+                                   color=COLOR_TEXT, alignment=align)
 
     # ─── TABLE 2: ACTIVIDADES GENERALES ──────────────────────────────
     _build_activity_table(doc, "ACTIVIDADES GENERALES", acts_generales)
