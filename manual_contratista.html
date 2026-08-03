@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Manual del Contratista — Portal de Evaluación</title>
+<style>
+  @page { margin: 2cm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; color: #1f2937; line-height: 1.6; margin: 0; padding: 0; }
+  .page { max-width: 21cm; margin: 0 auto; padding: 2em; }
+
+  .cover { text-align: center; padding: 4em 2em; page-break-after: always; }
+  .cover .logo { width: 100px; height: 100px; object-fit: contain; }
+  .cover h1 { font-size: 2em; color: #059669; margin: 0.5em 0 0.2em; }
+  .cover h2 { font-size: 1.3em; color: #6b7280; font-weight: 400; margin: 0 0 1.5em; }
+  .cover .meta { color: #9ca3af; font-size: 0.9em; line-height: 1.8; }
+  .cover .badge { display: inline-block; background: #059669; color: white; padding: 0.4em 1.2em; border-radius: 999px; font-size: 0.85em; font-weight: 600; margin-top: 1em; }
+
+  h2 { font-size: 1.3em; color: #059669; border-bottom: 3px solid #059669; padding-bottom: 0.3em; margin-top: 1.5em; break-after: avoid; }
+  h3 { font-size: 1.1em; color: #374151; margin-top: 1.2em; break-after: avoid; }
+  p, li { font-size: 0.95em; }
+  ul, ol { padding-left: 1.5em; }
+  li { margin-bottom: 0.3em; }
+
+  .step { background: #f0fdf4; border-left: 4px solid #059669; padding: 0.8em 1em; margin: 0.8em 0; border-radius: 0 8px 8px 0; }
+  .step strong { color: #059669; }
+
+  .tip { background: #fefce8; border: 1px solid #fde68a; padding: 0.8em 1em; margin: 0.8em 0; border-radius: 8px; }
+  .tip strong { color: #92400e; }
+  .warning { background: #fef2f2; border: 1px solid #fecaca; padding: 0.8em 1em; margin: 0.8em 0; border-radius: 8px; }
+  .warning strong { color: #991b1b; }
+  .info { background: #eff6ff; border: 1px solid #bfdbfe; padding: 0.8em 1em; margin: 0.8em 0; border-radius: 8px; }
+  .info strong { color: #1e40af; }
+
+  .screenshot { text-align: center; margin: 1em 0; page-break-inside: avoid; }
+  .screenshot img { max-width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .screenshot .caption { font-size: 0.8em; color: #9ca3af; margin-top: 0.3em; font-style: italic; }
+
+  table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.9em; page-break-inside: avoid; }
+  th, td { border: 1px solid #e5e7eb; padding: 0.5em 0.8em; text-align: left; }
+  th { background: #059669; color: white; font-weight: 600; }
+  tr:nth-child(even) { background: #f9fafb; }
+
+  .badge-pending { background: #fef3c7; color: #92400e; padding: 0.15em 0.6em; border-radius: 999px; font-size: 0.8em; font-weight: 600; }
+  .badge-approved { background: #d1fae5; color: #065f46; padding: 0.15em 0.6em; border-radius: 999px; font-size: 0.8em; font-weight: 600; }
+  .badge-rejected { background: #fee2e2; color: #991b1b; padding: 0.15em 0.6em; border-radius: 999px; font-size: 0.8em; font-weight: 600; }
+
+  .toc { page-break-after: always; }
+  .toc ul { list-style: none; padding: 0; }
+  .toc li { padding: 0.4em 0; border-bottom: 1px dotted #e5e7eb; }
+  .toc a { color: #059669; text-decoration: none; font-weight: 500; }
+
+  .footer { text-align: center; color: #9ca3af; font-size: 0.8em; margin-top: 2em; border-top: 1px solid #e5e7eb; padding-top: 1em; }
+
+  @media print {
+    .page { padding: 0; }
+    .screenshot img { max-width: 90%; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <!-- COVER -->
+  <div class="cover">
+    <img src="frontend/public/logo_es.png" alt="ESE Norte 3" class="logo">
+    <h1>Portal de Evaluación de Cumplimiento</h1>
+    <h2>Manual del Contratista</h2>
+    <div class="badge">ESE NORTE 3</div>
+    <div class="meta">
+      <p>Sistema de Gestión de Contratos — Gesco V2</p>
+      <p>Versión 2.0 · Agosto 2026</p>
+      <p>https://contratos.esenorte3.lat/evaluacion</p>
+    </div>
+  </div>
+
+  <!-- TABLE OF CONTENTS -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ul>
+      <li><a href="#intro">1. Introducción</a></li>
+      <li><a href="#acceso">2. Acceso al Portal de Evaluación</a></li>
+      <li><a href="#dashboard">3. Tu Panel de Actividades</a></li>
+      <li><a href="#subir-evidencias">4. Cómo Subir Evidencias</a></li>
+      <li><a href="#imagen">4.1. Subir una imagen</a></li>
+      <li><a href="#archivo">4.2. Subir un archivo (PDF, Word)</a></li>
+      <li><a href="#texto">4.3. Agregar un texto</a></li>
+      <li><a href="#editar">5. Editar o Eliminar una Evidencia</a></li>
+      <li><a href="#documentos">6. Documentos Contractuales</a></li>
+      <li><a href="#descargar">7. Descargar tu Informe de Actividades</a></li>
+      <li><a href="#estados">8. Estados de las Evidencias</a></li>
+      <li><a href="#consejos">9. Consejos para Buenas Evidencias</a></li>
+      <li><a href="#faq">10. Preguntas Frecuentes</a></li>
+    </ul>
+  </div>
+
+  <!-- 1. INTRODUCCIÓN -->
+  <h2 id="intro">1. Introducción</h2>
+  <p>Como contratista de la ESE Norte 3, debes reportar mensualmente el cumplimiento de las actividades establecidas en tu contrato. El <strong>Portal de Evaluación de Cumplimiento</strong> es la herramienta que te permite:</p>
+  <ul>
+    <li>Consultar la lista de actividades de tu contrato</li>
+    <li>Subir evidencias del trabajo realizado (fotos, PDFs, textos descriptivos)</li>
+    <li>Conocer el estado de cada evidencia: <strong>pendiente</strong>, <strong>aprobada</strong> o <strong>rechazada</strong></li>
+    <li>Leer las observaciones de tu supervisor o coordinador</li>
+    <li>Editar o reemplazar evidencias rechazadas</li>
+    <li>Descargar el informe mensual de actividades en PDF o Word</li>
+  </ul>
+
+  <div class="info">
+    <strong>¿Qué necesitas?</strong> Solo tu número de cédula. No necesitas usuario ni contraseña.
+  </div>
+
+  <!-- 2. ACCESO -->
+  <h2 id="acceso">2. Acceso al Portal de Evaluación</h2>
+  <p>Puedes acceder desde cualquier dispositivo con internet: computador, tableta o celular.</p>
+
+  <div class="step">
+    <strong>1.</strong> Abre tu navegador (Chrome, Edge, Firefox) y ve a:<br>
+    <strong style="font-size:1.1em;">https://contratos.esenorte3.lat/evaluacion</strong><br><br>
+    <strong>2.</strong> Verás la pantalla de <strong>Evaluación de Cumplimiento</strong> con el logo de la ESE Norte 3.<br>
+    <strong>3.</strong> Ingresa tu número de <strong>cédula</strong> en el campo de búsqueda.<br>
+    <strong>4.</strong> Haz clic en <strong>"Consultar mis contratos"</strong>.
+  </div>
+
+  <div class="screenshot">
+    <img src="manual_screenshots/login.png" alt="Pantalla de ingreso">
+    <div class="caption">Pantalla de ingreso — escribe tu cédula y haz clic en Consultar</div>
+  </div>
+
+  <div class="tip">
+    <strong>¿No encuentras tus contratos?</strong> Si al ingresar tu cédula aparece el mensaje "No se encontró ningún registro", contacta a tu supervisor para verificar que estás registrado correctamente en el sistema.
+  </div>
+
+  <!-- 3. DASHBOARD -->
+  <h2 id="dashboard">3. Tu Panel de Actividades</h2>
+  <p>Al ingresar tu cédula, el sistema te mostrará:</p>
+
+  <div class="screenshot">
+    <img src="manual_screenshots/evaluacion_dashboard_apoyo.png" alt="Panel de actividades del contratista">
+    <div class="caption">Panel principal — tu información y lista de actividades</div>
+  </div>
+
+  <p><strong>En la parte superior verás:</strong></p>
+  <ul>
+    <li><strong>Tu nombre completo</strong> y número de identificación</li>
+    <li><strong>Número de contrato</strong> y perfil</li>
+    <li><strong>Resumen de cumplimiento:</strong> cuántas actividades tienes, cuántas evidencias has subido, cuántas aprobadas</li>
+  </ul>
+
+  <p><strong>Debajo, la tabla de actividades con 4 columnas:</strong></p>
+  <table>
+    <tr><th>Columna</th><th>Descripción</th></tr>
+    <tr><td>No.</td><td>Número consecutivo de la actividad</td></tr>
+    <tr><td>ACTIVIDAD CONTRATADA</td><td>Descripción de la obligación según tu contrato</td></tr>
+    <tr><td>DESCRIPCIÓN DE ACCIONES REALIZADAS</td><td>Lo que tú reportaste (el texto que escribiste como evidencia)</td></tr>
+    <tr><td>EVIDENCIAS</td><td>Archivos, imágenes o textos que subiste como soporte</td></tr>
+  </table>
+
+  <!-- 4. SUBIR EVIDENCIAS -->
+  <h2 id="subir-evidencias">4. Cómo Subir Evidencias</h2>
+  <p>Para cada actividad de tu contrato, puedes subir evidencias de tres tipos. Haz clic en la actividad para expandirla y ver los botones de subida.</p>
+
+  <h3 id="imagen">4.1. Subir una imagen</h3>
+  <p>Ideal para: fotos de tu trabajo, pantallazos de sistemas, documentos escaneados, registros fotográficos de actividades realizadas.</p>
+  <div class="step">
+    <strong>1.</strong> Haz clic en la actividad para expandirla.<br>
+    <strong>2.</strong> Haz clic en el botón <strong>🖼️ Subir imagen</strong>.<br>
+    <strong>3.</strong> Selecciona la imagen desde tu dispositivo (formatos aceptados: JPG, PNG).<br>
+    <strong>4.</strong> Haz clic en <strong>Subir evidencia</strong>.<br>
+    <strong>5.</strong> Espera la confirmación: "Evidencia subida exitosamente".
+  </div>
+
+  <div class="tip">
+    <strong>📸 Calidad de imágenes:</strong> Asegúrate de que las fotos sean nítidas y se vea claramente la actividad realizada. Evita fotos borrosas u oscuras. Tamaño máximo: 10 MB por archivo.
+  </div>
+
+  <h3 id="archivo">4.2. Subir un archivo (PDF, Word)</h3>
+  <p>Ideal para: informes, planillas, actas, certificaciones, documentos formales.</p>
+  <div class="step">
+    <strong>1.</strong> Expande la actividad.<br>
+    <strong>2.</strong> Haz clic en <strong>📄 Subir archivo</strong>.<br>
+    <strong>3.</strong> Selecciona el archivo (formatos: PDF, DOCX, XLSX).<br>
+    <strong>4.</strong> Haz clic en <strong>Subir evidencia</strong>.
+  </div>
+
+  <h3 id="texto">4.3. Agregar un texto</h3>
+  <p>Ideal para: describir detalladamente lo que hiciste, narrar actividades, explicar resultados.</p>
+  <div class="step">
+    <strong>1.</strong> Expande la actividad.<br>
+    <strong>2.</strong> Haz clic en <strong>📝 Agregar texto</strong>.<br>
+    <strong>3.</strong> Escribe una descripción clara de las acciones que realizaste para cumplir esa actividad.<br>
+    <strong>4.</strong> Haz clic en <strong>Subir evidencia</strong>.
+  </div>
+
+  <div class="tip">
+    <strong>✍️ Sé específico:</strong> No escribas solo "cumplí". Describe cuándo, dónde, cómo y a quiénes atendiste. Incluye fechas, cantidades y resultados concretos.
+  </div>
+
+  <!-- 5. EDITAR / ELIMINAR -->
+  <h2 id="editar">5. Editar o Eliminar una Evidencia</h2>
+  <p>Si te equivocaste al subir una evidencia, puedes corregirla:</p>
+  <ul>
+    <li><strong>✏️ Editar:</strong> Haz clic en el ícono de lápiz sobre la evidencia. Puedes cambiar el tipo (texto, imagen, archivo) y volver a subir. La evidencia volverá a estado <span class="badge-pending">Pendiente</span> para nueva revisión.</li>
+    <li><strong>🗑️ Eliminar:</strong> Haz clic en el ícono de basura. Se eliminará permanentemente la evidencia y su archivo adjunto.</li>
+  </ul>
+
+  <div class="warning">
+    <strong>⚠️ Atención:</strong> Al editar una evidencia que ya estaba aprobada, esta volverá a estado PENDIENTE y deberá ser revisada nuevamente por tu supervisor.
+  </div>
+
+  <!-- 6. DOCUMENTOS CONTRACTUALES -->
+  <h2 id="documentos">6. Documentos Contractuales</h2>
+  <p>En la parte inferior de tu panel encontrarás la sección de <strong>Documentos Contractuales</strong>. Allí debes subir los documentos obligatorios de tu contrato:</p>
+  <table>
+    <tr><th>Documento</th><th>¿Qué debo subir?</th></tr>
+    <tr><td>Hoja de vida</td><td>Tu hoja de vida actualizada en PDF</td></tr>
+    <tr><td>Certificación bancaria</td><td>Certificado de tu cuenta bancaria (no mayor a 30 días)</td></tr>
+    <tr><td>Antecedentes (Procuraduría)</td><td>Certificado de antecedentes vigente</td></tr>
+    <tr><td>Antecedentes (Policía)</td><td>Certificado de antecedentes judiciales</td></tr>
+    <tr><td>Registro Único Tributario (RUT)</td><td>Tu RUT actualizado</td></tr>
+    <tr><td>Fotocopia de cédula</td><td>Copia legible de tu cédula por ambos lados</td></tr>
+    <tr><td>Tarjeta profesional (si aplica)</td><td>Tarjeta profesional vigente según tu perfil</td></tr>
+    <tr><td>Pago de seguridad social</td><td>Planilla de pago de salud y pensión del mes</td></tr>
+    <tr><td>Pago de ARL</td><td>Planilla de pago de ARL del mes</td></tr>
+  </table>
+
+  <div class="step">
+    <strong>1.</strong> Busca la sección <strong>"Documentos Contractuales"</strong> al final de tu panel.<br>
+    <strong>2.</strong> Haz clic en <strong>📄 Subir</strong> junto al documento que necesitas entregar.<br>
+    <strong>3.</strong> Selecciona el archivo (PDF, JPG, PNG) y haz clic en <strong>Subir documento</strong>.<br>
+    <strong>4.</strong> El sistema confirmará la carga. Tu supervisor revisará el documento.
+  </div>
+
+  <!-- 7. DESCARGAR INFORME -->
+  <h2 id="descargar">7. Descargar tu Informe de Actividades</h2>
+  <p>Puedes descargar el informe mensual de cumplimiento con todas tus actividades y evidencias:</p>
+
+  <div class="step">
+    <strong>1.</strong> En la parte superior de tu panel, haz clic en <strong>📥 Descargar informe</strong>.<br>
+    <strong>2.</strong> Selecciona el formato: <strong>PDF</strong> o <strong>Word (DOCX)</strong>.<br>
+    <strong>3.</strong> El archivo se descargará automáticamente a tu dispositivo.
+  </div>
+
+  <div class="info">
+    <strong>📋 El informe incluye:</strong> Tus datos, número de contrato, tabla de actividades con descripciones y evidencias, y los documentos contractuales anexos.
+  </div>
+
+  <!-- 8. ESTADOS -->
+  <h2 id="estados">8. Estados de las Evidencias</h2>
+  <p>Cada evidencia que subes pasa por revisión y puede tener uno de estos estados:</p>
+
+  <table>
+    <tr><th>Estado</th><th>Significado</th><th>¿Qué hacer?</th></tr>
+    <tr>
+      <td><span class="badge-pending">⏳ Pendiente</span></td>
+      <td>Subiste la evidencia pero aún no ha sido revisada</td>
+      <td>Espera. Tu supervisor la revisará pronto.</td>
+    </tr>
+    <tr>
+      <td><span class="badge-approved">✅ Aprobado</span></td>
+      <td>Tu evidencia fue aceptada</td>
+      <td>¡Listo! No necesitas hacer nada más para esta actividad.</td>
+    </tr>
+    <tr>
+      <td><span class="badge-rejected">❌ Rechazado</span></td>
+      <td>Tu evidencia no cumple con lo requerido</td>
+      <td>Lee la observación de tu supervisor, corrige y vuelve a subir.</td>
+    </tr>
+    <tr>
+      <td><em>Sin evidencia</em></td>
+      <td>Aún no has subido nada para esta actividad</td>
+      <td>Sube tu evidencia cuanto antes.</td>
+    </tr>
+  </table>
+
+  <!-- 9. CONSEJOS -->
+  <h2 id="consejos">9. Consejos para Buenas Evidencias</h2>
+  <ul>
+    <li><strong>✅ Sube a tiempo:</strong> No esperes al último día del mes. Sube tus evidencias apenas realices cada actividad.</li>
+    <li><strong>✅ Sé claro:</strong> Describe exactamente qué hiciste. Incluye fechas, lugares, personas atendidas, resultados.</li>
+    <li><strong>✅ Fotos nítidas:</strong> Asegúrate de que las imágenes sean legibles. Si son documentos escaneados, que se vean completos.</li>
+    <li><strong>✅ Una actividad = una evidencia:</strong> Para cada actividad del contrato, sube al menos una evidencia.</li>
+    <li><strong>✅ Revisa antes de subir:</strong> Verifica que el archivo sea el correcto y que el texto no tenga errores.</li>
+    <li><strong>✅ Guarda tus soportes:</strong> Conserva copias de todo lo que subas por si necesitas respaldos.</li>
+  </ul>
+
+  <!-- 10. FAQ -->
+  <h2 id="faq">10. Preguntas Frecuentes</h2>
+
+  <p><strong>¿Necesito usuario y contraseña?</strong><br>
+  No. Solo necesitas tu número de cédula para ingresar al portal.</p>
+
+  <p><strong>¿Puedo subir evidencias desde mi celular?</strong><br>
+  Sí. El portal funciona en cualquier dispositivo con navegador web. Puedes tomar fotos con tu celular y subirlas directamente.</p>
+
+  <p><strong>¿Qué hago si mi evidencia fue rechazada?</strong><br>
+  Lee la observación que dejó tu supervisor (aparece en rojo debajo de la evidencia). Corrige lo indicado y sube una nueva evidencia. La anterior será reemplazada.</p>
+
+  <p><strong>¿Cuántas evidencias debo subir por actividad?</strong><br>
+  Al menos una por cada actividad de tu contrato. Puedes subir más de una si la actividad lo requiere.</p>
+
+  <p><strong>¿Qué tipo de evidencia es mejor?</strong><br>
+  Depende de la actividad. Para atención a pacientes: registros fotográficos. Para informes: archivos PDF o Word. Para narrar acciones: texto descriptivo.</p>
+
+  <p><strong>¿Cada cuánto debo reportar?</strong><br>
+  Mensualmente. Debes subir las evidencias de todas las actividades realizadas durante el mes, idealmente antes del día 5 del mes siguiente.</p>
+
+  <p><strong>¿Quién revisa mis evidencias?</strong><br>
+  El supervisor designado en tu contrato. Es la persona encargada de verificar el cumplimiento de tus obligaciones.</p>
+
+  <p><strong>¿Puedo ver el informe antes de enviarlo?</strong><br>
+  Sí. Usa el botón "Descargar informe" para obtener una vista previa en PDF o Word con todas tus actividades y evidencias.</p>
+
+  <div class="footer">
+    <p>ESE Norte 3 — Sistema de Gestión de Contratos Gesco V2</p>
+    <p>Agosto 2026 · https://contratos.esenorte3.lat/evaluacion</p>
+  </div>
+</div>
+</body>
+</html>
