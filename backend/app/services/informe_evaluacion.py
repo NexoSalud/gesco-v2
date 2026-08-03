@@ -265,124 +265,34 @@ def _set_cell_shading(cell, color_hex):
 
 # ─── Helpers para el nuevo formato INFORME DE ACTIVIDADES ──────────────
 
+def _strip_html(text: str) -> str:
+    """Convierte HTML a texto plano limpio. Siempre preserva TODO el texto."""
+    if not text or '<' not in text:
+        return text or ""
+    import re as _re3
+    t = text
+    t = _re3.sub(r'<br\s*/?>', '\n', t, flags=_re3.IGNORECASE)
+    t = _re3.sub(r'</p>', '\n', t, flags=_re3.IGNORECASE)
+    t = _re3.sub(r'</div>', '\n', t, flags=_re3.IGNORECASE)
+    t = _re3.sub(r'</li>', '\n', t, flags=_re3.IGNORECASE)
+    t = _re3.sub(r'</tr>', '\n', t, flags=_re3.IGNORECASE)
+    t = _re3.sub(r'<li[^>]*>', '• ', t, flags=_re3.IGNORECASE)
+    t = _re3.sub(r'<[^>]+>', '', t)
+    t = t.replace('&nbsp;', ' ').replace('&amp;', '&')
+    t = t.replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"')
+    return t.strip()
+
 def _render_html_to_cell(cell, html_text: str, font_size=9):
-    """Renderiza HTML en una celda con formato básico (saltos, viñetas, tablas).
-
-    El contenido HTML del editor Tiptap se convierte a texto limpio preservando
-    la estructura: párrafos, saltos de línea, listas y tablas.
-    Los tags de formato inline (bold, italic) se eliminan para evitar pérdida de texto.
-    """
-    if not html_text:
+    """Escribe texto limpio (sin HTML) en la celda. Siempre preserva TODO el texto."""
+    clean = _strip_html(html_text)
+    if not clean:
         return
-
-    import re as _re2
-
-    # Si no es HTML, escribir como texto plano
-    if '<' not in html_text:
-        cell.text = ""
-        p = cell.paragraphs[0]
-        p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        run = p.add_run(str(html_text))
-        run.font.size = Pt(font_size)
-        run.font.name = "Times New Roman"
-        return
-
-    # Limpiar la celda existente
-    for p in cell.paragraphs:
-        p.clear()
-
-    text = html_text
-
-    # 1. Extraer tablas HTML para renderizarlas como tablas DOCX
-    table_blocks = list(_re2.finditer(
-        r'<table[^>]*>(.*?)</table>', text, _re2.DOTALL | _re2.IGNORECASE))
-    table_placeholders = [m.group(0) for m in table_blocks]
-    text = _re2.sub(
-        r'<table[^>]*>.*?</table>', '<<TABLE>>',
-        text, flags=_re2.DOTALL | _re2.IGNORECASE)
-
-    # 2. Convertir tags estructurales a saltos de línea
-    text = _re2.sub(r'<br\s*/?>', '\n', text, flags=_re2.IGNORECASE)
-    text = _re2.sub(r'</p>', '\n', text, flags=_re2.IGNORECASE)
-    text = _re2.sub(r'</div>', '\n', text, flags=_re2.IGNORECASE)
-    text = _re2.sub(r'<li[^>]*>', '• ', text, flags=_re2.IGNORECASE)
-    text = _re2.sub(r'</li>', '\n', text, flags=_re2.IGNORECASE)
-
-    # 3. Eliminar TODOS los tags HTML restantes (incluyendo inline formatting)
-    text = _re2.sub(r'<[^>]+>', '', text)
-
-    # 4. Limpiar entidades HTML
-    text = text.replace('&nbsp;', ' ').replace('&amp;', '&')
-    text = text.replace('&lt;', '<').replace('&gt;', '>')
-    text = text.replace('&quot;', '"')
-
-    # 5. Dividir en líneas y renderizar
-    lines = text.split('\n')
-    ph_idx = 0
-
-    for line in lines:
-        stripped = line.strip()
-        
-        # Placeholder de tabla
-        if '<<TABLE>>' in stripped and ph_idx < len(table_placeholders):
-            table_html = table_placeholders[ph_idx]
-            ph_idx += 1
-            rows_html = _re2.findall(
-                r'<tr[^>]*>(.*?)</tr>', table_html,
-                _re2.DOTALL | _re2.IGNORECASE)
-            if rows_html:
-                num_cols = max(
-                    len(_re2.findall(r'<t[dh][^>]*>.*?</t[dh]>',
-                                     rh, _re2.DOTALL | _re2.IGNORECASE))
-                    for rh in rows_html)
-                tbl = cell.add_table(rows=0, cols=max(num_cols, 1))
-                _set_table_borders(tbl, sz="4", color="999999")
-                for rh in rows_html:
-                    cells_text = _re2.findall(
-                        r'<t[dh][^>]*>(.*?)</t[dh]>',
-                        rh, _re2.DOTALL | _re2.IGNORECASE)
-                    clean_cells = [_re2.sub(r'<[^>]+>', '', c).strip()
-                                   for c in cells_text]
-                    is_header = '<th' in rh.lower()
-                    row = tbl.add_row()
-                    for ci, ct in enumerate(clean_cells):
-                        if ci < len(row.cells):
-                            c2 = row.cells[ci]
-                            c2.text = ""
-                            p2 = c2.paragraphs[0]
-                            r2 = p2.add_run(ct)
-                            r2.font.size = Pt(font_size - 1)
-                            r2.font.name = "Times New Roman"
-                            r2.bold = is_header
-                            if is_header:
-                                _set_cell_shading(c2, "E8E8E8")
-                # Separador después de tabla
-                sp = cell.add_paragraph()
-                sp.paragraph_format.space_after = Pt(2)
-            continue
-
-        # Saltar líneas vacías
-        if not stripped:
-            continue
-
-        # Añadir párrafo con el texto limpio
-        p = cell.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        p.paragraph_format.space_after = Pt(2)
-        p.paragraph_format.space_before = Pt(0)
-        run = p.add_run(stripped)
-        run.font.size = Pt(font_size)
-        run.font.name = "Times New Roman"
-
-    # Fallback: si no se añadió nada, usar texto plano limpio
-    if len(cell.paragraphs) == 1 and not cell.paragraphs[0].text.strip():
-        cell.paragraphs[0].clear()
-        clean_text = _re2.sub(r'<[^>]+>', '', html_text)
-        clean_text = clean_text.replace('&nbsp;', ' ').strip()
-        if clean_text:
-            run = cell.paragraphs[0].add_run(clean_text)
-            run.font.size = Pt(font_size)
-            run.font.name = "Times New Roman"
+    cell.text = ""
+    p = cell.paragraphs[0]
+    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    run = p.add_run(clean)
+    run.font.size = Pt(font_size)
+    run.font.name = "Times New Roman"
 
 def _set_cell_margins(cell, top=28, bottom=28, left=57, right=57):
     tc = cell._tc
