@@ -551,21 +551,14 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
 
             alt_bg = "F5F8FC" if i % 2 == 0 else "FFFFFF"
             row = tbl.add_row()
-            vals = [str(num), desc, acciones, ev_text]
-            for ci, val in enumerate(vals):
+            for ci, val in enumerate([str(num), _strip_html(desc), _strip_html(acciones), ev_text]):
                 cell = row.cells[ci]
                 _set_cell_shading(cell, alt_bg)
+                align = WD_ALIGN_PARAGRAPH.CENTER if ci == 0 else WD_ALIGN_PARAGRAPH.JUSTIFY
+                _add_cell_text(cell, val, bold=(ci == 0), size=9, color=COLOR_TEXT, alignment=align)
                 _set_cell_margins(cell)
                 if ci < len(col_widths):
                     cell.width = Cm(col_widths[ci])
-                if ci in (1, 2) and val:
-                    # Columnas con HTML: renderizar con formato real
-                    _render_html_to_cell(cell, val, font_size=9)
-                else:
-                    # Columnas de texto plano (No., Evidencias)
-                    align = WD_ALIGN_PARAGRAPH.CENTER if ci == 0 else WD_ALIGN_PARAGRAPH.JUSTIFY
-                    _add_cell_text(cell, val, bold=(ci == 0), size=9,
-                                   color=COLOR_TEXT, alignment=align)
 
     # ─── TABLE 2: ACTIVIDADES GENERALES ──────────────────────────────
     _build_activity_table(doc, "ACTIVIDADES GENERALES", acts_generales)
