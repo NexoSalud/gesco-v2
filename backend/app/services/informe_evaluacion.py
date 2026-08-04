@@ -47,6 +47,7 @@ _DOC_LABEL = {
     "PLANILLA_SEGURIDAD": "Planilla de seguridad social",
     "CERTIFICACION_BANCARIA": "Certificación bancaria",
     "ARL": "ARL",
+    "CEDULA": "Cédula de ciudadanía",
 }
 
 # ─── Renderizado común ───────────────────────────────────────────────────

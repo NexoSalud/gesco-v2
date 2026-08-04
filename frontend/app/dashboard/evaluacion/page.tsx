@@ -52,6 +52,7 @@ const TIPO_DOC_LABEL: Record<string, string> = {
   PLANILLA_SEGURIDAD: "Planilla de seguridad social",
   CERTIFICACION_BANCARIA: "Certificación bancaria",
   ARL: "ARL",
+  CEDULA: "Cédula de ciudadanía",
 }
 
 const TIPO_DOC_ICON: Record<string, string> = {
@@ -61,6 +62,7 @@ const TIPO_DOC_ICON: Record<string, string> = {
   PLANILLA_SEGURIDAD: "🛡️",
   CERTIFICACION_BANCARIA: "🏦",
   ARL: "⚕️",
+  CEDULA: "🪪",
 }
 
 // ─── Inline Evaluation Form ───────────────────────────────────────────────

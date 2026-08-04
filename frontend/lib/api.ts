@@ -864,6 +864,7 @@ export const TIPOS_DOCUMENTO = [
   { valor: "PLANILLA_SEGURIDAD", etiqueta: "Planilla de seguridad social", icono: "🛡️" },
   { valor: "CERTIFICACION_BANCARIA", etiqueta: "Certificación bancaria", icono: "🏦" },
   { valor: "ARL", etiqueta: "ARL", icono: "⚕️" },
+  { valor: "CEDULA", etiqueta: "Cédula de ciudadanía", icono: "🪪" },
 ]
 
 export interface DocumentoContratista {
