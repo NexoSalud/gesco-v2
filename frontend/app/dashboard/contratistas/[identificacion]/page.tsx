@@ -120,6 +120,7 @@ export default function ContratistaDetailPage() {
   const [editMode, setEditMode] = useState(false)
   const [form, setForm] = useState({
     nombre: "",
+    identificacion: "",
     tipo_persona: "NATURAL",
     expedida_en: "",
     telefono: "",
@@ -136,6 +137,7 @@ export default function ContratistaDetailPage() {
         setContratista(match)
         setForm({
           nombre: match.nombre || "",
+          identificacion: match.identificacion || "",
           tipo_persona: match.tipo_persona || "NATURAL",
           expedida_en: match.expedida_en || "",
           telefono: match.telefono || "",
@@ -203,7 +205,12 @@ export default function ContratistaDetailPage() {
       if (!res.ok) throw new Error(await res.text())
       toast.success("Contratista actualizado")
       setEditMode(false)
-      loadData()
+      // Redirigir si cambió la identificación
+      if (form.identificacion && form.identificacion !== identificacion) {
+        router.push(`/dashboard/contratistas/${encodeURIComponent(form.identificacion)}`)
+      } else {
+        loadData()
+      }
     } catch (e: any) {
       toast.error("Error: " + e.message)
     } finally {
@@ -273,7 +280,8 @@ export default function ContratistaDetailPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-500">Identificación</label>
-                <Input value={identificacion} disabled className="bg-gray-50" />
+                <Input value={form.identificacion}
+                  onChange={e => setForm({ ...form, identificacion: e.target.value })} />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-500">Nombre Completo</label>

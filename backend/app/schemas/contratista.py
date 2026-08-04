@@ -27,6 +27,7 @@ class ContratistaOut(ContratistaBase):
 
 class ContratistaUpdate(BaseModel):
     """Para actualización parcial — todos los campos opcionales."""
+    identificacion: str | None = None
     nombre: str | None = None
     tipo_persona: str | None = None
     expedida_en: str | None = None
