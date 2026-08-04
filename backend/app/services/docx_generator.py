@@ -42,7 +42,7 @@ def formatear_fecha(valor: str | date | None, default: str = "_________") -> str
         d = valor
     else:
         return str(valor)
-    return f"{d.day:02d} DE {MESES_ESPANOL[d.month].upper()} DEL {d.year}"
+    return f"{d.day:02d} DE {MESES_ESPANOL[d.month].upper()} DE {d.year}"
 
 
 TEMPLATE_PATH = os.path.normpath(os.path.join(
