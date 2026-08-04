@@ -115,8 +115,8 @@ async def migrar_fechas_agosto_2026() -> dict:
                     "WHERE numero_contrato = :nc"
                 ),
                 {
-                    "fcdp": fecha_cdp_str,
-                    "fini": fecha_inicio_str,
+                    "fcdp": date.fromisoformat(fecha_cdp_str),
+                    "fini": date.fromisoformat(fecha_inicio_str),
                     "nc": num_contrato,
                 },
             )
