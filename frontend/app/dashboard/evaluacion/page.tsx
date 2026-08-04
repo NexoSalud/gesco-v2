@@ -569,7 +569,7 @@ export default function EvaluacionDashboardPage() {
                                                 <p className="text-xs text-yellow-700 mt-1 italic">Obs: {ev.observacion_coordinadora}</p>
                                               )}
                                             </div>
-                                            {ev.estado === "PENDIENTE" && (
+                                            {ev.estado === "PENDIENTE" ? (
                                               <button
                                                 onClick={(e) => {
                                                   e.stopPropagation()
@@ -580,6 +580,18 @@ export default function EvaluacionDashboardPage() {
                                                 className="px-3 py-1 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors whitespace-nowrap"
                                               >
                                                 Evaluar
+                                              </button>
+                                            ) : (
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  setEvaluatingId(ev.id)
+                                                  setEvaluatingType("evidencia")
+                                                  setObservacion(ev.observacion_coordinadora || "")
+                                                }}
+                                                className="px-3 py-1 text-xs bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors whitespace-nowrap"
+                                              >
+                                                Re-evaluar
                                               </button>
                                             )}
                                           </div>
@@ -656,7 +668,7 @@ export default function EvaluacionDashboardPage() {
                               >
                                 <Download className="w-4 h-4 text-gray-500" />
                               </a>
-                              {doc.estado === "PENDIENTE" && (
+                              {doc.estado === "PENDIENTE" ? (
                                 <button
                                   onClick={() => {
                                     setExpandedDocumento(isExpanded ? null : doc.id)
@@ -667,6 +679,18 @@ export default function EvaluacionDashboardPage() {
                                   className="px-3 py-1 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors whitespace-nowrap"
                                 >
                                   Evaluar
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setExpandedDocumento(isExpanded ? null : doc.id)
+                                    setEvaluatingId(doc.id)
+                                    setEvaluatingType("documento")
+                                    setObservacion(doc.observacion || "")
+                                  }}
+                                  className="px-3 py-1 text-xs bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors whitespace-nowrap"
+                                >
+                                  Re-evaluar
                                 </button>
                               )}
                             </div>
