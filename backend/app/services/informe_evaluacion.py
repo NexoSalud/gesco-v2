@@ -89,6 +89,34 @@ def _resolve_upload_path(ruta: str) -> str | None:
     return None
 
 
+def _pdf_a_imagen(pdf_path: str, max_width: int = 1200) -> bytes | None:
+    """Convierte la primera página de un PDF a imagen PNG.
+
+    Args:
+        pdf_path: Ruta absoluta al archivo PDF
+        max_width: Ancho máximo en píxeles (mantiene proporción)
+
+    Returns:
+        Bytes de la imagen PNG, o None si falla
+    """
+    try:
+        import fitz
+        doc = fitz.open(pdf_path)
+        if len(doc) == 0:
+            doc.close()
+            return None
+        page = doc[0]
+        zoom = max_width / page.rect.width if page.rect.width > 0 else 1.5
+        mat = fitz.Matrix(zoom, zoom)
+        pix = page.get_pixmap(matrix=mat)
+        img_bytes = pix.tobytes("png")
+        doc.close()
+        return img_bytes
+    except Exception as e:
+        logger.warning(f"Error convirtiendo PDF a imagen {pdf_path}: {e}")
+        return None
+
+
 def _build_context(contratista: dict, contratos: list, resumen: dict) -> dict:
     """Construye el contexto unificado para PDF y DOCX."""
     today = datetime.now()
@@ -749,9 +777,33 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
                     r_na.font.color.rgb = RGBColor(100, 100, 100)
 
             for ev in ev_archivos:
+                ruta = ev.get("archivo_ruta", "")
+                archivo_nombre = ev.get("archivo_nombre", "")
+                es_pdf = archivo_nombre.lower().endswith(".pdf") if archivo_nombre else False
+
+                if es_pdf and ruta:
+                    img_path = _resolve_upload_path(ruta)
+                    if img_path and os.path.exists(img_path):
+                        img_bytes = _pdf_a_imagen(img_path)
+                        if img_bytes:
+                            try:
+                                p_img = ev_cell.add_paragraph()
+                                p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                                run_img = p_img.add_run()
+                                run_img.add_picture(io.BytesIO(img_bytes), width=Inches(3.0))
+                                p_img.paragraph_format.space_after = Pt(2)
+                                p_name = ev_cell.add_paragraph()
+                                p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                                r_name = p_name.add_run("\U0001F4CE " + archivo_nombre)
+                                r_name.font.size = Pt(7)
+                                r_name.font.color.rgb = RGBColor(100, 100, 100)
+                                continue
+                            except Exception as e:
+                                logger.warning(f"No se pudo embeber preview PDF: {e}")
+
                 p_arch = ev_cell.add_paragraph()
                 p_arch.paragraph_format.space_after = Pt(2)
-                r_arch = p_arch.add_run("\U0001F4CE " + ev.get("archivo_nombre", "Archivo"))
+                r_arch = p_arch.add_run("\U0001F4CE " + archivo_nombre)
                 r_arch.font.size = Pt(8)
                 r_arch.font.name = "Times New Roman"
                 r_arch.font.color.rgb = RGBColor(0, 51, 153)
@@ -799,9 +851,9 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
                        bold=True, size=10, color=COLOR_PRIMARY,
                        alignment=WD_ALIGN_PARAGRAPH.LEFT, space_before=12, space_after=6)
 
-        tbl_docs = doc.add_table(rows=1, cols=3)
+        tbl_docs = doc.add_table(rows=1, cols=4)
         _set_table_borders(tbl_docs, sz="4", color="003366")
-        _make_col_header_row(tbl_docs, ["Tipo", "Archivo", "Tamaño"], [4.0, 9.0, 3.0])
+        _make_col_header_row(tbl_docs, ["Tipo", "Archivo", "Tamaño", "Vista previa"], [3.0, 5.0, 2.0, 6.0])
 
         for d in docs_aprobados:
             row = tbl_docs.add_row()
@@ -811,6 +863,29 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
             tamano_kb = (d.get("archivo_tamano", 0) or 0) / 1024
             _add_cell_text(row.cells[2], f"{tamano_kb:.0f} KB", bold=False, size=9,
                           alignment=WD_ALIGN_PARAGRAPH.CENTER)
+
+            # Vista previa: PDF como imagen
+            cell_preview = row.cells[3]
+            ruta = d.get("archivo_ruta", "")
+            preview_done = False
+            if ruta:
+                img_path = _resolve_upload_path(ruta)
+                if img_path and os.path.exists(img_path):
+                    img_bytes = _pdf_a_imagen(img_path, max_width=600)
+                    if img_bytes:
+                        try:
+                            p = cell_preview.paragraphs[0]
+                            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                            r = p.add_run()
+                            r.add_picture(io.BytesIO(img_bytes), width=Inches(2.2))
+                            preview_done = True
+                        except Exception:
+                            pass
+            if not preview_done:
+                _add_cell_text(cell_preview, "No disponible", size=8,
+                              color=RGBColor(150, 150, 150),
+                              alignment=WD_ALIGN_PARAGRAPH.CENTER)
+
             for cell in row.cells:
                 _set_cell_margins(cell)
     else:
