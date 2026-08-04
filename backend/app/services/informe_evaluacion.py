@@ -851,10 +851,6 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
                 docs_aprobados.append(d)
 
     if docs_aprobados:
-        _add_paragraph(doc, "Documentos Contractuales Aprobados",
-                       bold=True, size=10, color=COLOR_PRIMARY,
-                       alignment=WD_ALIGN_PARAGRAPH.LEFT, space_before=12, space_after=10)
-
         for idx, d in enumerate(docs_aprobados):
             tipo_label = _DOC_LABEL.get(d.get("tipo_documento", ""), d.get("tipo_documento", ""))
             archivo_nombre = d.get("archivo_nombre", "")
