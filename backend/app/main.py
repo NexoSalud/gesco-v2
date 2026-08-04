@@ -242,6 +242,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Migración evidencias: {e}")
 
+    # Migración: actualizar fecha_cdp y fecha_inicio para contratos de Agosto 2026
+    try:
+        from app.migrations import migrar_fechas_agosto_2026
+        resultado = await migrar_fechas_agosto_2026()
+        logger.info(f"Migración agosto 2026: {resultado}")
+    except Exception as e:
+        logger.warning(f"Migración agosto 2026 — ya ejecutada o error: {e}")
+
     await seed_database()
     logger.info("Gesco V2 listo!")
     yield

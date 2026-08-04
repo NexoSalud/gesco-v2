@@ -25,7 +25,7 @@ def _formatear_numero(valor: float | int) -> str:
 
 
 def formatear_fecha(valor: str | date | None, default: str = "_________") -> str:
-    """Convierte fecha a formato español: '06 de julio de 2026'.
+    """Convierte fecha a formato español: '06 DE JULIO DEL 2026'.
     Acepta string ISO, date object, o None."""
     if not valor:
         return default
@@ -42,7 +42,7 @@ def formatear_fecha(valor: str | date | None, default: str = "_________") -> str
         d = valor
     else:
         return str(valor)
-    return f"{d.day:02d} de {MESES_ESPANOL[d.month].lower()} de {d.year}"
+    return f"{d.day:02d} DE {MESES_ESPANOL[d.month].upper()} DEL {d.year}"
 
 
 TEMPLATE_PATH = os.path.normpath(os.path.join(
@@ -196,8 +196,8 @@ def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None)
 
     placeholders = {
         "<<NO. DE CONTRATO>>": data.get("numero_contrato", "_________"),
-        "<<FECHA DEL CONTRATO>>": formatear_fecha(data.get("fecha_contrato", data.get("fecha_inicio", "_________"))),
-        "<<fecha del contrato>>": formatear_fecha(data.get("fecha_contrato", data.get("fecha_inicio", "_________"))),
+        "<<FECHA DEL CONTRATO>>": formatear_fecha(data.get("fecha_contrato") or data.get("fecha_inicio") or ""),
+        "<<fecha del contrato>>": formatear_fecha(data.get("fecha_contrato") or data.get("fecha_inicio") or ""),
         "<<CONTRATISTA>>": data.get("nombre_contratista", "___________________"),
         "<<CEDULA DEL CONTRATISTA>>": data.get("cedula", "_________"),
         "<<CÉDULA DEL CONTRATISTA>>": data.get("cedula", "_________"),
@@ -211,8 +211,8 @@ def generar_contrato_docx(data: dict, obligaciones_esp: list[str] | None = None)
         "<<fecha de terminación>>": formatear_fecha(data.get("fecha_fin", "_________")),
         "<<VALOR DEL CONTRATO>>": f"{valor_letras} ({_formatear_numero(valor)})",
         "<<CDP>>": data.get("no_cdp", "_________"),
-        "<<FECHA DEL CDP>>": formatear_fecha(data.get("fecha_cdp", "") or ""),
-        "<<fecha del CDP>>": formatear_fecha(data.get("fecha_cdp", "") or ""),
+        "<<FECHA DEL CDP>>": formatear_fecha(data.get("fecha_cdp") or data.get("fecha_inicio") or ""),
+        "<<fecha del CDP>>": formatear_fecha(data.get("fecha_cdp") or data.get("fecha_inicio") or ""),
         "<<VALOR DEL CDP>>": _formatear_numero(valor),
         "<<LUGAR DE EJECUCIÓN>>": data.get("lugar_ejecucion", "Puerto Tejada - Cauca"),
         "<<fecha del acta>>": formatear_fecha(data.get("fecha_inicio", str(date.today()))),
@@ -320,8 +320,8 @@ def generar_documento_contrato(tipo: str, data: dict) -> bytes:
     placeholders = {
         "<<NO. DE CONTRATO>>": data.get("numero_contrato", "_________"),
         "<<No. DE CONTRATO>>": data.get("numero_contrato", "_________"),
-        "<<FECHA DEL CONTRATO>>": formatear_fecha(data.get("fecha_contrato", data.get("fecha_inicio", str(hoy)))),
-        "<<fecha del contrato>>": formatear_fecha(data.get("fecha_contrato", data.get("fecha_inicio", str(hoy)))),
+        "<<FECHA DEL CONTRATO>>": formatear_fecha(data.get("fecha_contrato") or data.get("fecha_inicio") or str(hoy)),
+        "<<fecha del contrato>>": formatear_fecha(data.get("fecha_contrato") or data.get("fecha_inicio") or str(hoy)),
         "<<CONTRATISTA>>": data.get("nombre_contratista", "___________________"),
         "<<CEDULA DEL CONTRATISTA>>": data.get("cedula", "_________"),
         "<<CÉDULA DEL CONTRATISTA>>": data.get("cedula", "_________"),
@@ -349,8 +349,8 @@ def generar_documento_contrato(tipo: str, data: dict) -> bytes:
         "<<TELÉFONO>>": data.get("telefono", "_________"),
         "<<CORREO>>": data.get("correo", "_________"),
         "<<CDP>>": data.get("no_cdp", "_________"),
-        "<<FECHA DEL CDP>>": formatear_fecha(data.get("fecha_cdp", "") or ""),
-        "<<fecha del CDP>>": formatear_fecha(data.get("fecha_cdp", "") or ""),
+        "<<FECHA DEL CDP>>": formatear_fecha(data.get("fecha_cdp") or data.get("fecha_inicio") or ""),
+        "<<fecha del CDP>>": formatear_fecha(data.get("fecha_cdp") or data.get("fecha_inicio") or ""),
         "<<VALOR DEL CDP>>": _formatear_numero(valor),
         "<<UNSPSC>>": data.get("codigo_unspsc", ""),
         "<<DESCRIPCIÓN>>": data.get("descripcion_unspsc", ""),
