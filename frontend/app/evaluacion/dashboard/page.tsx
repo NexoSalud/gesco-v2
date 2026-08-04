@@ -658,9 +658,12 @@ function EvaluacionDashboard() {
       {tipo !== "apoyo" && (
       <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
-            Documentos Contractuales
-          </h3>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
+              Documentos Contractuales
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5 font-mono">CC/NIT: {data.identificacion}</p>
+          </div>
           <button
             onClick={() => setShowPdfHelp(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"

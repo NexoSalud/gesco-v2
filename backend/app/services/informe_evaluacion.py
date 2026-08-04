@@ -40,6 +40,15 @@ FONT_SIZE_TITLE = Pt(14)
 COLOR_PRIMARY = RGBColor(0, 51, 102)
 COLOR_TEXT = RGBColor(51, 51, 51)
 
+_DOC_LABEL = {
+    "CUENTA_COBRO": "Cuenta de Cobro",
+    "RETENCION": "Retención formato",
+    "LISTADO_ASISTENCIA": "Listado de asistencia",
+    "PLANILLA_SEGURIDAD": "Planilla de seguridad social",
+    "CERTIFICACION_BANCARIA": "Certificación bancaria",
+    "ARL": "ARL",
+}
+
 # ─── Renderizado común ───────────────────────────────────────────────────
 
 def _cargar_logo_base64() -> str:
@@ -776,6 +785,37 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
     _add_paragraph(doc, "ANEXOS",
                    bold=True, size=11, color=COLOR_PRIMARY,
                    alignment=WD_ALIGN_PARAGRAPH.CENTER, space_before=24, space_after=6)
+
+    # ─── DOCUMENTOS CONTRACTUALES APROBADOS ──────────────────────────
+    docs_aprobados = []
+    for c in contratos:
+        for doc in c.get("documentos", []):
+            if doc.get("estado") == "APROBADO" and doc.get("archivo_ruta"):
+                docs_aprobados.append(doc)
+
+    if docs_aprobados:
+        _add_paragraph(doc, "Documentos Contractuales Aprobados",
+                       bold=True, size=10, color=COLOR_PRIMARY,
+                       alignment=WD_ALIGN_PARAGRAPH.LEFT, space_before=12, space_after=6)
+
+        tbl_docs = doc.add_table(rows=1, cols=3)
+        _set_table_borders(tbl_docs, sz="4", color="003366")
+        _make_col_header_row(tbl_docs, ["Tipo", "Archivo", "Tamaño"], [4.0, 9.0, 3.0])
+
+        for doc in docs_aprobados:
+            row = tbl_docs.add_row()
+            tipo_label = _DOC_LABEL.get(doc.get("tipo_documento", ""), doc.get("tipo_documento", ""))
+            _add_cell_text(row.cells[0], tipo_label, bold=False, size=9)
+            _add_cell_text(row.cells[1], doc.get("archivo_nombre", ""), bold=False, size=9)
+            tamano_kb = (doc.get("archivo_tamano", 0) or 0) / 1024
+            _add_cell_text(row.cells[2], f"{tamano_kb:.0f} KB", bold=False, size=9,
+                          alignment=WD_ALIGN_PARAGRAPH.CENTER)
+            for cell in row.cells:
+                _set_cell_margins(cell)
+    else:
+        _add_paragraph(doc, "No se encontraron documentos contractuales aprobados.",
+                       bold=False, size=9, color=RGBColor(150, 150, 150),
+                       alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=6)
 
     # ─── OUTPUT ──────────────────────────────────────────────────────
     buf = io.BytesIO()
