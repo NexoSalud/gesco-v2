@@ -12,6 +12,7 @@ TIPOS_DOCUMENTO = [
     "PLANILLA_SEGURIDAD",
     "CERTIFICACION_BANCARIA",
     "ARL",
+    "CEDULA",
 ]
 
 TIPOS_DOCUMENTO_LABELS = {
@@ -21,13 +22,14 @@ TIPOS_DOCUMENTO_LABELS = {
     "PLANILLA_SEGURIDAD": "Planilla de seguridad social",
     "CERTIFICACION_BANCARIA": "Certificación bancaria",
     "ARL": "ARL",
+    "CEDULA": "Cédula de ciudadanía",
 }
 
 
 class DocumentoContratistaCreate(BaseModel):
     contratista_id: int
     contrato_numero: str
-    tipo_documento: str = Field(..., pattern="^(CUENTA_COBRO|RETENCION|LISTADO_ASISTENCIA|PLANILLA_SEGURIDAD|CERTIFICACION_BANCARIA|ARL)$")
+    tipo_documento: str = Field(..., pattern="^(CUENTA_COBRO|RETENCION|LISTADO_ASISTENCIA|PLANILLA_SEGURIDAD|CERTIFICACION_BANCARIA|ARL|CEDULA)$")
 
 
 class DocumentoContratistaOut(BaseModel):
