@@ -19,7 +19,7 @@ from docx.shared import Pt, Cm, Inches, RGBColor, Length
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn, nsdecls
-from docx.oxml import parse_xml
+from docx.oxml import parse_xml, OxmlElement
 
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 
@@ -89,32 +89,36 @@ def _resolve_upload_path(ruta: str) -> str | None:
     return None
 
 
-def _pdf_a_imagen(pdf_path: str, max_width: int = 1200) -> bytes | None:
-    """Convierte la primera página de un PDF a imagen PNG.
+def _pdf_a_imagenes(pdf_path: str, max_width: int = 1200) -> list[bytes]:
+    """Convierte todas las páginas de un PDF a imágenes PNG.
 
     Args:
         pdf_path: Ruta absoluta al archivo PDF
         max_width: Ancho máximo en píxeles (mantiene proporción)
 
     Returns:
-        Bytes de la imagen PNG, o None si falla
+        Lista de bytes PNG (una por página), o lista vacía si falla
     """
     try:
         import fitz
         doc = fitz.open(pdf_path)
-        if len(doc) == 0:
-            doc.close()
-            return None
-        page = doc[0]
-        zoom = max_width / page.rect.width if page.rect.width > 0 else 1.5
-        mat = fitz.Matrix(zoom, zoom)
-        pix = page.get_pixmap(matrix=mat)
-        img_bytes = pix.tobytes("png")
+        imagenes = []
+        for page in doc:
+            zoom = max_width / page.rect.width if page.rect.width > 0 else 1.5
+            mat = fitz.Matrix(zoom, zoom)
+            pix = page.get_pixmap(matrix=mat)
+            imagenes.append(pix.tobytes("png"))
         doc.close()
-        return img_bytes
+        return imagenes
     except Exception as e:
-        logger.warning(f"Error convirtiendo PDF a imagen {pdf_path}: {e}")
-        return None
+        logger.warning(f"Error convirtiendo PDF a imágenes {pdf_path}: {e}")
+        return []
+
+
+def _pdf_a_imagen(pdf_path: str, max_width: int = 1200) -> bytes | None:
+    """Convierte la primera página de un PDF a imagen PNG (wrapper)."""
+    imgs = _pdf_a_imagenes(pdf_path, max_width)
+    return imgs[0] if imgs else None
 
 
 def _build_context(contratista: dict, contratos: list, resumen: dict) -> dict:
@@ -849,45 +853,73 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
     if docs_aprobados:
         _add_paragraph(doc, "Documentos Contractuales Aprobados",
                        bold=True, size=10, color=COLOR_PRIMARY,
-                       alignment=WD_ALIGN_PARAGRAPH.LEFT, space_before=12, space_after=6)
+                       alignment=WD_ALIGN_PARAGRAPH.LEFT, space_before=12, space_after=10)
 
-        tbl_docs = doc.add_table(rows=1, cols=4)
-        _set_table_borders(tbl_docs, sz="4", color="003366")
-        _make_col_header_row(tbl_docs, ["Tipo", "Archivo", "Tamaño", "Vista previa"], [3.0, 5.0, 2.0, 6.0])
-
-        for d in docs_aprobados:
-            row = tbl_docs.add_row()
+        for idx, d in enumerate(docs_aprobados):
             tipo_label = _DOC_LABEL.get(d.get("tipo_documento", ""), d.get("tipo_documento", ""))
-            _add_cell_text(row.cells[0], tipo_label, bold=False, size=9)
-            _add_cell_text(row.cells[1], d.get("archivo_nombre", ""), bold=False, size=9)
+            archivo_nombre = d.get("archivo_nombre", "")
             tamano_kb = (d.get("archivo_tamano", 0) or 0) / 1024
-            _add_cell_text(row.cells[2], f"{tamano_kb:.0f} KB", bold=False, size=9,
-                          alignment=WD_ALIGN_PARAGRAPH.CENTER)
 
-            # Vista previa: PDF como imagen
-            cell_preview = row.cells[3]
+            # Separador entre documentos (excepto el primero)
+            if idx > 0:
+                _add_paragraph(doc, "", size=4, space_after=4)
+                # Línea separadora
+                p_sep = doc.add_paragraph()
+                p_sep.paragraph_format.space_after = Pt(6)
+                pPr = p_sep._p.get_or_add_pPr()
+                pBdr = OxmlElement('w:pBdr')
+                bottom = OxmlElement('w:bottom')
+                bottom.set(qn('w:val'), 'single')
+                bottom.set(qn('w:sz'), '4')
+                bottom.set(qn('w:space'), '4')
+                bottom.set(qn('w:color'), 'CCCCCC')
+                pBdr.append(bottom)
+                pPr.append(pBdr)
+
+            # Título del documento
+            _add_paragraph(doc, f"{tipo_label}",
+                           bold=True, size=10, color=COLOR_PRIMARY,
+                           alignment=WD_ALIGN_PARAGRAPH.LEFT, space_after=2)
+            _add_paragraph(doc, f"Archivo: {archivo_nombre} ({tamano_kb:.0f} KB)",
+                           bold=False, size=8, color=RGBColor(100, 100, 100),
+                           alignment=WD_ALIGN_PARAGRAPH.LEFT, space_after=6)
+
+            # Renderizar todas las páginas como imágenes
             ruta = d.get("archivo_ruta", "")
-            preview_done = False
             if ruta:
                 img_path = _resolve_upload_path(ruta)
                 if img_path and os.path.exists(img_path):
-                    img_bytes = _pdf_a_imagen(img_path, max_width=600)
-                    if img_bytes:
-                        try:
-                            p = cell_preview.paragraphs[0]
-                            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                            r = p.add_run()
-                            r.add_picture(io.BytesIO(img_bytes), width=Inches(2.2))
-                            preview_done = True
-                        except Exception:
-                            pass
-            if not preview_done:
-                _add_cell_text(cell_preview, "No disponible", size=8,
-                              color=RGBColor(150, 150, 150),
-                              alignment=WD_ALIGN_PARAGRAPH.CENTER)
+                    paginas = _pdf_a_imagenes(img_path, max_width=1100)
+                    if paginas:
+                        for pi, img_bytes in enumerate(paginas):
+                            try:
+                                p_img = doc.add_paragraph()
+                                p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                                run_img = p_img.add_run()
+                                run_img.add_picture(io.BytesIO(img_bytes), width=Inches(5.8))
+                                p_img.paragraph_format.space_after = Pt(2)
+                                if len(paginas) > 1:
+                                    p_num = doc.add_paragraph()
+                                    p_num.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                                    r_num = p_num.add_run(f"Página {pi + 1} de {len(paginas)}")
+                                    r_num.font.size = Pt(7)
+                                    r_num.font.color.rgb = RGBColor(150, 150, 150)
+                                    p_num.paragraph_format.space_after = Pt(4)
+                            except Exception as e:
+                                logger.warning(f"Error embeber página {pi} de {archivo_nombre}: {e}")
+                    else:
+                        _add_paragraph(doc, "[No se pudo generar vista previa del documento]",
+                                       bold=False, size=8, color=RGBColor(150, 0, 0),
+                                       alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=4)
+                else:
+                    _add_paragraph(doc, "[Archivo no encontrado]",
+                                   bold=False, size=8, color=RGBColor(150, 0, 0),
+                                   alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=4)
+            else:
+                _add_paragraph(doc, "[Sin archivo]",
+                               bold=False, size=8, color=RGBColor(150, 150, 150),
+                               alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=4)
 
-            for cell in row.cells:
-                _set_cell_margins(cell)
     else:
         _add_paragraph(doc, "No se encontraron documentos contractuales aprobados.",
                        bold=False, size=9, color=RGBColor(150, 150, 150),
