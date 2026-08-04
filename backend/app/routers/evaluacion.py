@@ -560,6 +560,62 @@ async def resumen_contratista(
     )
 
 
+@router.get("/evidencias/pendientes")
+async def listar_evidencias_pendientes(
+    buscar: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    """Lista todas las evidencias PENDIENTES de todos los contratistas activos,
+    con datos del contratista, contrato y actividad para revisión rápida."""
+    stmt = (
+        select(
+            Evidencia,
+            Contratista.nombre.label("contratista_nombre"),
+            Contratista.identificacion.label("contratista_identificacion"),
+            Contrato.numero_contrato,
+            Contrato.perfil,
+            ActividadContrato.descripcion.label("actividad_descripcion"),
+        )
+        .join(Contratista, Evidencia.contratista_id == Contratista.id)
+        .join(Contrato, Evidencia.contrato_id == Contrato.numero_contrato)
+        .join(ActividadContrato, Evidencia.actividad_contrato_id == ActividadContrato.id)
+        .where(Evidencia.estado == "PENDIENTE")
+        .order_by(Evidencia.created_at.desc())
+    )
+
+    if buscar:
+        stmt = stmt.where(
+            Contratista.nombre.ilike(f"%{buscar}%")
+            | Contratista.identificacion.ilike(f"%{buscar}%")
+        )
+
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    return [
+        {
+            "id": row.Evidencia.id,
+            "tipo": row.Evidencia.tipo,
+            "contenido_texto": row.Evidencia.contenido_texto,
+            "archivo_ruta": row.Evidencia.archivo_ruta,
+            "archivo_nombre": row.Evidencia.archivo_nombre,
+            "archivo_tipo": row.Evidencia.archivo_tipo,
+            "estado": row.Evidencia.estado,
+            "created_at": str(row.Evidencia.created_at) if row.Evidencia.created_at else None,
+            "contratista_id": row.Evidencia.contratista_id,
+            "contratista_nombre": row.contratista_nombre,
+            "contratista_identificacion": row.contratista_identificacion,
+            "contrato_id": row.Evidencia.contrato_id,
+            "numero_contrato": row.numero_contrato,
+            "perfil": row.perfil,
+            "actividad_contrato_id": row.Evidencia.actividad_contrato_id,
+            "actividad_descripcion": row.actividad_descripcion,
+        }
+        for row in rows
+    ]
+
+
 @router.get("/contratistas", response_model=list[dict])
 async def listar_contratistas_con_evidencias(
     buscar: str | None = Query(None),

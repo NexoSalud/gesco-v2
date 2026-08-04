@@ -776,6 +776,31 @@ export const listarContratistasEvaluacion = (buscar?: string) => {
   return request<any[]>(`/api/v1/evaluacion/contratistas${q}`)
 }
 
+// Protegido — listar todas las evidencias pendientes (cross-contratista)
+export interface EvidenciaPendiente {
+  id: number
+  tipo: string
+  contenido_texto: string | null
+  archivo_ruta: string | null
+  archivo_nombre: string | null
+  archivo_tipo: string | null
+  estado: string
+  created_at: string | null
+  contratista_id: number
+  contratista_nombre: string
+  contratista_identificacion: string
+  contrato_id: string
+  numero_contrato: string
+  perfil: string | null
+  actividad_contrato_id: number
+  actividad_descripcion: string
+}
+
+export const listarEvidenciasPendientes = (buscar?: string) => {
+  const q = buscar ? `?buscar=${encodeURIComponent(buscar)}` : ""
+  return request<EvidenciaPendiente[]>(`/api/v1/evaluacion/evidencias/pendientes${q}`)
+}
+
 // ─── Apoyo Administrativo ────────────────────────────────────────────────────
 
 export const listarApoyosEvaluacion = (buscar?: string) => {

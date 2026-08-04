@@ -15,8 +15,10 @@ import {
   listarApoyosEvaluacion, buscarApoyoEvaluacion,
   getResumenApoyo, evaluarEvidenciaApoyo,
   getApoyos,
+  listarEvidenciasPendientes,
   TIPOS_DOCUMENTO,
   type Evidencia, type ResumenCumplimiento, type DocumentoContratista,
+  type EvidenciaPendiente,
 } from "@/lib/api"
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
@@ -148,6 +150,11 @@ export default function EvaluacionDashboardPage() {
   const [expandedActividades, setExpandedActividades] = useState<Set<number>>(new Set())
   const [expandedDocumento, setExpandedDocumento] = useState<number | null>(null)
 
+  // ─── Tabs & Pendientes globales ──────────────────────────────────
+  const [activeTab, setActiveTab] = useState<"contratistas" | "pendientes">("contratistas")
+  const [evidenciasPendientes, setEvidenciasPendientes] = useState<EvidenciaPendiente[]>([])
+  const [loadingPendientes, setLoadingPendientes] = useState(false)
+
   // ─── Load contratistas + apoyos ───────────────────────────────────
   const loadContratistas = useCallback(async (q?: string) => {
     setLoadingContratistas(true)
@@ -174,6 +181,24 @@ export default function EvaluacionDashboardPage() {
   useEffect(() => {
     loadContratistas()
   }, [loadContratistas])
+
+  // ─── Cargar evidencias pendientes (todas) ──────────────────────────
+  const loadEvidenciasPendientes = useCallback(async (q?: string) => {
+    setLoadingPendientes(true)
+    try {
+      const data = await listarEvidenciasPendientes(q)
+      setEvidenciasPendientes(data)
+    } catch (e) {
+      console.error("Error cargando evidencias pendientes:", e)
+    }
+    setLoadingPendientes(false)
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === "pendientes") {
+      loadEvidenciasPendientes()
+    }
+  }, [activeTab, loadEvidenciasPendientes])
 
   // ─── Select contratista ───────────────────────────────────────────
   const selectContratista = useCallback(async (c: ContratistaListItem) => {
@@ -670,6 +695,8 @@ export default function EvaluacionDashboardPage() {
   }
 
   // ── CONTRATISTA LIST VIEW ──
+  const pendingsGlobal = contratistas.reduce((sum, c) => sum + (c.pendientes || 0), 0)
+
   return (
     <div className="space-y-5 max-w-full overflow-x-hidden">
       {/* Header */}
@@ -678,69 +705,236 @@ export default function EvaluacionDashboardPage() {
           <h1 className="text-xl font-bold text-gray-800">Evaluación de Cumplimiento</h1>
           <p className="text-sm text-gray-500 mt-1">Selecciona un contratista para revisar y evaluar</p>
         </div>
-        <button onClick={() => loadContratistas(search)} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 flex-shrink-0">
+        <button onClick={() => { loadContratistas(search); if (activeTab === "pendientes") loadEvidenciasPendientes() }} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 flex-shrink-0">
           <RefreshCw className="w-4 h-4" />
           Actualizar
         </button>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por nombre o identificación..."
-          className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-          onKeyDown={(e) => e.key === "Enter" && loadContratistas(search)}
-        />
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-gray-200 pb-0">
+        <button
+          onClick={() => setActiveTab("contratistas")}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === "contratistas"
+              ? "bg-white border border-gray-200 border-b-white text-emerald-700 -mb-[1px]"
+              : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          Por Contratista
+        </button>
+        <button
+          onClick={() => setActiveTab("pendientes")}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-1.5 ${
+            activeTab === "pendientes"
+              ? "bg-white border border-gray-200 border-b-white text-emerald-700 -mb-[1px]"
+              : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          Pendientes de Revisión
+          {pendingsGlobal > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full bg-yellow-500 text-white text-xs font-bold">
+              {pendingsGlobal}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* List */}
-      {loadingContratistas ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-        </div>
-      ) : contratistas.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <User className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500">No se encontraron contratistas con contratos activos.</p>
-        </div>
+      {activeTab === "contratistas" ? (
+        <>
+          {/* Search */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nombre o identificación..."
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+              onKeyDown={(e) => e.key === "Enter" && loadContratistas(search)}
+            />
+          </div>
+
+          {/* List */}
+          {loadingContratistas ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+            </div>
+          ) : contratistas.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+              <User className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+              <p className="text-gray-500">No se encontraron contratistas con contratos activos.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {contratistas.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => selectContratista(c)}
+                  className="bg-white rounded-xl border border-gray-200 p-4 text-left hover:border-emerald-300 hover:shadow-sm transition-all"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${c.tipo === "APOYO" ? "bg-purple-100" : "bg-emerald-100"}`}>
+                      <User className={`w-4 h-4 ${c.tipo === "APOYO" ? "text-purple-600" : "text-emerald-600"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-800 text-sm truncate flex items-center gap-1.5">
+                        {c.nombre}
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 ${c.tipo === "APOYO" ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"}`}>{c.tipo === "APOYO" ? "APOYO" : "CONT"}</span>
+                      </p>
+                      <p className="text-xs text-gray-500 font-mono">{c.identificacion}</p>
+                      {(c as any).perfil && <p className="text-xs text-gray-400 truncate mt-0.5">{(c as any).perfil}</p>}
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${c.pendientes > 0 ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-500"}`}>
+                          <Clock className="w-3 h-3" />{c.pendientes} pend.
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                          <FileText className="w-3 h-3" />{c.total_evidencias} total
+                        </span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0 mt-1" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {contratistas.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => selectContratista(c)}
-              className="bg-white rounded-xl border border-gray-200 p-4 text-left hover:border-emerald-300 hover:shadow-sm transition-all"
-            >
-              <div className="flex items-start gap-3">
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${c.tipo === "APOYO" ? "bg-purple-100" : "bg-emerald-100"}`}>
-                  <User className={`w-4 h-4 ${c.tipo === "APOYO" ? "text-purple-600" : "text-emerald-600"}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-800 text-sm truncate flex items-center gap-1.5">
-                    {c.nombre}
-                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 ${c.tipo === "APOYO" ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"}`}>{c.tipo === "APOYO" ? "APOYO" : "CONT"}</span>
-                  </p>
-                  <p className="text-xs text-gray-500 font-mono">{c.identificacion}</p>
-                  {(c as any).perfil && <p className="text-xs text-gray-400 truncate mt-0.5">{(c as any).perfil}</p>}
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${c.pendientes > 0 ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-500"}`}>
-                      <Clock className="w-3 h-3" />{c.pendientes} pend.
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                      <FileText className="w-3 h-3" />{c.total_evidencias} total
-                    </span>
+        <>
+          {/* Buscador pendientes */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Filtrar por nombre o cédula..."
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+              onChange={(e) => {
+                const v = e.target.value
+                setTimeout(() => loadEvidenciasPendientes(v || undefined), 300)
+              }}
+            />
+          </div>
+
+          {/* Lista de evidencias pendientes */}
+          {loadingPendientes ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+            </div>
+          ) : evidenciasPendientes.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+              <CheckCircle2 className="w-12 h-12 text-emerald-300 mx-auto mb-3" />
+              <p className="text-gray-500 text-lg">¡No hay evidencias pendientes!</p>
+              <p className="text-gray-400 text-sm mt-1">Todas las evidencias han sido revisadas.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {evidenciasPendientes.map((ev) => (
+                <div key={ev.id} className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-sm transition-shadow">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      {/* Contratista + Contrato */}
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="font-semibold text-gray-900 text-sm">{ev.contratista_nombre}</span>
+                        <span className="text-xs text-gray-400 font-mono">{ev.contratista_identificacion}</span>
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700">
+                          {ev.numero_contrato}
+                        </span>
+                        {ev.perfil && (
+                          <span className="text-[10px] text-gray-500">{ev.perfil}</span>
+                        )}
+                      </div>
+                      {/* Actividad */}
+                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">{ev.actividad_descripcion}</p>
+                      {/* Evidencia */}
+                      {ev.tipo === "TEXTO" && ev.contenido_texto && (
+                        <p className="text-sm text-gray-800 bg-gray-50 p-3 rounded-lg whitespace-pre-wrap line-clamp-6">{ev.contenido_texto}</p>
+                      )}
+                      {ev.tipo === "IMAGEN" && ev.archivo_ruta && (
+                        <div className="mt-2">
+                          <img
+                            src={`${API}/uploads/${ev.archivo_ruta.replace(/^.*\/uploads\//, "").replace(/^.*static\//, "evidencias/")}`}
+                            alt={ev.archivo_nombre || "Evidencia"}
+                            className="max-h-48 rounded-lg border"
+                          />
+                        </div>
+                      )}
+                      {ev.tipo === "ARCHIVO" && (
+                        <a
+                          href={`${API}/uploads/${ev.archivo_ruta?.replace(/^.*\/uploads\//, "").replace(/^.*static\//, "evidencias/")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 text-sm hover:underline flex items-center gap-1"
+                        >
+                          <FileText className="w-4 h-4" /> {ev.archivo_nombre}
+                        </a>
+                      )}
+                      <p className="text-[10px] text-gray-400 mt-2">
+                        {ev.created_at ? new Date(ev.created_at).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
+                      </p>
+                    </div>
+                    {/* Acciones rápidas */}
+                    <EvaluarRapido
+                      evidenciaId={ev.id}
+                      onEvaluado={() => loadEvidenciasPendientes()}
+                    />
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0 mt-1" />
-              </div>
-            </button>
-          ))}
-        </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
+    </div>
+  )
+}
+
+// ─── Componente: Evaluación rápida para la vista de pendientes ────────
+
+function EvaluarRapido({ evidenciaId, onEvaluado }: { evidenciaId: number; onEvaluado: () => void }) {
+  const [obs, setObs] = useState("")
+  const [loading, setLoading] = useState(false)
+
+  const evaluar = async (estado: string) => {
+    setLoading(true)
+    try {
+      await evaluarEvidencia(evidenciaId, { estado, observacion: obs || undefined })
+      setObs("")
+      onEvaluado()
+    } catch (e) {
+      console.error("Error evaluando:", e)
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 flex-shrink-0">
+      <textarea
+        value={obs}
+        onChange={(e) => setObs(e.target.value)}
+        rows={2}
+        className="text-xs border border-gray-200 rounded-lg p-1.5 w-44 focus:outline-none focus:ring-1 focus:ring-emerald-400 resize-none"
+        placeholder="Obs. (opcional)"
+        disabled={loading}
+      />
+      <div className="flex gap-1.5">
+        <button
+          onClick={() => evaluar("APROBADO")}
+          disabled={loading}
+          className="flex-1 px-2.5 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
+        >
+          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+          Aprobar
+        </button>
+        <button
+          onClick={() => evaluar("RECHAZADO")}
+          disabled={loading}
+          className="flex-1 px-2.5 py-1.5 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
+        >
+          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+          Rechazar
+        </button>
+      </div>
     </div>
   )
 }
