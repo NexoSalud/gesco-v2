@@ -790,9 +790,9 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
     # ─── DOCUMENTOS CONTRACTUALES APROBADOS ──────────────────────────
     docs_aprobados = []
     for c in contratos:
-        for doc in c.get("documentos", []):
-            if doc.get("estado") == "APROBADO" and doc.get("archivo_ruta"):
-                docs_aprobados.append(doc)
+        for d in c.get("documentos", []):
+            if d.get("estado") == "APROBADO" and d.get("archivo_ruta"):
+                docs_aprobados.append(d)
 
     if docs_aprobados:
         _add_paragraph(doc, "Documentos Contractuales Aprobados",
@@ -803,12 +803,12 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
         _set_table_borders(tbl_docs, sz="4", color="003366")
         _make_col_header_row(tbl_docs, ["Tipo", "Archivo", "Tamaño"], [4.0, 9.0, 3.0])
 
-        for doc in docs_aprobados:
+        for d in docs_aprobados:
             row = tbl_docs.add_row()
-            tipo_label = _DOC_LABEL.get(doc.get("tipo_documento", ""), doc.get("tipo_documento", ""))
+            tipo_label = _DOC_LABEL.get(d.get("tipo_documento", ""), d.get("tipo_documento", ""))
             _add_cell_text(row.cells[0], tipo_label, bold=False, size=9)
-            _add_cell_text(row.cells[1], doc.get("archivo_nombre", ""), bold=False, size=9)
-            tamano_kb = (doc.get("archivo_tamano", 0) or 0) / 1024
+            _add_cell_text(row.cells[1], d.get("archivo_nombre", ""), bold=False, size=9)
+            tamano_kb = (d.get("archivo_tamano", 0) or 0) / 1024
             _add_cell_text(row.cells[2], f"{tamano_kb:.0f} KB", bold=False, size=9,
                           alignment=WD_ALIGN_PARAGRAPH.CENTER)
             for cell in row.cells:
