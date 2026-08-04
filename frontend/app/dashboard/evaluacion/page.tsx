@@ -874,7 +874,7 @@ export default function EvaluacionDashboardPage() {
                       <p className="text-sm text-gray-600 mb-2 line-clamp-2">{ev.actividad_descripcion}</p>
                       {/* Evidencia */}
                       {ev.tipo === "TEXTO" && ev.contenido_texto && (
-                        <p className="text-sm text-gray-800 bg-gray-50 p-3 rounded-lg whitespace-pre-wrap line-clamp-6">{ev.contenido_texto}</p>
+                        <p className="text-sm text-gray-800 bg-gray-50 p-3 rounded-lg whitespace-pre-wrap">{ev.contenido_texto}</p>
                       )}
                       {ev.tipo === "IMAGEN" && ev.archivo_ruta && (
                         <div className="mt-2">
