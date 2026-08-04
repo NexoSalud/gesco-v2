@@ -51,6 +51,34 @@ def _cargar_logo_base64() -> str:
     return ""
 
 
+def _resolve_upload_path(ruta: str) -> str | None:
+    """Resuelve la ruta real de un archivo subido.
+
+    Las rutas pueden venir como 'uploads/...' o '/app/uploads/...'.
+    Devuelve la ruta absoluta en disco o None si no se encuentra.
+    """
+    if not ruta:
+        return None
+    # Intentar directamente
+    candidates = [
+        ruta,
+        ruta.lstrip("/"),
+        os.path.join("/app", ruta.lstrip("/")),
+        os.path.join("/app/uploads", os.path.basename(ruta)),
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return os.path.abspath(c)
+    # Buscar por nombre de archivo en /app/uploads/
+    fname = os.path.basename(ruta)
+    uploads_dir = "/app/uploads"
+    if os.path.isdir(uploads_dir):
+        for f in os.listdir(uploads_dir):
+            if f == fname or f.endswith(fname):
+                return os.path.join(uploads_dir, f)
+    return None
+
+
 def _build_context(contratista: dict, contratos: list, resumen: dict) -> dict:
     """Construye el contexto unificado para PDF y DOCX."""
     today = datetime.now()
@@ -654,35 +682,75 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
                       if e.get("tipo") == "TEXTO" and e.get("contenido_texto")]
             acciones = "\n".join(textos) if textos else ""
 
-            # Build evidence text
-            ev_text_parts = []
-            for ev in evidencias:
-                if ev.get("tipo") == "IMAGEN":
-                    ev_text_parts.append(ev.get("archivo_nombre", "Imagen"))
-                elif ev.get("tipo") == "ARCHIVO":
-                    ev_text_parts.append(ev.get("archivo_nombre", "Archivo"))
-                elif ev.get("tipo") == "TEXTO":
-                    txt = ev.get("contenido_texto", "")
-                    if txt and not acciones:
-                        # Already used as description
-                        pass
-            ev_text = "\n".join(ev_text_parts) if ev_text_parts else ""
+            # Build evidence: embed IMAGEN, show filename for ARCHIVO
+            ev_imagenes = [e for e in evidencias if e.get("tipo") == "IMAGEN"]
+            ev_archivos = [e for e in evidencias if e.get("tipo") == "ARCHIVO"]
 
             alt_bg = "F5F8FC" if i % 2 == 0 else "FFFFFF"
             row = tbl.add_row()
-            for ci, val in enumerate([str(num), desc, acciones, ev_text]):
+            for ci, val in enumerate([str(num), desc, acciones, ""]):
                 cell = row.cells[ci]
                 _set_cell_shading(cell, alt_bg)
                 _set_cell_margins(cell)
                 if ci < len(col_widths):
                     cell.width = Cm(col_widths[ci])
                 if ci in (1, 2) and val:
-                    # Columnas con posible HTML: renderizar con _render_html_to_cell
                     _render_html_to_cell(cell, val, font_size=9)
+                elif ci == 0:
+                    _add_cell_text(cell, val, bold=True, size=9,
+                                   color=COLOR_TEXT, alignment=WD_ALIGN_PARAGRAPH.CENTER)
+
+            # Columna EVIDENCIAS (ci=3): embeber imágenes reales
+            ev_cell = row.cells[3]
+            for p in ev_cell.paragraphs:
+                p.clear()
+
+            first_img = True
+            for ev in ev_imagenes:
+                ruta = ev.get("archivo_ruta", "")
+                if ruta:
+                    img_path = _resolve_upload_path(ruta)
+                    if img_path and os.path.exists(img_path):
+                        try:
+                            if first_img and ev_cell.paragraphs:
+                                p_img = ev_cell.paragraphs[0]
+                            else:
+                                p_img = ev_cell.add_paragraph()
+                            first_img = False
+                            p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                            run_img = p_img.add_run()
+                            run_img.add_picture(img_path, width=Inches(3.0))
+                            p_img.paragraph_format.space_after = Pt(4)
+                        except Exception as e:
+                            logger.warning(f"No se pudo embeber imagen {img_path}: {e}")
+                            p_err = ev_cell.add_paragraph()
+                            r_err = p_err.add_run(ev.get("archivo_nombre", "Imagen"))
+                            r_err.font.size = Pt(8)
+                            r_err.font.color.rgb = RGBColor(150, 0, 0)
+                    else:
+                        p_no = ev_cell.add_paragraph()
+                        r_no = p_no.add_run(ev.get("archivo_nombre", "Imagen"))
+                        r_no.font.size = Pt(8)
+                        r_no.font.color.rgb = RGBColor(150, 0, 0)
                 else:
-                    align = WD_ALIGN_PARAGRAPH.CENTER if ci == 0 else WD_ALIGN_PARAGRAPH.JUSTIFY
-                    _add_cell_text(cell, val, bold=(ci == 0), size=9,
-                                   color=COLOR_TEXT, alignment=align)
+                    p_na = ev_cell.add_paragraph()
+                    r_na = p_na.add_run(ev.get("archivo_nombre", "Imagen"))
+                    r_na.font.size = Pt(8)
+                    r_na.font.color.rgb = RGBColor(100, 100, 100)
+
+            for ev in ev_archivos:
+                p_arch = ev_cell.add_paragraph()
+                p_arch.paragraph_format.space_after = Pt(2)
+                r_arch = p_arch.add_run("\U0001F4CE " + ev.get("archivo_nombre", "Archivo"))
+                r_arch.font.size = Pt(8)
+                r_arch.font.name = "Times New Roman"
+                r_arch.font.color.rgb = RGBColor(0, 51, 153)
+
+            if not ev_imagenes and not ev_archivos:
+                p_empty = ev_cell.add_paragraph()
+                r_empty = p_empty.add_run("Sin evidencias")
+                r_empty.font.size = Pt(8)
+                r_empty.font.color.rgb = RGBColor(150, 150, 150)
 
     # ─── TABLE 2: ACTIVIDADES GENERALES ──────────────────────────────
     _build_activity_table(doc, "ACTIVIDADES GENERALES", acts_generales)
