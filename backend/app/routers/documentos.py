@@ -36,7 +36,7 @@ from app.schemas.documento_contratista import (
 from app.routers.auth import get_current_user
 from app.models.auth import Usuario
 from app.models.periodo_evaluacion import PeriodoEvaluacion
-from app.services.cuenta_cobro import generar_cuenta_cobro_pdf
+from app.services.cuenta_cobro import generar_cuenta_cobro_docx
 
 logger = logging.getLogger(__name__)
 
@@ -154,8 +154,8 @@ async def generar_cuenta_cobro(
     )
     numero_cuenta_cobro = f"{(count_res.scalar() or 0) + 1:02d}"
 
-    # Generar PDF
-    pdf_bytes = generar_cuenta_cobro_pdf(
+    # Generar DOCX
+    docx_bytes = generar_cuenta_cobro_docx(
         contratista_nombre=contratista.nombre,
         contratista_cedula=contratista.identificacion,
         expedida_en=contratista.expedida_en,
@@ -193,22 +193,22 @@ async def generar_cuenta_cobro(
         safe_name = os.path.basename(doc_existente.archivo_ruta)
         file_path = os.path.join(DOCS_DIR, safe_name)
         with open(file_path, "wb") as f:
-            f.write(pdf_bytes)
+            f.write(docx_bytes)
         doc_existente.estado = "PENDIENTE"
         await db.commit()
     else:
-        safe_name = f"{uuid.uuid4()}.pdf"
+        safe_name = f"{uuid.uuid4()}.docx"
         file_path = os.path.join(DOCS_DIR, safe_name)
         with open(file_path, "wb") as f:
-            f.write(pdf_bytes)
+            f.write(docx_bytes)
         doc = DocumentoContratista(
             contratista_id=contratista.id,
             contrato_numero=contrato_numero,
             tipo_documento="CUENTA_COBRO",
             periodo_id=periodo_id,
             archivo_ruta=f"/uploads/documentos/{safe_name}",
-            archivo_nombre=f"cuenta_de_cobro_{numero_cuenta_cobro}_{periodo_nombre.replace(' ', '_')}.pdf",
-            archivo_tamano=len(pdf_bytes),
+            archivo_nombre=f"CUENTA_DE_COBRO_{numero_cuenta_cobro}_{periodo_nombre.replace(' ', '_')}.docx",
+            archivo_tamano=len(docx_bytes),
             estado="PENDIENTE",
         )
         db.add(doc)
@@ -216,10 +216,10 @@ async def generar_cuenta_cobro(
         logger.info(f"Cuenta de cobro generada: {contrato_numero} — contratista {contratista.id}, periodo {periodo_nombre}")
 
     return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
+        content=docx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={
-            "Content-Disposition": f"attachment; filename=cuenta_de_cobro_{numero_cuenta_cobro}_{periodo_nombre.replace(' ', '_')}.pdf"
+            "Content-Disposition": f"attachment; filename=CUENTA_DE_COBRO_{numero_cuenta_cobro}_{periodo_nombre.replace(' ', '_')}.docx"
         },
     )
 

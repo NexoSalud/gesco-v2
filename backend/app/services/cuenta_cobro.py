@@ -1,14 +1,13 @@
-"""Servicio para generar la Cuenta de Cobro en PDF a partir de los datos
-contractuales del contratista y del contrato (template como los del backend)."""
+"""Servicio para generar la Cuenta de Cobro en DOCX a partir de la plantilla
+del backend (app/templates/cuenta_cobro.docx), rellenando los datos
+contractuales del contratista y del contrato."""
 
-import base64
+import io
 import logging
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader
-
-from weasyprint import HTML
+from docx import Document
 
 logger = logging.getLogger(__name__)
 
@@ -21,19 +20,14 @@ MESES_ES = [
 ]
 
 
-def _cargar_logo_base64() -> str:
-    """Carga el logo de la ESE desde static/ y lo devuelve en base64."""
-    for nombre in ("logo_es.png", "logo_left.png"):
-        logo_path = Path(__file__).parent.parent / "static" / nombre
-        if logo_path.exists():
-            with open(logo_path, "rb") as f:
-                return base64.b64encode(f.read()).decode()
-    # Fallback: logo en frontend/public
-    logo_path = Path(__file__).parent.parent.parent / "frontend" / "public" / "logo_es.png"
-    if logo_path.exists():
-        with open(logo_path, "rb") as f:
-            return base64.b64encode(f.read()).decode()
-    return ""
+def _set_para_text(parrafo, texto: str):
+    """Reemplaza el texto de un párrafo preservando el formato del primer run."""
+    if not parrafo.runs:
+        parrafo.add_run(texto)
+        return
+    parrafo.runs[0].text = texto
+    for r in parrafo.runs[1:]:
+        r.text = ""
 
 
 def _fecha_texto_es(fecha: date | None = None) -> str:
@@ -42,12 +36,12 @@ def _fecha_texto_es(fecha: date | None = None) -> str:
     return f"{DIAS_ES[f.weekday()]} {f.day:02d} DE {MESES_ES[f.month - 1]} DE {f.year}"
 
 
-def _numero_periodo(periodo_nombre: str | None) -> str:
-    """Deriva el número de la cuenta de cobro del periodo, ej. '01'."""
-    return "01"
+def _valor_moneda(valor: float) -> str:
+    """Formatea el valor con separador de miles y decimal en punto: 6500000 → '6.500.000.00'."""
+    return f"{valor:,.2f}".replace(",", ".")
 
 
-def generar_cuenta_cobro_pdf(
+def generar_cuenta_cobro_docx(
     *,
     contratista_nombre: str,
     contratista_cedula: str,
@@ -62,34 +56,52 @@ def generar_cuenta_cobro_pdf(
     numero: str = "01",
     fecha: date | None = None,
 ) -> bytes:
-    """Genera el PDF de la cuenta de cobro."""
+    """Genera el DOCX de la cuenta de cobro a partir de la plantilla."""
     from app.services.numero_letras import numero_a_letras
 
     valor_letras = numero_a_letras(valor)
-    # Ej: numero_a_letras(6500000) → "SEIS MILLONES QUINIENTOS MIL PESOS M/CTE"
     if not valor_letras.upper().endswith("M/CTE"):
         valor_letras = f"{valor_letras} M/CTE"
 
-    ctx = {
-        "logo_base64": _cargar_logo_base64(),
-        "numero": numero,
-        "periodo_nombre": periodo_nombre,
-        "contratista_nombre": contratista_nombre.upper(),
-        "contratista_cedula": contratista_cedula,
-        "expedida_en": expedida_en,
-        "valor_letras": valor_letras,
-        "valor": valor,
-        "objeto": objeto,
-        "numero_contrato": numero_contrato,
-        "fecha_texto": _fecha_texto_es(fecha),
-        "banco": banco,
-        "tipo_cuenta": tipo_cuenta,
-        "numero_cuenta": numero_cuenta,
-    }
+    template_path = TEMPLATES_DIR / "cuenta_cobro.docx"
+    if not template_path.exists():
+        raise FileNotFoundError(f"Plantilla de cuenta de cobro no encontrada: {template_path}")
 
-    env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
-    template = env.get_template("cuenta_cobro.html")
-    html_str = template.render(**ctx)
+    doc = Document(str(template_path))
+    paras = doc.paragraphs
 
-    pdf_bytes = HTML(string=html_str).write_pdf()
-    return pdf_bytes
+    def p(idx: int):
+        return paras[idx] if idx < len(paras) else None
+
+    # 0 — Título
+    _set_para_text(p(0), f"CUENTA DE COBRO N° {numero} - {periodo_nombre}")
+
+    # 7 — Cuerpo principal: nombre, cédula, expedida en, suma en letras + valor
+    expedida = f" expedida en {expedida_en}" if expedida_en else ""
+    _set_para_text(
+        p(7),
+        f"{contratista_nombre} identificado con cédula de ciudadanía No. "
+        f"{contratista_cedula}{expedida}, la suma de {valor_letras} "
+        f"(${_valor_moneda(valor)}) por concepto de:",
+    )
+
+    # 9 — Concepto (objeto del contrato) + número de contrato
+    _set_para_text(p(9), f"{objeto} de acuerdo con el contrato No. {numero_contrato}")
+
+    # 12 — Fecha
+    _set_para_text(p(12), f"Puerto Tejada Cauca, {_fecha_texto_es(fecha)}")
+
+    # 17 — Firma (nombre)
+    _set_para_text(p(17), contratista_nombre)
+
+    # 18 — Firma (cédula)
+    _set_para_text(p(18), f"Cédula de ciudadanía No. {contratista_cedula}{expedida}")
+
+    # 19-21 — Datos bancarios
+    _set_para_text(p(19), f"Banco: {banco or ''}")
+    _set_para_text(p(20), f"Tipo de cuenta: {tipo_cuenta or ''}")
+    _set_para_text(p(21), f"No. De cuenta: {numero_cuenta or ''}")
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()

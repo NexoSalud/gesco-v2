@@ -1503,7 +1503,7 @@ function DocumentoRow({
       const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.href = url
-      link.download = `cuenta_de_cobro_${contratoNumero.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`
+      link.download = `CUENTA_DE_COBRO_${contratoNumero.replace(/[^a-zA-Z0-9]+/g, "_")}.docx`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
