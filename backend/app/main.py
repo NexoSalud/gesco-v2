@@ -279,6 +279,7 @@ async def lifespan(app: FastAPI):
 
     # Backfill: crear periodos desde los meses de los contratos existentes
     try:
+        import re as _re
         from datetime import date as _date
         from app.models.periodo_evaluacion import PeriodoEvaluacion
         from app.database import async_session_factory as _asf
@@ -287,58 +288,111 @@ async def lifespan(app: FastAPI):
             "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
             "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE",
         ]
+        MESES_REV = {m: i + 1 for i, m in enumerate(MESES_ES)}
+
+        def _mes_desde_numero(numero: str):
+            """Extrae (mes, anio) del número de contrato: '280 DEL 01 DE JULIO DE 2026'."""
+            if not numero:
+                return None
+            up = numero.upper()
+            for mes, idx in MESES_REV.items():
+                pos = up.find(mes)
+                if pos >= 0:
+                    m = _re.search(r"(\d{4})", up[pos:])
+                    if m:
+                        return (idx, int(m.group(1)))
+            return None
 
         async with _asf() as db:
-            # Meses distintos presentes en contratos
+            # 1) Crear periodos desde fecha_inicio de contratos
             res = await db.execute(text(
                 "SELECT DISTINCT DATE_TRUNC('month', fecha_inicio) AS mes "
                 "FROM contratos WHERE fecha_inicio IS NOT NULL ORDER BY mes"
             ))
             meses = [row[0] for row in res.all()]
 
-            # Crear periodo por mes si no existe
-            for mes in meses:
-                mes_date = mes.date() if hasattr(mes, "date") else mes
+            async def _crear_periodo(mes_date):
                 nombre = f"{MESES_ES[mes_date.month - 1]} {mes_date.year}"
                 existe = await db.execute(
                     text("SELECT id FROM periodos_evaluacion WHERE fecha = :f"),
                     {"f": mes_date},
                 )
-                if not existe.scalar_one_or_none():
+                pid = existe.scalar_one_or_none()
+                if not pid:
                     await db.execute(
                         text("INSERT INTO periodos_evaluacion (fecha, nombre, activo) VALUES (:f, :n, FALSE)"),
                         {"f": mes_date, "n": nombre},
                     )
+                    pid = (await db.execute(
+                        text("SELECT id FROM periodos_evaluacion WHERE fecha = :f"),
+                        {"f": mes_date},
+                    )).scalar_one()
+                return pid
 
-            # Asignar actividades existentes sin periodo (por mes del contrato)
-            await db.execute(text("""
-                UPDATE actividades_contrato ac SET periodo_id = p.id
-                FROM contratos c, periodos_evaluacion p
-                WHERE ac.contrato_id = c.numero_contrato
-                  AND c.fecha_inicio IS NOT NULL
-                  AND DATE_TRUNC('month', c.fecha_inicio) = p.fecha
-                  AND ac.periodo_id IS NULL
+            for mes in meses:
+                mes_date = mes.date() if hasattr(mes, "date") else mes
+                await _crear_periodo(mes_date)
+
+            # 2) Resolver periodo por contrato y asignar a actividades/documentos sin periodo.
+            #    Fuentes de mes, en orden: fecha_inicio → fecha_contrato → texto del número → created_at.
+            contratos_res = await db.execute(text(
+                "SELECT numero_contrato, fecha_inicio, fecha_contrato, created_at FROM contratos"
+            ))
+            for row in contratos_res.all():
+                num, f_ini, f_cont, created = row
+                mes_date = None
+                if f_ini:
+                    mes_date = f_ini.replace(day=1) if hasattr(f_ini, "replace") else f_ini
+                elif f_cont:
+                    mes_date = f_cont.replace(day=1) if hasattr(f_cont, "replace") else f_cont
+                else:
+                    parsed = _mes_desde_numero(num)
+                    if parsed:
+                        mes_date = _date(parsed[1], parsed[0], 1)
+                    elif created:
+                        cd = created.date() if hasattr(created, "date") else created
+                        mes_date = cd.replace(day=1)
+                if not mes_date:
+                    continue
+                pid = await _crear_periodo(mes_date)
+                await db.execute(text(
+                    "UPDATE actividades_contrato SET periodo_id = :p "
+                    "WHERE contrato_id = :n AND periodo_id IS NULL"
+                ), {"p": pid, "n": num})
+                await db.execute(text(
+                    "UPDATE documentos_contratista SET periodo_id = :p "
+                    "WHERE contrato_numero = :n AND periodo_id IS NULL"
+                ), {"p": pid, "n": num})
+
+            # 3) Periodo activo: el más reciente con evidencias reales; si no, el más reciente.
+            activo_res = await db.execute(text("""
+                SELECT p.id FROM periodos_evaluacion p
+                JOIN actividades_contrato ac ON ac.periodo_id = p.id
+                JOIN evidencias e ON e.actividad_contrato_id = ac.id
+                GROUP BY p.id, p.fecha ORDER BY p.fecha DESC LIMIT 1
             """))
-            # Asignar documentos existentes sin periodo
-            await db.execute(text("""
-                UPDATE documentos_contratista dc SET periodo_id = p.id
-                FROM contratos c, periodos_evaluacion p
-                WHERE dc.contrato_numero = c.numero_contrato
-                  AND c.fecha_inicio IS NOT NULL
-                  AND DATE_TRUNC('month', c.fecha_inicio) = p.fecha
-                  AND dc.periodo_id IS NULL
-            """))
-            # Marcar activo el periodo más reciente (si ninguno está activo)
-            hay_activo = await db.execute(
-                text("SELECT id FROM periodos_evaluacion WHERE activo = TRUE LIMIT 1")
-            )
-            if not hay_activo.scalar_one_or_none():
-                await db.execute(text("""
-                    UPDATE periodos_evaluacion SET activo = TRUE
-                    WHERE id = (SELECT id FROM periodos_evaluacion ORDER BY fecha DESC LIMIT 1)
-                """))
+            activo_id = activo_res.scalar_one_or_none()
+            if not activo_id:
+                activo_res = await db.execute(text(
+                    "SELECT id FROM periodos_evaluacion ORDER BY fecha DESC LIMIT 1"
+                ))
+                activo_id = activo_res.scalar_one_or_none()
+            if activo_id:
+                await db.execute(text("UPDATE periodos_evaluacion SET activo = FALSE"))
+                await db.execute(text(
+                    "UPDATE periodos_evaluacion SET activo = TRUE WHERE id = :id"
+                ), {"id": activo_id})
+
+            # 4) Seguridad: lo que no se pudo resolver queda en el periodo activo (no se pierde)
+            await db.execute(text(
+                "UPDATE actividades_contrato SET periodo_id = :p WHERE periodo_id IS NULL"
+            ), {"p": activo_id})
+            await db.execute(text(
+                "UPDATE documentos_contratista SET periodo_id = :p WHERE periodo_id IS NULL"
+            ), {"p": activo_id})
+
             await db.commit()
-            logger.info("Migración OK: backfill de periodos de evaluación")
+            logger.info("Migración OK: backfill de periodos de evaluación (con número de contrato)")
     except Exception as e:
         logger.warning(f"Migración periodos_evaluacion (backfill): {e}")
 
