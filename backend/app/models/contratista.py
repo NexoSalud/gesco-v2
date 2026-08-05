@@ -18,6 +18,10 @@ class Contratista(Base):
     telefono: Mapped[str | None] = mapped_column(String(30))
     direccion: Mapped[str | None] = mapped_column(String(300))
     correo: Mapped[str | None] = mapped_column(String(200))
+    # Datos bancarios (para cuenta de cobro)
+    banco: Mapped[str | None] = mapped_column(String(100))
+    tipo_cuenta: Mapped[str | None] = mapped_column(String(50), comment="AHORROS | CORRIENTE")
+    numero_cuenta: Mapped[str | None] = mapped_column(String(50))
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
 
     # Relationships

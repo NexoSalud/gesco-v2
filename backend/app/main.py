@@ -64,6 +64,21 @@ async def lifespan(app: FastAPI):
             logger.info("Resolución más reciente marcada como activa")
     except Exception:
         logger.info("Columna 'activa' ya existe o resoluciones no tiene registros, saltando migración")
+    # Migración: datos bancarios del contratista (para cuenta de cobro)
+    try:
+        async with engine.begin() as conn:
+            for col, coltype in [
+                ("banco", "VARCHAR(100)"),
+                ("tipo_cuenta", "VARCHAR(50)"),
+                ("numero_cuenta", "VARCHAR(50)"),
+            ]:
+                try:
+                    await conn.execute(text(f"ALTER TABLE contratistas ADD COLUMN IF NOT EXISTS {col} {coltype}"))
+                    logger.info(f"Migración OK: columna '{col}' agregada a contratistas")
+                except Exception as e:
+                    logger.warning(f"Columna '{col}' en contratistas: {e}")
+    except Exception as e:
+        logger.warning(f"Migración datos bancarios contratistas: {e}")
     # Migración: crear tabla plantillas_objeto (create_all no la creó automáticamente)
     try:
         async with engine.begin() as conn:

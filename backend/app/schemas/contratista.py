@@ -12,6 +12,9 @@ class ContratistaBase(BaseModel):
     telefono: str | None = None
     direccion: str | None = None
     correo: str | None = None
+    banco: str | None = None
+    tipo_cuenta: str | None = None
+    numero_cuenta: str | None = None
 
 
 class ContratistaCreate(ContratistaBase):
@@ -34,3 +37,6 @@ class ContratistaUpdate(BaseModel):
     telefono: str | None = None
     direccion: str | None = None
     correo: str | None = None
+    banco: str | None = None
+    tipo_cuenta: str | None = None
+    numero_cuenta: str | None = None

@@ -229,6 +229,22 @@ export default function InventarioPage() {
     resolucion_id: "",
   })
 
+  // Autocomplete predictor para seleccionar artículo del catálogo
+  const [unidadArticuloQuery, setUnidadArticuloQuery] = useState("")
+  const [unidadArticuloOpen, setUnidadArticuloOpen] = useState(false)
+
+  const articulosConSerial = articulos.filter((a) => a.requiere_serial)
+  const unidadArticuloSeleccionado = articulosConSerial.find(
+    (a) => a.id === Number(newUnidad.articulo_id)
+  )
+  const unidadArticuloFiltrados = articulosConSerial.filter((a) => {
+    const q = unidadArticuloQuery.toLowerCase().trim()
+    if (!q) return true
+    return [a.elemento, a.categoria, a.marca, a.modelo]
+      .filter(Boolean)
+      .some((v) => v!.toLowerCase().includes(q))
+  })
+
   // File Uploads
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [selectedAlmacenUpload, setSelectedAlmacenUpload] = useState("")
@@ -549,6 +565,8 @@ export default function InventarioPage() {
         observaciones: "",
         resolucion_id: "",
       })
+      setUnidadArticuloQuery("")
+      setUnidadArticuloOpen(false)
       fetchData()
     } catch (e: any) {
       toast.error(e.message)
@@ -3525,23 +3543,56 @@ export default function InventarioPage() {
           <form onSubmit={handleCreateUnidad} className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <h3 className="font-bold text-lg text-gray-900 border-b pb-2">Registrar Unidad Física (S/N)</h3>
             <div className="space-y-3 text-xs">
-              <div className="space-y-1">
+              <div className="space-y-1 relative">
                 <label className="font-semibold text-gray-600">Seleccionar Artículo del Catálogo *</label>
-                <select
-                  required
-                  value={newUnidad.articulo_id}
-                  onChange={(e) => setNewUnidad({ ...newUnidad, articulo_id: e.target.value })}
-                  className="px-3 py-2 border rounded-lg w-full focus:outline-none"
-                >
-                  <option value="">-- Seleccionar Elemento --</option>
-                  {articulos
-                    .filter((a) => a.requiere_serial)
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.elemento} ({a.categoria})
-                      </option>
-                    ))}
-                </select>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="Escribe para buscar (elemento, categoría, marca, modelo)..."
+                    value={unidadArticuloQuery}
+                    onChange={(e) => {
+                      setUnidadArticuloQuery(e.target.value)
+                      setUnidadArticuloOpen(true)
+                      // Si el texto cambia, limpiar selección previa
+                      if (newUnidad.articulo_id && unidadArticuloSeleccionado) {
+                        const selLabel = `${unidadArticuloSeleccionado.elemento} (${unidadArticuloSeleccionado.categoria})${unidadArticuloSeleccionado.marca ? ` — ${unidadArticuloSeleccionado.marca}` : ""}${unidadArticuloSeleccionado.modelo ? ` ${unidadArticuloSeleccionado.modelo}` : ""}`
+                        if (e.target.value !== selLabel) setNewUnidad({ ...newUnidad, articulo_id: "" })
+                      }
+                    }}
+                    onFocus={() => setUnidadArticuloOpen(true)}
+                    onBlur={() => setTimeout(() => setUnidadArticuloOpen(false), 150)}
+                    className="px-9 py-2 border rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                {unidadArticuloOpen && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                    {unidadArticuloFiltrados.length === 0 ? (
+                      <p className="px-3 py-2 text-xs text-gray-400">Sin resultados para "{unidadArticuloQuery}"</p>
+                    ) : (
+                      unidadArticuloFiltrados.map((a) => {
+                        const label = `${a.elemento} (${a.categoria})${a.marca ? ` — ${a.marca}` : ""}${a.modelo ? ` ${a.modelo}` : ""}`
+                        return (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault()
+                              setNewUnidad({ ...newUnidad, articulo_id: String(a.id) })
+                              setUnidadArticuloQuery(label)
+                              setUnidadArticuloOpen(false)
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-emerald-50 flex items-start gap-2 transition-colors"
+                          >
+                            <Package className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                            <span className="text-xs text-gray-800">{label}</span>
+                          </button>
+                        )
+                      })
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">

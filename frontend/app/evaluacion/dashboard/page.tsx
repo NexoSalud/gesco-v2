@@ -720,6 +720,7 @@ function EvaluacionDashboard() {
                 contrato={contrato}
                 documentos={documentos}
                 cedula={cedula}
+                periodoId={periodoSeleccionado}
                 loadingDocs={loadingDocs}
                 getDocumentoEstado={getDocumentoEstado}
                 onSubirDocumento={(contratoNumero, tipoDocumento) => {
@@ -1394,12 +1395,13 @@ function EvaluacionDashboard() {
 // ─── Documentos Contractuales Card Component ───────────────────────────────
 
 function DocumentosContratoCard({
-  contrato, documentos, cedula, loadingDocs,
+  contrato, documentos, cedula, periodoId, loadingDocs,
   getDocumentoEstado, onSubirDocumento, onRefresh,
 }: {
   contrato: ContratoEvaluacion
   documentos: DocumentoContratista[]
   cedula: string
+  periodoId?: number | null
   loadingDocs: boolean
   getDocumentoEstado: (contratoNumero: string, tipoDocumento: string) => DocumentoContratista | null
   onSubirDocumento: (contratoNumero: string, tipoDocumento: string) => void
@@ -1457,6 +1459,7 @@ function DocumentosContratoCard({
                   documento={doc}
                   contratoNumero={contrato.numero_contrato}
                   cedula={cedula}
+                  periodoId={periodoId}
                   onSubir={() => onSubirDocumento(contrato.numero_contrato, tipo.valor)}
                   onRefresh={onRefresh}
                 />
@@ -1473,16 +1476,44 @@ function DocumentosContratoCard({
 // ─── Documento Row Component ─────────────────────────────────────────────────
 
 function DocumentoRow({
-  tipo, documento, contratoNumero, cedula, onSubir, onRefresh,
+  tipo, documento, contratoNumero, cedula, periodoId, onSubir, onRefresh,
 }: {
   tipo: { valor: string; etiqueta: string; icono: string }
   documento: DocumentoContratista | null
   contratoNumero: string
   cedula: string
+  periodoId?: number | null
   onSubir: () => void
   onRefresh: () => void
 }) {
   const [deleting, setDeleting] = useState(false)
+  const [generando, setGenerando] = useState(false)
+
+  const handleGenerarCuentaCobro = async () => {
+    setGenerando(true)
+    try {
+      const q = new URLSearchParams({ cedula, contrato_numero: contratoNumero })
+      if (periodoId) q.set("periodo_id", String(periodoId))
+      const res = await fetch(`${API}/api/v1/documentos/cuenta-cobro/generar?${q}`)
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text.slice(0, 300))
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `cuenta_de_cobro_${contratoNumero.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      onRefresh()
+    } catch (e: any) {
+      alert("No se pudo generar la cuenta de cobro: " + (e.message || "Error"))
+    }
+    setGenerando(false)
+  }
 
   const handleDelete = async () => {
     if (!documento) return
@@ -1581,13 +1612,26 @@ function DocumentoRow({
             </button>
           </>
         ) : (
-          <button
-            onClick={onSubir}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            Subir
-          </button>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {tipo.valor === "CUENTA_COBRO" && (
+              <button
+                onClick={handleGenerarCuentaCobro}
+                disabled={generando}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors border border-blue-200 disabled:opacity-50"
+                title="Genera la cuenta de cobro con los datos de tu contrato"
+              >
+                {generando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+                Generar cuenta de cobro
+              </button>
+            )}
+            <button
+              onClick={onSubir}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Subir
+            </button>
+          </div>
         )}
       </div>
     </div>

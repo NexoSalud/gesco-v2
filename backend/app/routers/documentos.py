@@ -17,6 +17,7 @@ import uuid
 import tempfile
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
+from fastapi.responses import Response
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -34,6 +35,8 @@ from app.schemas.documento_contratista import (
 )
 from app.routers.auth import get_current_user
 from app.models.auth import Usuario
+from app.models.periodo_evaluacion import PeriodoEvaluacion
+from app.services.cuenta_cobro import generar_cuenta_cobro_pdf
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +85,144 @@ def _validar_pdf(contenido: bytes) -> None:
 
 
 # ─── PÚBLICO: Rutas sin autenticación (solo validación por cédula) ──────────
+
+@router.get("/cuenta-cobro/generar")
+async def generar_cuenta_cobro(
+    cedula: str = Query(..., min_length=1),
+    contrato_numero: str = Query(...),
+    periodo_id: int | None = Query(None),
+    valor: float | None = Query(None, description="Valor a cobrar (opcional; si no viene, se calcula)"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Genera la cuenta de cobro en PDF con los datos contractuales del contratista
+    y la guarda como documento (CUENTA_COBRO) del periodo, si aún no existe.
+    Devuelve el PDF generado.
+    """
+    # Validar contratista por cédula
+    result = await db.execute(
+        select(Contratista).where(Contratista.identificacion == cedula)
+    )
+    contratista = result.scalar_one_or_none()
+    if not contratista:
+        raise HTTPException(404, "Contratista no encontrado con esa cédula")
+
+    # Validar contrato
+    result = await db.execute(
+        select(Contrato).where(
+            Contrato.numero_contrato == contrato_numero,
+            Contrato.contratista_id == contratista.id,
+        )
+    )
+    contrato = result.scalar_one_or_none()
+    if not contrato:
+        raise HTTPException(404, "Contrato no encontrado o no pertenece al contratista")
+
+    # Resolver periodo
+    periodo = None
+    if periodo_id:
+        p_res = await db.execute(
+            select(PeriodoEvaluacion).where(PeriodoEvaluacion.id == periodo_id)
+        )
+        periodo = p_res.scalar_one_or_none()
+
+    # Nombre del periodo (mes) para el título de la cuenta
+    if periodo:
+        periodo_nombre = periodo.nombre
+    else:
+        from datetime import date as _date
+        from app.routers.evaluacion import MESES_ES as _MESES
+        mes = contrato.fecha_inicio.month if contrato.fecha_inicio else _date.today().month
+        anio = contrato.fecha_inicio.year if contrato.fecha_inicio else _date.today().year
+        periodo_nombre = f"{_MESES[mes - 1]} {anio}"
+
+    # Calcular valor: parámetro o monto_total / cuotas / meses
+    if valor is not None and valor > 0:
+        valor_cobro = valor
+    elif contrato.cuotas_total and contrato.cuotas_total > 0:
+        valor_cobro = round(contrato.monto_total / contrato.cuotas_total, 2)
+    else:
+        # Default: 6 meses (jul-dic) para contratos EBS
+        valor_cobro = round(contrato.monto_total / 6, 2)
+
+    # Número de la cuenta de cobro (conteo de CUENTA_COBRO existentes + 1)
+    count_res = await db.execute(
+        select(func.count(DocumentoContratista.id)).where(
+            DocumentoContratista.contratista_id == contratista.id,
+            DocumentoContratista.contrato_numero == contrato_numero,
+            DocumentoContratista.tipo_documento == "CUENTA_COBRO",
+        )
+    )
+    numero_cuenta_cobro = f"{(count_res.scalar() or 0) + 1:02d}"
+
+    # Generar PDF
+    pdf_bytes = generar_cuenta_cobro_pdf(
+        contratista_nombre=contratista.nombre,
+        contratista_cedula=contratista.identificacion,
+        expedida_en=contratista.expedida_en,
+        banco=contratista.banco,
+        tipo_cuenta=contratista.tipo_cuenta,
+        numero_cuenta=contratista.numero_cuenta,
+        numero_contrato=contrato.numero_contrato,
+        objeto=contrato.objeto or "",
+        valor=valor_cobro,
+        periodo_nombre=periodo_nombre,
+        numero=numero_cuenta_cobro,
+    )
+
+    # Guardar como documento si no existe uno ya para ese contrato+periodo
+    existing = await db.execute(
+        select(DocumentoContratista).where(
+            DocumentoContratista.contratista_id == contratista.id,
+            DocumentoContratista.contrato_numero == contrato_numero,
+            DocumentoContratista.tipo_documento == "CUENTA_COBRO",
+        )
+    )
+    if periodo_id:
+        existing = await db.execute(
+            select(DocumentoContratista).where(
+                DocumentoContratista.contratista_id == contratista.id,
+                DocumentoContratista.contrato_numero == contrato_numero,
+                DocumentoContratista.tipo_documento == "CUENTA_COBRO",
+                DocumentoContratista.periodo_id == periodo_id,
+            )
+        )
+
+    doc_existente = existing.scalar_one_or_none()
+    if doc_existente:
+        # Re-generar archivo y mantener estado
+        safe_name = os.path.basename(doc_existente.archivo_ruta)
+        file_path = os.path.join(DOCS_DIR, safe_name)
+        with open(file_path, "wb") as f:
+            f.write(pdf_bytes)
+        doc_existente.estado = "PENDIENTE"
+        await db.commit()
+    else:
+        safe_name = f"{uuid.uuid4()}.pdf"
+        file_path = os.path.join(DOCS_DIR, safe_name)
+        with open(file_path, "wb") as f:
+            f.write(pdf_bytes)
+        doc = DocumentoContratista(
+            contratista_id=contratista.id,
+            contrato_numero=contrato_numero,
+            tipo_documento="CUENTA_COBRO",
+            periodo_id=periodo_id,
+            archivo_ruta=f"/uploads/documentos/{safe_name}",
+            archivo_nombre=f"cuenta_de_cobro_{numero_cuenta_cobro}_{periodo_nombre.replace(' ', '_')}.pdf",
+            archivo_tamano=len(pdf_bytes),
+            estado="PENDIENTE",
+        )
+        db.add(doc)
+        await db.commit()
+        logger.info(f"Cuenta de cobro generada: {contrato_numero} — contratista {contratista.id}, periodo {periodo_nombre}")
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=cuenta_de_cobro_{numero_cuenta_cobro}_{periodo_nombre.replace(' ', '_')}.pdf"
+        },
+    )
+
 
 @router.post("/subir", response_model=DocumentoContratistaOut, status_code=201)
 async def subir_documento(
