@@ -354,31 +354,70 @@ export default function EvaluacionDashboardPage() {
     xhr.send()
   }
 
-  // ─── Count pendings per contratista ───────────────────────────────
-  const countPendings = (dashboardData: any, docs: DocumentoContratista[]) => {
-    let evPendientes = 0
-    let docPendientes = 0
-    for (const c of (dashboardData?.contratos || [])) {
-      for (const act of (c.actividades || [])) {
-        for (const ev of (act.evidencias || [])) {
-          if (ev.estado === "PENDIENTE") evPendientes++
-        }
-      }
+  // ─── Estado de una actividad según sus evidencias ─────────────────
+  // Prioridad: corrección pendiente > rechazada > aprobada > sin evidencia.
+  // Una actividad rechazada NUNCA se muestra aprobada: queda RECHAZADO
+  // hasta que el contratista suba corrección (→ PENDIENTE) y se apruebe (→ APROBADO).
+  const getActividadEstado = (evs: Evidencia[]): string => {
+    const pendientes = evs.filter(e => e.estado === "PENDIENTE")
+    if (pendientes.length > 0) return "PENDIENTE"
+    const rechazadas = evs.filter(e => e.estado === "RECHAZADO")
+    if (rechazadas.length > 0) return "RECHAZADO"
+    const aprobadas = evs.filter(e => e.estado === "APROBADO")
+    if (aprobadas.length > 0) return "APROBADO"
+    return "SIN_EVIDENCIA"
+  }
+
+  // ─── Resumen a nivel de ACTIVIDADES (no de evidencias) ────────────
+  const calcularResumen = (dashboardData: any) => {
+    const actividades = dashboardData?.contratos?.length
+      ? dashboardData.contratos.flatMap((c: any) => c.actividades || [])
+      : (dashboardData?.actividades || [])
+    let total = 0, aprobadas = 0, rechazadas = 0, pendientes = 0
+    for (const act of actividades) {
+      total++
+      const st = getActividadEstado(act.evidencias || [])
+      if (st === "APROBADO") aprobadas++
+      else if (st === "RECHAZADO") rechazadas++
+      else pendientes++ // PENDIENTE o SIN_EVIDENCIA
     }
-    for (const d of docs) {
-      if (d.estado === "PENDIENTE") docPendientes++
-    }
-    return { evPendientes, docPendientes }
+    const pct = total > 0 ? Math.round((aprobadas / total) * 1000) / 10 : 0
+    return { total, aprobadas, rechazadas, pendientes, pct }
   }
 
   // ─── Render ───────────────────────────────────────────────────────
 
   // ── CONTRATISTA SELECTED VIEW ──
   if (selectedContratista) {
-    const pendings = countPendings(dashboard, documentos)
-    const docsAprobados = documentos.filter(d => d.estado === "APROBADO").length
-    const docsPendientes = documentos.filter(d => d.estado === "PENDIENTE").length
+    const resumenAct = calcularResumen(dashboard)
     const isApoyo = selectedContratista.tipo === "APOYO"
+
+    // ── Documentos esperados por contrato (incluye pendientes por subir) ──
+    const expectedDocs: {
+      tipo: { valor: string; etiqueta: string; icono: string }
+      contratoNumero: string
+      doc: DocumentoContratista | null
+    }[] = []
+    if (!isApoyo && dashboard?.contratos) {
+      for (const c of dashboard.contratos) {
+        for (const tipo of TIPOS_DOCUMENTO) {
+          const doc = documentos.find(
+            d => d.contrato_numero === c.numero_contrato && d.tipo_documento === tipo.valor
+          ) || null
+          expectedDocs.push({ tipo, contratoNumero: c.numero_contrato, doc })
+        }
+      }
+      // Documentos subidos de contratos no activos (no perderlos)
+      for (const d of documentos) {
+        if (!expectedDocs.some(x => x.doc?.id === d.id)) {
+          const tipo = TIPOS_DOCUMENTO.find(t => t.valor === d.tipo_documento)
+            || { valor: d.tipo_documento, etiqueta: d.tipo_documento, icono: "📄" }
+          expectedDocs.push({ tipo, contratoNumero: d.contrato_numero, doc: d })
+        }
+      }
+    }
+    const docsAprobados = expectedDocs.filter(x => x.doc?.estado === "APROBADO").length
+    const docsPendientes = expectedDocs.filter(x => !x.doc || x.doc.estado === "PENDIENTE").length
 
     return (
       <div className="space-y-5 max-w-full overflow-x-hidden pb-8">
@@ -427,16 +466,16 @@ export default function EvaluacionDashboardPage() {
         </div>
 
         {/* KPIs — scrollable horizontal en mobile, grid en desktop */}
-        {resumen && (
+        {dashboard && (
           <>
             {/* Mobile: horizontal scroll */}
             <div className="flex sm:hidden gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory">
               {[
-                { label: "Actividades", value: resumen.total_actividades, color: "bg-gray-100 text-gray-700" },
-                { label: "Aprobadas", value: resumen.aprobadas, color: "bg-emerald-50 text-emerald-700" },
-                { label: "Rechazadas", value: resumen.rechazadas, color: "bg-red-50 text-red-700" },
-                { label: "Pendientes Ev.", value: pendings.evPendientes, color: "bg-yellow-50 text-yellow-700" },
-                { label: "Cumplimiento", value: `${resumen.porcentaje_cumplimiento}%`, color: "bg-blue-50 text-blue-700" },
+                { label: "Actividades", value: resumenAct.total, color: "bg-gray-100 text-gray-700" },
+                { label: "Aprobadas", value: resumenAct.aprobadas, color: "bg-emerald-50 text-emerald-700" },
+                { label: "Rechazadas", value: resumenAct.rechazadas, color: "bg-red-50 text-red-700" },
+                { label: "Pendientes", value: resumenAct.pendientes, color: resumenAct.pendientes > 0 ? "bg-yellow-50 text-yellow-700" : "bg-gray-100 text-gray-700" },
+                { label: "Cumplimiento", value: `${resumenAct.pct}%`, color: "bg-blue-50 text-blue-700" },
                 ...(isApoyo ? [] : [
                   { label: "Docs Pend.", value: docsPendientes, color: docsPendientes > 0 ? "bg-yellow-50 text-yellow-700" : "bg-gray-100 text-gray-700" },
                   { label: "Docs Aprob.", value: docsAprobados, color: "bg-emerald-50 text-emerald-700" },
@@ -451,11 +490,11 @@ export default function EvaluacionDashboardPage() {
             {/* Desktop: grid */}
             <div className="hidden sm:grid sm:grid-cols-4 md:grid-cols-7 gap-2">
               {[
-                { label: "Actividades", value: resumen.total_actividades, color: "bg-gray-100 text-gray-700" },
-                { label: "Aprobadas", value: resumen.aprobadas, color: "bg-emerald-50 text-emerald-700" },
-                { label: "Rechazadas", value: resumen.rechazadas, color: "bg-red-50 text-red-700" },
-                { label: "Pendientes", value: pendings.evPendientes, color: "bg-yellow-50 text-yellow-700" },
-                { label: "Cumplimiento", value: `${resumen.porcentaje_cumplimiento}%`, color: "bg-blue-50 text-blue-700" },
+                { label: "Actividades", value: resumenAct.total, color: "bg-gray-100 text-gray-700" },
+                { label: "Aprobadas", value: resumenAct.aprobadas, color: "bg-emerald-50 text-emerald-700" },
+                { label: "Rechazadas", value: resumenAct.rechazadas, color: "bg-red-50 text-red-700" },
+                { label: "Pendientes", value: resumenAct.pendientes, color: resumenAct.pendientes > 0 ? "bg-yellow-50 text-yellow-700" : "bg-gray-100 text-gray-700" },
+                { label: "Cumplimiento", value: `${resumenAct.pct}%`, color: "bg-blue-50 text-blue-700" },
                 ...(isApoyo ? [] : [
                   { label: "Docs Pend.", value: docsPendientes, color: docsPendientes > 0 ? "bg-yellow-50 text-yellow-700" : "bg-gray-100 text-gray-700" },
                   { label: "Docs Aprob.", value: docsAprobados, color: "bg-emerald-50 text-emerald-700" },
@@ -508,10 +547,7 @@ export default function EvaluacionDashboardPage() {
                         const contratoPerfil = act.contrato?.perfil
                           const isExpanded = expandedActividades.has(act.id)
                           const evs = act.evidencias || []
-                          const aprobadas = evs.filter((e: Evidencia) => e.estado === "APROBADO")
-                          const pendientes = evs.filter((e: Evidencia) => e.estado === "PENDIENTE")
-                          const rechazadas = evs.filter((e: Evidencia) => e.estado === "RECHAZADO")
-                          const actEstado = aprobadas.length > 0 ? "APROBADO" : pendientes.length > 0 ? "PENDIENTE" : rechazadas.length > 0 ? "RECHAZADO" : "SIN_EVIDENCIA"
+                          const actEstado = getActividadEstado(evs)
 
                           return (
                             <div key={act.id}>
@@ -625,77 +661,87 @@ export default function EvaluacionDashboardPage() {
               <h2 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-emerald-600" />
                 Documentos Contractuales
-                {documentos.length > 0 && (
-                  <span className="text-xs font-normal text-gray-400">({documentos.length})</span>
+                {expectedDocs.length > 0 && (
+                  <span className="text-xs font-normal text-gray-400">({expectedDocs.length})</span>
                 )}
               </h2>
-              {documentos.length === 0 ? (
+              {expectedDocs.length === 0 ? (
                 <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
                   <p className="text-gray-500">No hay documentos contractuales para este contratista.</p>
                 </div>
               ) : (
                 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                   <div className="divide-y divide-gray-100">
-                    {documentos.map((doc) => {
-                      const isExpanded = expandedDocumento === doc.id
-                      const tipoInfo = TIPOS_DOCUMENTO.find((t) => t.valor === doc.tipo_documento)
+                    {expectedDocs.map((item) => {
+                      const doc = item.doc
+                      const isExpanded = doc ? expandedDocumento === doc.id : false
                       return (
-                        <div key={doc.id}>
+                        <div key={doc ? doc.id : `${item.contratoNumero}-${item.tipo.valor}`}>
                           <div className="flex items-start gap-2 p-2 sm:p-3 hover:bg-gray-50 transition-colors">
-                            <div className="flex-shrink-0 text-base sm:text-lg mt-0.5">{TIPO_DOC_ICON[doc.tipo_documento] || "📄"}</div>
+                            <div className="flex-shrink-0 text-base sm:text-lg mt-0.5">{TIPO_DOC_ICON[item.tipo.valor] || "📄"}</div>
                             <div className="flex-1 min-w-0 overflow-hidden">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-medium text-xs sm:text-sm text-gray-800 break-words">{tipoInfo?.etiqueta || doc.tipo_documento}</span>
-                                {ESTADO_BADGE(doc.estado)}
+                                <span className="font-medium text-xs sm:text-sm text-gray-800 break-words">{item.tipo.etiqueta}</span>
+                                {doc ? ESTADO_BADGE(doc.estado) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700"><Clock className="w-3 h-3" />Pendiente por subir</span>
+                                )}
                               </div>
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-[11px] text-gray-500">
-                                <span className="truncate max-w-[100px] sm:max-w-[200px] block">{doc.archivo_nombre}</span>
-                                <span className="hidden sm:inline">•</span>
-                                <span className="whitespace-nowrap">{new Date(doc.created_at).toLocaleDateString("es-CO")}</span>
-                                {doc.contrato_numero && <><span className="hidden sm:inline">•</span><span className="truncate max-w-[100px]">Contrato {doc.contrato_numero}</span></>}
-                              </div>
-                              {doc.observacion && (
-                                <p className="text-[11px] text-yellow-700 mt-1 italic break-words">Obs: {doc.observacion}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <a
-                                href={`${API}${doc.archivo_ruta}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                                title="Descargar"
-                              >
-                                <Download className="w-4 h-4 text-gray-500" />
-                              </a>
-                              {doc.estado === "PENDIENTE" ? (
-                                <button
-                                  onClick={() => {
-                                    setExpandedDocumento(isExpanded ? null : doc.id)
-                                    setEvaluatingId(doc.id)
-                                    setEvaluatingType("documento")
-                                    setObservacion("")
-                                  }}
-                                  className="px-3 py-1 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors whitespace-nowrap"
-                                >
-                                  Evaluar
-                                </button>
+                              {doc ? (
+                                <>
+                                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-[11px] text-gray-500">
+                                    <span className="truncate max-w-[100px] sm:max-w-[200px] block">{doc.archivo_nombre}</span>
+                                    <span className="hidden sm:inline">•</span>
+                                    <span className="whitespace-nowrap">{new Date(doc.created_at).toLocaleDateString("es-CO")}</span>
+                                    {doc.contrato_numero && <><span className="hidden sm:inline">•</span><span className="truncate max-w-[100px]">Contrato {doc.contrato_numero}</span></>}
+                                  </div>
+                                  {doc.observacion && (
+                                    <p className="text-[11px] text-yellow-700 mt-1 italic break-words">Obs: {doc.observacion}</p>
+                                  )}
+                                </>
                               ) : (
-                                <button
-                                  onClick={() => {
-                                    setExpandedDocumento(isExpanded ? null : doc.id)
-                                    setEvaluatingId(doc.id)
-                                    setEvaluatingType("documento")
-                                    setObservacion(doc.observacion || "")
-                                  }}
-                                  className="px-3 py-1 text-xs bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors whitespace-nowrap"
-                                >
-                                  Re-evaluar
-                                </button>
+                                <p className="text-[11px] text-gray-400 mt-0.5">Contrato {item.contratoNumero} — el contratista aún no ha subido este documento.</p>
                               )}
                             </div>
+                            {doc && (
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <a
+                                  href={`${API}${doc.archivo_ruta}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                                  title="Descargar"
+                                >
+                                  <Download className="w-4 h-4 text-gray-500" />
+                                </a>
+                                {doc.estado === "PENDIENTE" ? (
+                                  <button
+                                    onClick={() => {
+                                      setExpandedDocumento(isExpanded ? null : doc.id)
+                                      setEvaluatingId(doc.id)
+                                      setEvaluatingType("documento")
+                                      setObservacion("")
+                                    }}
+                                    className="px-3 py-1 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors whitespace-nowrap"
+                                  >
+                                    Evaluar
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setExpandedDocumento(isExpanded ? null : doc.id)
+                                      setEvaluatingId(doc.id)
+                                      setEvaluatingType("documento")
+                                      setObservacion(doc.observacion || "")
+                                    }}
+                                    className="px-3 py-1 text-xs bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors whitespace-nowrap"
+                                  >
+                                    Re-evaluar
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          {isExpanded && evaluatingId === doc.id && evaluatingType === "documento" && (
+                          {doc && isExpanded && evaluatingId === doc.id && evaluatingType === "documento" && (
                             <div className="px-4 sm:px-12 pb-3">
                               <InlineEvaluar
                                 onEvaluar={(estado) => handleEvaluarDocumento(doc.id, estado)}

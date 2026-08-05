@@ -1629,9 +1629,10 @@ function ContratoCard({
             </div>
           ) : (
             <div className="divide-y divide-gray-50">
-              {contrato.actividades.map((actividad) => (
+              {contrato.actividades.map((actividad, idx) => (
                 <ActividadRow
                   key={actividad.id}
+                  index={idx + 1}
                   actividad={actividad}
                   contratoId={contrato.numero_contrato}
                   expanded={expandedActividades.has(actividad.id)}
@@ -1656,11 +1657,12 @@ function ContratoCard({
 // ─── Activity Row Component ──────────────────────────────────────────────────
 
 function ActividadRow({
-  actividad, contratoId, expanded, onToggle,
+  index, actividad, contratoId, expanded, onToggle,
   onSubirArchivo, onSubirImagen, onSubirTexto,
   onEditarEvidencia, onEliminarEvidencia,
   getEstadoBadge, getTipoIcon,
 }: {
+  index: number
   actividad: ActividadConEvidencias
   contratoId: string
   expanded: boolean
@@ -1683,6 +1685,7 @@ function ActividadRow({
         <div className="flex-shrink-0">
           {expanded ? <ChevronDown className="w-3.5 h-3.5 text-gray-400" /> : <ChevronRight className="w-3.5 h-3.5 text-gray-400" />}
         </div>
+        <span className="text-xs sm:text-sm font-bold text-gray-400 w-5 sm:w-6 flex-shrink-0">#{index}</span>
         <div className="flex-1 min-w-0">
           <span className="text-sm font-medium text-gray-700" dangerouslySetInnerHTML={{ __html: actividad.descripcion }} />
           <span className="ml-2 text-xs text-gray-400">({actividad.tipo})</span>
