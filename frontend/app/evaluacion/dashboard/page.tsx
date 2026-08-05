@@ -10,8 +10,8 @@ import {
   Eye, HelpCircle, Lock, Download, Trash2, Info, X,
   ListChecks, Pencil,
 } from "lucide-react"
-import type { DashboardContratista, ContratoEvaluacion, ActividadConEvidencias, DocumentoContratista } from "@/lib/api"
-import { TIPOS_DOCUMENTO } from "@/lib/api"
+import type { DashboardContratista, ContratoEvaluacion, ActividadConEvidencias, DocumentoContratista, PeriodoEvaluacion } from "@/lib/api"
+import { TIPOS_DOCUMENTO, listarPeriodos } from "@/lib/api"
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
 
@@ -39,6 +39,21 @@ function EvaluacionDashboard() {
   const [tipo, setTipo] = useState<"contratista" | "apoyo" | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // ─── Periodos de evaluación (público) ─────────────────────────────
+  const [periodos, setPeriodos] = useState<PeriodoEvaluacion[]>([])
+  const [periodoSeleccionado, setPeriodoSeleccionado] = useState<number | null>(null)
+
+  // Cargar periodos disponibles (público) y seleccionar el activo
+  useEffect(() => {
+    listarPeriodos(true)
+      .then((p) => {
+        setPeriodos(p)
+        const activo = p.find((x) => x.activo)
+        setPeriodoSeleccionado(activo ? activo.id : (p[0]?.id ?? null))
+      })
+      .catch(() => {})
+  }, [])
 
   // Expanded contracts
   const [expandedContratos, setExpandedContratos] = useState<Set<string>>(new Set())
@@ -85,7 +100,7 @@ function EvaluacionDashboard() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ activo: boolean; evidenciaId: number } | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  // Cargar documentos de todos los contratos
+  // Cargar documentos de todos los contratos (del periodo seleccionado)
   const loadDocumentos = useCallback(async () => {
     if (!cedula || !data) return
     setLoadingDocs(true)
@@ -93,7 +108,7 @@ function EvaluacionDashboard() {
       const allDocs: DocumentoContratista[] = []
       for (const c of data.contratos) {
         const res = await fetch(
-          `${API}/api/v1/documentos/contrato/${encodeURIComponent(c.numero_contrato)}?cedula=${encodeURIComponent(cedula)}`
+          `${API}/api/v1/documentos/contrato/${encodeURIComponent(c.numero_contrato)}?cedula=${encodeURIComponent(cedula)}${periodoSeleccionado ? `&periodo_id=${periodoSeleccionado}` : ""}`
         )
         if (res.ok) {
           const docs = await res.json()
@@ -105,7 +120,7 @@ function EvaluacionDashboard() {
       // Silencioso
     }
     setLoadingDocs(false)
-  }, [cedula, data])
+  }, [cedula, data, periodoSeleccionado])
 
   // Cargar documentos cuando se carguen los datos
   useEffect(() => {
@@ -153,6 +168,7 @@ function EvaluacionDashboard() {
       formData.append("contratista_id", String(data!.contratista_id))
       formData.append("contrato_numero", docUploadModal.contratoNumero)
       formData.append("tipo_documento", docUploadModal.tipoDocumento)
+      if (periodoSeleccionado) formData.append("periodo_id", String(periodoSeleccionado))
       formData.append("archivo", docArchivo)
 
       const res = await fetch(`${API}/api/v1/documentos/subir`, {
@@ -231,7 +247,7 @@ function EvaluacionDashboard() {
     setLoading(true)
     setError(null)
     try {
-      let res = await fetch(`${API}/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(cedula)}`)
+      let res = await fetch(`${API}/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(cedula)}${periodoSeleccionado ? `&periodo_id=${periodoSeleccionado}` : ""}`)
       let esApoyo = false
 
       if (res.ok) {
@@ -279,7 +295,7 @@ function EvaluacionDashboard() {
       setError("Error de conexión.")
     }
     setLoading(false)
-  }, [cedula])
+  }, [cedula, periodoSeleccionado])
 
   useEffect(() => {
     loadData()
@@ -546,15 +562,33 @@ function EvaluacionDashboard() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
           <button onClick={() => router.push("/evaluacion")} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <img src="/logo_es.png" alt="ESE" className="w-9 h-9 object-contain rounded-lg bg-white p-1 border" />
-          <div className="flex-1">
+          <div className="flex-1 min-w-[140px]">
             <h1 className="text-base font-semibold text-gray-800">Evaluación de Cumplimiento</h1>
             <p className="text-xs text-gray-500">ESE Norte 3</p>
           </div>
+          {/* Selector de periodo (público) */}
+          {periodos.length > 0 && (
+            <select
+              value={periodoSeleccionado ?? ""}
+              onChange={(e) => {
+                const v = e.target.value ? Number(e.target.value) : null
+                setPeriodoSeleccionado(v)
+                setData(null)
+              }}
+              className="px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm bg-white min-w-[150px]"
+            >
+              {periodos.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre}{p.activo ? " (Actual)" : ""}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </header>
 

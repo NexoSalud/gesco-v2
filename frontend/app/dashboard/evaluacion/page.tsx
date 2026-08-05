@@ -7,6 +7,7 @@ import {
   AlertCircle, RefreshCw, X, Download, ChevronRight,
   ChevronDown, ChevronLeft, User, Phone, Mail, ShieldCheck,
   ExternalLink, Upload, HelpCircle, Lock, Info,
+  CalendarDays, Plus,
 } from "lucide-react"
 import {
   listarEvidencias, evaluarEvidencia, listarContratistasEvaluacion,
@@ -16,9 +17,10 @@ import {
   getResumenApoyo, evaluarEvidenciaApoyo,
   getApoyos,
   listarEvidenciasPendientes,
+  listarPeriodos, crearPeriodo,
   TIPOS_DOCUMENTO,
   type Evidencia, type ResumenCumplimiento, type DocumentoContratista,
-  type EvidenciaPendiente,
+  type EvidenciaPendiente, type PeriodoEvaluacion,
 } from "@/lib/api"
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
@@ -157,12 +159,70 @@ export default function EvaluacionDashboardPage() {
   const [evidenciasPendientes, setEvidenciasPendientes] = useState<EvidenciaPendiente[]>([])
   const [loadingPendientes, setLoadingPendientes] = useState(false)
 
+  // ─── Periodos de evaluación ───────────────────────────────────────
+  const [periodos, setPeriodos] = useState<PeriodoEvaluacion[]>([])
+  const [periodoSeleccionado, setPeriodoSeleccionado] = useState<number | null>(null)
+  const [loadingPeriodos, setLoadingPeriodos] = useState(true)
+  const [showCrearPeriodo, setShowCrearPeriodo] = useState(false)
+  const [fechaNuevoPeriodo, setFechaNuevoPeriodo] = useState("")
+  const [creandoPeriodo, setCreandoPeriodo] = useState(false)
+  const [errorPeriodo, setErrorPeriodo] = useState<string | null>(null)
+
+  // Paginación (Por Contratista)
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 12
+
+  // ─── Cargar periodos ──────────────────────────────────────────────
+  const loadPeriodos = useCallback(async () => {
+    setLoadingPeriodos(true)
+    try {
+      const data = await listarPeriodos()
+      setPeriodos(data)
+      // Seleccionar el activo si no hay uno seleccionado o el actual ya no existe
+      setPeriodoSeleccionado(prev => {
+        if (prev && data.some(p => p.id === prev)) return prev
+        const activo = data.find(p => p.activo)
+        return activo ? activo.id : (data[0]?.id ?? null)
+      })
+    } catch (e) {
+      console.error("Error cargando periodos:", e)
+    }
+    setLoadingPeriodos(false)
+  }, [])
+
+  useEffect(() => {
+    loadPeriodos()
+  }, [loadPeriodos])
+
+  // ─── Crear nuevo periodo ──────────────────────────────────────────
+  const handleCrearPeriodo = async () => {
+    if (!fechaNuevoPeriodo) {
+      setErrorPeriodo("Selecciona una fecha para el nuevo periodo.")
+      return
+    }
+    setCreandoPeriodo(true)
+    setErrorPeriodo(null)
+    try {
+      const nuevo = await crearPeriodo(fechaNuevoPeriodo)
+      setShowCrearPeriodo(false)
+      setFechaNuevoPeriodo("")
+      await loadPeriodos()
+      setPeriodoSeleccionado(nuevo.id)
+      // Recargar listas con el nuevo periodo
+      loadContratistas(search)
+      if (activeTab === "pendientes") loadEvidenciasPendientes()
+    } catch (e: any) {
+      setErrorPeriodo(e?.message || "Error al crear el periodo.")
+    }
+    setCreandoPeriodo(false)
+  }
+
   // ─── Load contratistas + apoyos ───────────────────────────────────
   const loadContratistas = useCallback(async (q?: string) => {
     setLoadingContratistas(true)
     try {
       const [contratistasResult, apoyosResult] = await Promise.allSettled([
-        listarContratistasEvaluacion(q || undefined),
+        listarContratistasEvaluacion(q || undefined, periodoSeleccionado || undefined),
         listarApoyosEvaluacion(q || undefined),
       ])
       const items: ContratistaListItem[] = []
@@ -174,33 +234,48 @@ export default function EvaluacionDashboardPage() {
       }
       items.sort((a, b) => a.nombre.localeCompare(b.nombre))
       setContratistas(items)
+      setPage(1)
     } catch (err) {
       console.error("Error cargando contratistas/apoyos:", err)
     }
     setLoadingContratistas(false)
-  }, [])
+  }, [periodoSeleccionado])
 
   useEffect(() => {
     loadContratistas()
   }, [loadContratistas])
 
-  // ─── Cargar evidencias pendientes (todas) ──────────────────────────
+  // ─── Cargar evidencias pendientes (por periodo) ────────────────────
   const loadEvidenciasPendientes = useCallback(async (q?: string) => {
     setLoadingPendientes(true)
     try {
-      const data = await listarEvidenciasPendientes(q)
+      const data = await listarEvidenciasPendientes(q, periodoSeleccionado || undefined)
       setEvidenciasPendientes(data)
     } catch (e) {
       console.error("Error cargando evidencias pendientes:", e)
     }
     setLoadingPendientes(false)
-  }, [])
+  }, [periodoSeleccionado])
 
   useEffect(() => {
     if (activeTab === "pendientes") {
       loadEvidenciasPendientes()
     }
   }, [activeTab, loadEvidenciasPendientes])
+
+  // ─── Agrupar pendientes por contratista ───────────────────────────
+  const pendientesPorContratista = useCallback((evs: EvidenciaPendiente[]) => {
+    const mapa = new Map<number, { contratista: EvidenciaPendiente; count: number }>()
+    for (const ev of evs) {
+      const existente = mapa.get(ev.contratista_id)
+      if (existente) {
+        existente.count++
+      } else {
+        mapa.set(ev.contratista_id, { contratista: ev, count: 1 })
+      }
+    }
+    return Array.from(mapa.values()).sort((a, b) => a.contratista.contratista_nombre.localeCompare(b.contratista.contratista_nombre))
+  }, [])
 
   // ─── Select contratista ───────────────────────────────────────────
   const selectContratista = useCallback(async (c: ContratistaListItem) => {
@@ -228,25 +303,25 @@ export default function EvaluacionDashboardPage() {
         setResumen(resumenRes)
         setDocumentos([])  // Apoyo no tiene documentos contractuales
       } else {
-        // Load Contratista data
+        // Load Contratista data — filtrado por periodo seleccionado
         const [dashRes, resumenRes] = await Promise.all([
-          fetch(`${API}/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(c.identificacion)}`),
-          getResumenContratista(c.id),
+          fetch(`${API}/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(c.identificacion)}${periodoSeleccionado ? `&periodo_id=${periodoSeleccionado}` : ""}`),
+          getResumenContratista(c.id, periodoSeleccionado || undefined),
         ])
         if (dashRes.ok) {
           setDashboard(await dashRes.json())
         }
         setResumen(resumenRes)
 
-        // Load documentos
-        const docsRes = await listarDocumentosAdmin({ contratista_id: c.id })
+        // Load documentos del periodo
+        const docsRes = await listarDocumentosAdmin({ contratista_id: c.id, periodo_id: periodoSeleccionado || undefined })
         setDocumentos(docsRes)
       }
     } catch (err) {
       console.error("Error cargando datos:", err)
     }
     setLoadingData(false)
-  }, [])
+  }, [periodoSeleccionado])
 
   // ─── Back to list ─────────────────────────────────────────────────
   const backToList = () => {
@@ -274,9 +349,9 @@ export default function EvaluacionDashboardPage() {
           setDashboard(await buscarApoyoEvaluacion(selectedContratista.identificacion))
           setResumen(await getResumenApoyo(selectedContratista.id))
         } else {
-          const dashRes = await fetch(`${API}/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(selectedContratista.identificacion)}`)
+          const dashRes = await fetch(`${API}/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(selectedContratista.identificacion)}${periodoSeleccionado ? `&periodo_id=${periodoSeleccionado}` : ""}`)
           if (dashRes.ok) setDashboard(await dashRes.json())
-          if (resumen) setResumen(await getResumenContratista(selectedContratista.id))
+          if (resumen) setResumen(await getResumenContratista(selectedContratista.id, periodoSeleccionado || undefined))
         }
       }
     } catch (err) {
@@ -294,7 +369,7 @@ export default function EvaluacionDashboardPage() {
       setEvaluatingId(null)
       setExpandedDocumento(null)
       if (selectedContratista) {
-        const docsRes = await listarDocumentosAdmin({ contratista_id: selectedContratista.id })
+        const docsRes = await listarDocumentosAdmin({ contratista_id: selectedContratista.id, periodo_id: periodoSeleccionado || undefined })
         setDocumentos(docsRes)
       }
     } catch (err) {
@@ -768,6 +843,10 @@ export default function EvaluacionDashboardPage() {
 
   // ── CONTRATISTA LIST VIEW ──
   const pendingsGlobal = contratistas.reduce((sum, c) => sum + (c.pendientes || 0), 0)
+  const totalPaginas = Math.max(1, Math.ceil(contratistas.length / PAGE_SIZE))
+  const paginaActual = Math.min(page, totalPaginas)
+  const contratistasPagina = contratistas.slice((paginaActual - 1) * PAGE_SIZE, paginaActual * PAGE_SIZE)
+  const gruposPendientes = pendientesPorContratista(evidenciasPendientes)
 
   return (
     <div className="space-y-5 max-w-full overflow-x-hidden">
@@ -775,12 +854,47 @@ export default function EvaluacionDashboardPage() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <h1 className="text-xl font-bold text-gray-800">Evaluación de Cumplimiento</h1>
-          <p className="text-sm text-gray-500 mt-1">Selecciona un contratista para revisar y evaluar</p>
+          <p className="text-sm text-gray-500 mt-1">Selecciona un periodo y un contratista para revisar y evaluar</p>
         </div>
-        <button onClick={() => { loadContratistas(search); if (activeTab === "pendientes") loadEvidenciasPendientes() }} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 flex-shrink-0">
-          <RefreshCw className="w-4 h-4" />
-          Actualizar
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+          {/* Selector de periodo */}
+          <div className="relative">
+            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <select
+              value={periodoSeleccionado ?? ""}
+              onChange={(e) => {
+                const v = e.target.value ? Number(e.target.value) : null
+                setPeriodoSeleccionado(v)
+                setPage(1)
+              }}
+              className="pl-9 pr-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm bg-white min-w-[150px]"
+              disabled={loadingPeriodos}
+            >
+              {loadingPeriodos ? (
+                <option value="">Cargando periodos...</option>
+              ) : periodos.length === 0 ? (
+                <option value="">Sin periodos</option>
+              ) : (
+                periodos.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre}{p.activo ? " (Activo)" : ""}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+          <button
+            onClick={() => { setShowCrearPeriodo(true); setErrorPeriodo(null); setFechaNuevoPeriodo("") }}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Crear periodo
+          </button>
+          <button onClick={() => { loadContratistas(search); if (activeTab === "pendientes") loadEvidenciasPendientes() }} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 flex-shrink-0">
+            <RefreshCw className="w-4 h-4" />
+            Actualizar
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -827,7 +941,7 @@ export default function EvaluacionDashboardPage() {
             />
           </div>
 
-          {/* List */}
+          {/* List — tabla con paginado (búsqueda server-side) */}
           {loadingContratistas ? (
             <div className="flex justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
@@ -835,41 +949,103 @@ export default function EvaluacionDashboardPage() {
           ) : contratistas.length === 0 ? (
             <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
               <User className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-              <p className="text-gray-500">No se encontraron contratistas con contratos activos.</p>
+              <p className="text-gray-500">No se encontraron contratistas con contratos activos en este periodo.</p>
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {contratistas.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => selectContratista(c)}
-                  className="bg-white rounded-xl border border-gray-200 p-4 text-left hover:border-emerald-300 hover:shadow-sm transition-all"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${c.tipo === "APOYO" ? "bg-purple-100" : "bg-emerald-100"}`}>
-                      <User className={`w-4 h-4 ${c.tipo === "APOYO" ? "text-purple-600" : "text-emerald-600"}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-800 text-sm truncate flex items-center gap-1.5">
-                        {c.nombre}
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 ${c.tipo === "APOYO" ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"}`}>{c.tipo === "APOYO" ? "APOYO" : "CONT"}</span>
-                      </p>
-                      <p className="text-xs text-gray-500 font-mono">{c.identificacion}</p>
-                      {(c as any).perfil && <p className="text-xs text-gray-400 truncate mt-0.5">{(c as any).perfil}</p>}
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${c.pendientes > 0 ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-500"}`}>
-                          <Clock className="w-3 h-3" />{c.pendientes} pend.
-                        </span>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                          <FileText className="w-3 h-3" />{c.total_evidencias} total
-                        </span>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0 mt-1" />
+            <>
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 font-medium">Contratista</th>
+                        <th className="px-4 py-3 font-medium">Identificación</th>
+                        <th className="px-4 py-3 font-medium">Perfil</th>
+                        <th className="px-4 py-3 font-medium text-center">Pendientes</th>
+                        <th className="px-4 py-3 font-medium text-center">Evidencias</th>
+                        <th className="px-4 py-3 font-medium text-right"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {contratistasPagina.map((c) => (
+                        <tr
+                          key={c.id}
+                          onClick={() => selectContratista(c)}
+                          className="hover:bg-gray-50 transition-colors cursor-pointer"
+                        >
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${c.tipo === "APOYO" ? "bg-purple-100" : "bg-emerald-100"}`}>
+                                <User className={`w-4 h-4 ${c.tipo === "APOYO" ? "text-purple-600" : "text-emerald-600"}`} />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-medium text-gray-800 truncate flex items-center gap-1.5">
+                                  {c.nombre}
+                                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 ${c.tipo === "APOYO" ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"}`}>{c.tipo === "APOYO" ? "APOYO" : "CONT"}</span>
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-500 font-mono">{c.identificacion}</td>
+                          <td className="px-4 py-3 text-xs text-gray-500">{(c as any).perfil || "—"}</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${c.pendientes > 0 ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-500"}`}>
+                              <Clock className="w-3 h-3" />{c.pendientes}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                              <FileText className="w-3 h-3" />{c.total_evidencias}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <ChevronRight className="w-4 h-4 text-gray-300 inline" />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Paginado */}
+              {totalPaginas > 1 && (
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <p className="text-xs text-gray-500">
+                    Mostrando {(paginaActual - 1) * PAGE_SIZE + 1}–{Math.min(paginaActual * PAGE_SIZE, contratistas.length)} de {contratistas.length}
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={paginaActual <= 1}
+                      className="px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg border border-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(n => (
+                      <button
+                        key={n}
+                        onClick={() => setPage(n)}
+                        className={`w-8 h-8 text-xs font-medium rounded-lg border transition-colors ${
+                          n === paginaActual
+                            ? "bg-emerald-600 text-white border-emerald-600"
+                            : "text-gray-600 hover:bg-gray-100 border-gray-200"
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setPage(p => Math.min(totalPaginas, p + 1))}
+                      disabled={paginaActual >= totalPaginas}
+                      className="px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg border border-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                </button>
-              ))}
-            </div>
+                </div>
+              )}
+            </>
           )}
         </>
       ) : (
@@ -888,7 +1064,7 @@ export default function EvaluacionDashboardPage() {
             />
           </div>
 
-          {/* Lista de evidencias pendientes */}
+          {/* Lista de pendientes — agrupada por contratista (clic → detalle con periodo) */}
           {loadingPendientes ? (
             <div className="flex justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
@@ -896,66 +1072,111 @@ export default function EvaluacionDashboardPage() {
           ) : evidenciasPendientes.length === 0 ? (
             <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
               <CheckCircle2 className="w-12 h-12 text-emerald-300 mx-auto mb-3" />
-              <p className="text-gray-500 text-lg">¡No hay evidencias pendientes!</p>
-              <p className="text-gray-400 text-sm mt-1">Todas las evidencias han sido revisadas.</p>
+              <p className="text-gray-500 text-lg">¡No hay evidencias pendientes en este periodo!</p>
+              <p className="text-gray-400 text-sm mt-1">Todas las evidencias del periodo han sido revisadas.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {evidenciasPendientes.map((ev) => (
-                <div key={ev.id} className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-sm transition-shadow">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      {/* Contratista + Contrato */}
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <span className="font-semibold text-gray-900 text-sm">{ev.contratista_nombre}</span>
-                        <span className="text-xs text-gray-400 font-mono">{ev.contratista_identificacion}</span>
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700">
-                          {ev.numero_contrato}
-                        </span>
-                        {ev.perfil && (
-                          <span className="text-[10px] text-gray-500">{ev.perfil}</span>
-                        )}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {gruposPendientes.map((g) => {
+                const ev = g.contratista
+                return (
+                  <button
+                    key={ev.contratista_id}
+                    onClick={() => selectContratista({
+                      id: ev.contratista_id,
+                      identificacion: ev.contratista_identificacion,
+                      nombre: ev.contratista_nombre,
+                      telefono: null,
+                      correo: null,
+                      tipo: "CONTRATISTA",
+                      pendientes: g.count,
+                      total_evidencias: g.count,
+                    })}
+                    className="bg-white rounded-xl border border-gray-200 p-4 text-left hover:border-amber-300 hover:shadow-sm transition-all"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                        <Clock className="w-4 h-4 text-amber-600" />
                       </div>
-                      {/* Actividad */}
-                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">{ev.actividad_descripcion}</p>
-                      {/* Evidencia */}
-                      {ev.tipo === "TEXTO" && ev.contenido_texto && (
-                        <p className="text-sm text-gray-800 bg-gray-50 p-3 rounded-lg whitespace-pre-wrap">{ev.contenido_texto}</p>
-                      )}
-                      {ev.tipo === "IMAGEN" && ev.archivo_ruta && (
-                        <div className="mt-2">
-                          <img
-                            src={`${API}/uploads/${ev.archivo_ruta.replace(/^.*\/uploads\//, "").replace(/^.*static\//, "evidencias/")}`}
-                            alt={ev.archivo_nombre || "Evidencia"}
-                            className="max-h-48 rounded-lg border"
-                          />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-800 text-sm truncate">{ev.contratista_nombre}</p>
+                        <p className="text-xs text-gray-500 font-mono mt-0.5">{ev.contratista_identificacion}</p>
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                            <Clock className="w-3 h-3" />{g.count} pendientes
+                          </span>
                         </div>
-                      )}
-                      {ev.tipo === "ARCHIVO" && (
-                        <a
-                          href={`${API}/uploads/${ev.archivo_ruta?.replace(/^.*\/uploads\//, "").replace(/^.*static\//, "evidencias/")}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 text-sm hover:underline flex items-center gap-1"
-                        >
-                          <FileText className="w-4 h-4" /> {ev.archivo_nombre}
-                        </a>
-                      )}
-                      <p className="text-[10px] text-gray-400 mt-2">
-                        {ev.created_at ? new Date(ev.created_at).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
-                      </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0 mt-1" />
                     </div>
-                    {/* Acciones rápidas */}
-                    <EvaluarRapido
-                      evidenciaId={ev.id}
-                      onEvaluado={() => loadEvidenciasPendientes()}
-                    />
-                  </div>
-                </div>
-              ))}
+                  </button>
+                )
+              })}
             </div>
           )}
         </>
+      )}
+
+      {/* Modal: Crear nuevo periodo */}
+      {showCrearPeriodo && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowCrearPeriodo(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-800">Crear nuevo periodo de evaluación</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Se creará el mes de evaluación y se replicarán las actividades del perfil para todos los contratistas activos.
+              </p>
+            </div>
+            <div className="p-5 space-y-4">
+              {errorPeriodo && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {errorPeriodo}
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fecha del periodo (mes)
+                </label>
+                <input
+                  type="date"
+                  value={fechaNuevoPeriodo}
+                  onChange={(e) => setFechaNuevoPeriodo(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                  disabled={creandoPeriodo}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Ej: 2026-08-01 para el periodo AGOSTO 2026.
+                </p>
+              </div>
+              <div className="flex gap-3 justify-end pt-2">
+                <button
+                  onClick={() => setShowCrearPeriodo(false)}
+                  className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  disabled={creandoPeriodo}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCrearPeriodo}
+                  disabled={creandoPeriodo}
+                  className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
+                  {creandoPeriodo ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Creando...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      Crear periodo
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

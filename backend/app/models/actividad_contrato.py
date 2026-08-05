@@ -14,6 +14,10 @@ class ActividadContrato(Base):
     descripcion: Mapped[str] = mapped_column(Text, nullable=False)
     tipo: Mapped[str] = mapped_column(String(20), default="GENERAL", comment="GENERAL | ESPECIFICA")
     orden: Mapped[int] = mapped_column(Integer, default=0)
+    periodo_id: Mapped[int | None] = mapped_column(
+        ForeignKey("periodos_evaluacion.id", ondelete="CASCADE"), nullable=True,
+        comment="Periodo de evaluación al que pertenece esta actividad (mes)",
+    )
 
     contrato = relationship("Contrato", back_populates="actividades_contrato")
     supervisiones = relationship("ActividadSupervision", back_populates="actividad_contrato", cascade="all, delete-orphan")

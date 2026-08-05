@@ -37,6 +37,7 @@ class DocumentoContratistaOut(BaseModel):
     contratista_id: int
     contrato_numero: str
     tipo_documento: str
+    periodo_id: int | None = None
     archivo_ruta: str
     archivo_nombre: str
     archivo_tamano: int

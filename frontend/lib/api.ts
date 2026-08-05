@@ -722,9 +722,34 @@ export interface ResumenCumplimiento {
   porcentaje_cumplimiento: number
 }
 
-// Público (sin auth) — busca contratista por cédula
-export const buscarContratistaEvaluacion = (cedula: string) =>
-  request<DashboardContratista>(`/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(cedula)}`)
+// ─── Periodos de Evaluación ────────────────────────────────────────────────
+
+export interface PeriodoEvaluacion {
+  id: number
+  fecha: string
+  nombre: string
+  activo: boolean
+  created_at?: string | null
+}
+
+// Protegido — listar periodos de evaluación
+// Público — obtener periodos (ruta /periodos/publicos, sin auth)
+export const listarPeriodos = (publico = false) =>
+  request<PeriodoEvaluacion[]>(publico ? "/api/v1/evaluacion/periodos/publicos" : "/api/v1/evaluacion/periodos")
+
+// Protegido — crear un nuevo periodo de evaluación (mes)
+export const crearPeriodo = (fecha: string) =>
+  request<PeriodoEvaluacion>("/api/v1/evaluacion/periodos", {
+    method: "POST",
+    body: JSON.stringify({ fecha }),
+  })
+
+// Público (sin auth) — busca contratista por cédula, opcionalmente por periodo
+export const buscarContratistaEvaluacion = (cedula: string, periodoId?: number) => {
+  const q = new URLSearchParams({ cedula })
+  if (periodoId) q.set("periodo_id", String(periodoId))
+  return request<DashboardContratista>(`/api/v1/evaluacion/buscar?${q}`)
+}
 
 // Público — subir evidencia (multipart)
 export async function subirEvidencia(formData: FormData): Promise<Evidencia> {
@@ -766,14 +791,19 @@ export const evaluarEvidencia = (id: number, data: { estado: string; observacion
     method: "PUT", body: JSON.stringify(data),
   })
 
-// Protegido — resumen de cumplimiento
-export const getResumenContratista = (contratistaId: number) =>
-  request<ResumenCumplimiento>(`/api/v1/evaluacion/contratista/${contratistaId}/resumen`)
+// Protegido — resumen de cumplimiento (opcional por periodo)
+export const getResumenContratista = (contratistaId: number, periodoId?: number) => {
+  const q = periodoId ? `?periodo_id=${periodoId}` : ""
+  return request<ResumenCumplimiento>(`/api/v1/evaluacion/contratista/${contratistaId}/resumen${q}`)
+}
 
-// Protegido — listar contratistas con evidencias
-export const listarContratistasEvaluacion = (buscar?: string) => {
-  const q = buscar ? `?buscar=${encodeURIComponent(buscar)}` : ""
-  return request<any[]>(`/api/v1/evaluacion/contratistas${q}`)
+// Protegido — listar contratistas con evidencias (opcional por periodo)
+export const listarContratistasEvaluacion = (buscar?: string, periodoId?: number) => {
+  const q = new URLSearchParams()
+  if (buscar) q.set("buscar", buscar)
+  if (periodoId) q.set("periodo_id", String(periodoId))
+  const qs = q.toString()
+  return request<any[]>(`/api/v1/evaluacion/contratistas${qs ? `?${qs}` : ""}`)
 }
 
 // Protegido — listar todas las evidencias pendientes (cross-contratista)
@@ -796,9 +826,12 @@ export interface EvidenciaPendiente {
   actividad_descripcion: string
 }
 
-export const listarEvidenciasPendientes = (buscar?: string) => {
-  const q = buscar ? `?buscar=${encodeURIComponent(buscar)}` : ""
-  return request<EvidenciaPendiente[]>(`/api/v1/evaluacion/evidencias/pendientes${q}`)
+export const listarEvidenciasPendientes = (buscar?: string, periodoId?: number) => {
+  const q = new URLSearchParams()
+  if (buscar) q.set("buscar", buscar)
+  if (periodoId) q.set("periodo_id", String(periodoId))
+  const qs = q.toString()
+  return request<EvidenciaPendiente[]>(`/api/v1/evaluacion/evidencias/pendientes${qs ? `?${qs}` : ""}`)
 }
 
 // ─── Apoyo Administrativo ────────────────────────────────────────────────────
@@ -901,23 +934,28 @@ export async function subirDocumentoContratista(formData: FormData): Promise<Doc
   return res.json()
 }
 
-// Listar documentos de un contrato (público, requiere cédula)
-export const listarDocumentosContrato = (contratoNumero: string, cedula: string) =>
-  request<DocumentoContratista[]>(
-    `/api/v1/documentos/contrato/${encodeURIComponent(contratoNumero)}?cedula=${encodeURIComponent(cedula)}`
+// Listar documentos de un contrato (público, requiere cédula) — opcional por periodo
+export const listarDocumentosContrato = (contratoNumero: string, cedula: string, periodoId?: number) => {
+  const q = new URLSearchParams({ cedula })
+  if (periodoId) q.set("periodo_id", String(periodoId))
+  return request<DocumentoContratista[]>(
+    `/api/v1/documentos/contrato/${encodeURIComponent(contratoNumero)}?${q}`
   )
+}
 
-// Listar todos los documentos (protegido)
+// Listar todos los documentos (protegido) — opcional por periodo
 export const listarDocumentosAdmin = (params?: {
   contratista_id?: number
   contrato_numero?: string
   tipo_documento?: string
   estado?: string
+  periodo_id?: number
 }) => {
   const q = new URLSearchParams()
   if (params?.contratista_id) q.set("contratista_id", String(params.contratista_id))
   if (params?.contrato_numero) q.set("contrato_numero", params.contrato_numero)
   if (params?.tipo_documento) q.set("tipo_documento", params.tipo_documento)
+  if (params?.periodo_id) q.set("periodo_id", String(params.periodo_id))
   if (params?.estado) q.set("estado", params.estado)
   return request<DocumentoContratista[]>(`/api/v1/documentos/admin/listar?${q}`)
 }

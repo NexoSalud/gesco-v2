@@ -250,6 +250,98 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Migración agosto 2026 — ya ejecutada o error: {e}")
 
+    # ─── Migración: PERIODOS DE EVALUACIÓN (evaluaciones por mes) ───
+    # Crea la tabla periodos_evaluacion, agrega periodo_id a
+    # actividades_contrato y documentos_contratista, y hace backfill
+    # desde los meses de fecha_inicio de los contratos existentes.
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS periodos_evaluacion (
+                    id SERIAL PRIMARY KEY,
+                    fecha DATE NOT NULL,
+                    nombre VARCHAR(50) NOT NULL,
+                    activo BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            await conn.execute(text(
+                "ALTER TABLE actividades_contrato ADD COLUMN IF NOT EXISTS periodo_id INTEGER "
+                "REFERENCES periodos_evaluacion(id) ON DELETE CASCADE"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE documentos_contratista ADD COLUMN IF NOT EXISTS periodo_id INTEGER "
+                "REFERENCES periodos_evaluacion(id) ON DELETE CASCADE"
+            ))
+            logger.info("Migración OK: tabla periodos_evaluacion + columnas periodo_id")
+    except Exception as e:
+        logger.warning(f"Migración periodos_evaluacion (tabla/columnas): {e}")
+
+    # Backfill: crear periodos desde los meses de los contratos existentes
+    try:
+        from datetime import date as _date
+        from app.models.periodo_evaluacion import PeriodoEvaluacion
+        from app.database import async_session_factory as _asf
+
+        MESES_ES = [
+            "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
+            "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE",
+        ]
+
+        async with _asf() as db:
+            # Meses distintos presentes en contratos
+            res = await db.execute(text(
+                "SELECT DISTINCT DATE_TRUNC('month', fecha_inicio) AS mes "
+                "FROM contratos WHERE fecha_inicio IS NOT NULL ORDER BY mes"
+            ))
+            meses = [row[0] for row in res.all()]
+
+            # Crear periodo por mes si no existe
+            for mes in meses:
+                mes_date = mes.date() if hasattr(mes, "date") else mes
+                nombre = f"{MESES_ES[mes_date.month - 1]} {mes_date.year}"
+                existe = await db.execute(
+                    text("SELECT id FROM periodos_evaluacion WHERE fecha = :f"),
+                    {"f": mes_date},
+                )
+                if not existe.scalar_one_or_none():
+                    await db.execute(
+                        text("INSERT INTO periodos_evaluacion (fecha, nombre, activo) VALUES (:f, :n, FALSE)"),
+                        {"f": mes_date, "n": nombre},
+                    )
+
+            # Asignar actividades existentes sin periodo (por mes del contrato)
+            await db.execute(text("""
+                UPDATE actividades_contrato ac SET periodo_id = p.id
+                FROM contratos c, periodos_evaluacion p
+                WHERE ac.contrato_id = c.numero_contrato
+                  AND c.fecha_inicio IS NOT NULL
+                  AND DATE_TRUNC('month', c.fecha_inicio) = p.fecha
+                  AND ac.periodo_id IS NULL
+            """))
+            # Asignar documentos existentes sin periodo
+            await db.execute(text("""
+                UPDATE documentos_contratista dc SET periodo_id = p.id
+                FROM contratos c, periodos_evaluacion p
+                WHERE dc.contrato_numero = c.numero_contrato
+                  AND c.fecha_inicio IS NOT NULL
+                  AND DATE_TRUNC('month', c.fecha_inicio) = p.fecha
+                  AND dc.periodo_id IS NULL
+            """))
+            # Marcar activo el periodo más reciente (si ninguno está activo)
+            hay_activo = await db.execute(
+                text("SELECT id FROM periodos_evaluacion WHERE activo = TRUE LIMIT 1")
+            )
+            if not hay_activo.scalar_one_or_none():
+                await db.execute(text("""
+                    UPDATE periodos_evaluacion SET activo = TRUE
+                    WHERE id = (SELECT id FROM periodos_evaluacion ORDER BY fecha DESC LIMIT 1)
+                """))
+            await db.commit()
+            logger.info("Migración OK: backfill de periodos de evaluación")
+    except Exception as e:
+        logger.warning(f"Migración periodos_evaluacion (backfill): {e}")
+
     await seed_database()
     logger.info("Gesco V2 listo!")
     yield

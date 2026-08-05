@@ -15,6 +15,7 @@ from app.models.almacen import Almacen
 from app.models.inventario import Articulo, UnidadInventario, MovimientoInventario, Acta
 from app.models.auth import Role, Usuario, Acceso
 from app.models.evidencia import Evidencia
+from app.models.periodo_evaluacion import PeriodoEvaluacion
 from app.models.apoyo_administrativo import ApoyoAdministrativo
 from app.models.actividad_apoyo import ActividadApoyo
 from app.models.evidencia_apoyo import EvidenciaApoyo
@@ -40,4 +41,6 @@ __all__ = [
     "Role",
     "Usuario",
     "Acceso",
+    "Evidencia",
+    "PeriodoEvaluacion",
 ]

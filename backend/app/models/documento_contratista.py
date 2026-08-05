@@ -19,6 +19,10 @@ class DocumentoContratista(Base):
     contrato_numero: Mapped[str] = mapped_column(
         ForeignKey("contratos.numero_contrato", ondelete="CASCADE"), nullable=False
     )
+    periodo_id: Mapped[int | None] = mapped_column(
+        ForeignKey("periodos_evaluacion.id", ondelete="CASCADE"), nullable=True,
+        comment="Periodo de evaluación (mes) al que pertenece el documento",
+    )
 
     # Tipo de documento (enum en código)
     tipo_documento: Mapped[str] = mapped_column(

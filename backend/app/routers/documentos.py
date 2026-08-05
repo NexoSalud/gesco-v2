@@ -88,6 +88,7 @@ async def subir_documento(
     contratista_id: int = Form(...),
     contrato_numero: str = Form(...),
     tipo_documento: str = Form(...),
+    periodo_id: int | None = Form(None),
     archivo: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
@@ -209,6 +210,7 @@ async def subir_documento(
         contratista_id=contratista_id,
         contrato_numero=contrato_numero,
         tipo_documento=tipo_documento,
+        periodo_id=periodo_id,
         archivo_ruta=f"/uploads/documentos/{safe_name}",
         archivo_nombre=original_filename,
         archivo_tamano=len(content),
@@ -242,6 +244,7 @@ async def subir_documento(
 async def listar_documentos_contrato(
     contrato_numero: str,
     cedula: str = Query(..., min_length=1),
+    periodo_id: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
     """Lista los documentos de un contrato. Requiere cédula del contratista como validación."""
@@ -262,6 +265,8 @@ async def listar_documentos_contrato(
         )
         .order_by(DocumentoContratista.tipo_documento, DocumentoContratista.created_at.desc())
     )
+    if periodo_id is not None:
+        stmt = stmt.where(DocumentoContratista.periodo_id == periodo_id)
     result = await db.execute(stmt)
     docs = result.scalars().all()
 
@@ -294,6 +299,7 @@ async def listar_todos_documentos(
     contrato_numero: str | None = Query(None),
     tipo_documento: str | None = Query(None),
     estado: str | None = Query(None),
+    periodo_id: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
@@ -308,6 +314,8 @@ async def listar_todos_documentos(
         stmt = stmt.where(DocumentoContratista.tipo_documento == tipo_documento)
     if estado:
         stmt = stmt.where(DocumentoContratista.estado == estado)
+    if periodo_id is not None:
+        stmt = stmt.where(DocumentoContratista.periodo_id == periodo_id)
 
     result = await db.execute(stmt)
     docs = result.scalars().all()
