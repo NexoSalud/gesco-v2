@@ -52,7 +52,7 @@ async def listar_actividades_contrato(numero_contrato: str, db: AsyncSession = D
                         id=ap.id,
                         contrato_id=numero_contrato,
                         descripcion=ap.descripcion,
-                        tipo="GENERAL",
+                        tipo=ap.tipo,
                         orden=ap.orden,
                     )
                     for ap in acts_perfil.scalars().all()
@@ -158,7 +158,7 @@ async def heredar_actividades_perfil(numero_contrato: str, db: AsyncSession = De
             act = ActividadContrato(
                 contrato_id=numero_contrato,
                 descripcion=ap.descripcion,
-                tipo="GENERAL",
+                tipo=ap.tipo,
                 orden=ap.orden,
             )
             db.add(act)

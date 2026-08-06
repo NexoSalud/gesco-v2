@@ -136,7 +136,12 @@ async def buscar_contratista(
     contratos_data = []
     for c in contratos:
         actividades_data = []
-        for act in c.actividades_contrato:
+        # Solo actividades ESPECIFICA (las que se diligencian); salvaguarda:
+        # si el contrato no tiene ninguna, mostrar todas (perfiles sin documento)
+        acts_contrato = [a for a in c.actividades_contrato if a.tipo == "ESPECIFICA"]
+        if not acts_contrato:
+            acts_contrato = list(c.actividades_contrato)
+        for act in acts_contrato:
             # Filtrar por periodo (si hay periodos configurados)
             if pid is not None and act.periodo_id != pid:
                 continue
@@ -687,14 +692,19 @@ async def resumen_contratista(
             porcentaje_cumplimiento=0,
         )
 
-    # Actividades del periodo
-    acts_stmt = select(ActividadContrato.id).where(
+    # Actividades del periodo (solo ESPECIFICA; salvaguarda si el perfil no tiene)
+    base_stmt = select(ActividadContrato.id).where(
         ActividadContrato.contrato_id.in_(contrato_numeros)
     )
     if pid is not None:
-        acts_stmt = acts_stmt.where(ActividadContrato.periodo_id == pid)
+        base_stmt = base_stmt.where(ActividadContrato.periodo_id == pid)
+    acts_stmt = base_stmt.where(ActividadContrato.tipo == "ESPECIFICA")
     acts_result = await db.execute(acts_stmt)
     act_ids = [r[0] for r in acts_result.all()]
+    if not act_ids:
+        # Salvaguarda: perfiles sin documento (todo GENERAL) — mostrar todas
+        acts_result = await db.execute(base_stmt)
+        act_ids = [r[0] for r in acts_result.all()]
     total_actividades = len(act_ids)
 
     if not act_ids:
@@ -858,13 +868,16 @@ async def listar_contratistas_con_evidencias(
         if not numeros:
             continue
 
-        # Actividades del periodo
-        acts_stmt = select(ActividadContrato).where(
+        # Actividades del periodo (solo ESPECIFICA; salvaguarda si el perfil no tiene)
+        base_acts = select(ActividadContrato).where(
             ActividadContrato.contrato_id.in_(numeros)
         )
         if pid is not None:
-            acts_stmt = acts_stmt.where(ActividadContrato.periodo_id == pid)
+            base_acts = base_acts.where(ActividadContrato.periodo_id == pid)
+        acts_stmt = base_acts.where(ActividadContrato.tipo == "ESPECIFICA")
         acts = (await db.execute(acts_stmt)).scalars().all()
+        if not acts:
+            acts = (await db.execute(base_acts)).scalars().all()
 
         act_ids = [a.id for a in acts]
         evs: list = []
@@ -1086,7 +1099,20 @@ async def descargar_informe(
             "no_cdp": c.no_cdp,
             "rp": c.rp,
             "actividades": actividades_data,
+            "generales": [],
         })
+        # Generales del perfil (referencia textual en el informe)
+        if c.perfil:
+            _p = (await db.execute(
+                select(Perfil).where(Perfil.nombre == c.perfil)
+            )).scalar_one_or_none()
+            if _p:
+                _g = (await db.execute(
+                    select(ActividadPerfil)
+                    .where(ActividadPerfil.perfil_id == _p.id, ActividadPerfil.tipo == "GENERAL")
+                    .order_by(ActividadPerfil.orden)
+                )).scalars().all()
+                contratos_data[-1]["generales"] = [a.descripcion for a in _g]
 
     contratista_dict = {
         "id": contratista.id,
@@ -1293,7 +1319,20 @@ async def descargar_informe_publico(
             "no_cdp": c.no_cdp,
             "rp": c.rp,
             "actividades": actividades_data,
+            "generales": [],
         })
+        # Generales del perfil (referencia textual en el informe)
+        if c.perfil:
+            _p = (await db.execute(
+                select(Perfil).where(Perfil.nombre == c.perfil)
+            )).scalar_one_or_none()
+            if _p:
+                _g = (await db.execute(
+                    select(ActividadPerfil)
+                    .where(ActividadPerfil.perfil_id == _p.id, ActividadPerfil.tipo == "GENERAL")
+                    .order_by(ActividadPerfil.orden)
+                )).scalars().all()
+                contratos_data[-1]["generales"] = [a.descripcion for a in _g]
 
     contratista_dict = {
         "id": contratista.id,

@@ -637,6 +637,11 @@ export default function EvaluacionDashboardPage() {
                               >
                                 <span className="text-xs sm:text-sm font-bold text-gray-400 w-5 sm:w-6 flex-shrink-0">#{ai + 1}</span>
                                 <span className="flex-1 text-xs sm:text-sm text-gray-700 min-w-0 break-words line-clamp-2">{act.descripcion}</span>
+                                {act.tipo && (
+                                  <span className={"text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 " + (act.tipo === "ESPECIFICA" ? "text-amber-700 bg-amber-50" : "text-blue-700 bg-blue-50")}>
+                                    {act.tipo === "ESPECIFICA" ? "ESPECÍFICA" : "GENERAL"}
+                                  </span>
+                                )}
                                 {ESTADO_BADGE(actEstado)}
                                 {isExpanded ? <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" />}
                               </button>

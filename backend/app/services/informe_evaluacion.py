@@ -687,15 +687,19 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
 
     _add_paragraph(doc, "", size=6, space_after=6)  # spacer
 
-    # ─── SPLIT ACTIVITIES: GENERALES vs ESPECÍFICAS ──────────────────
+    # ─── SPLIT ACTIVITIES: ESPECÍFICAS (tabla) vs GENERALES (texto) ──
     acts_generales = [a for a in c.get("actividades", []) if a.get("tipo") == "GENERAL" or a.get("tipo") is None]
     acts_especificas = [a for a in c.get("actividades", []) if a.get("tipo") == "ESPECIFICA"]
 
-    # If all activities have the same type or no type, put all as generales
+    # Si no hay específicas, usar todas (compatibilidad con datos sin clasificar)
     if not acts_especificas:
-        acts_especificas = []
-    if not acts_generales and not acts_especificas:
-        acts_generales = c.get("actividades", [])
+        acts_especificas = c.get("actividades", [])
+        acts_generales = []
+
+    # Generales del perfil (referencia textual en el informe)
+    generales_perfil = c.get("generales") or []
+    if not generales_perfil:
+        generales_perfil = [a.get("descripcion", "") for a in acts_generales]
 
     def _build_activity_table(doc, title, actividades, col_widths=[1.0, 5.5, 6.0, 4.0]):
         if not actividades:
@@ -818,11 +822,19 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
                 r_empty.font.size = Pt(8)
                 r_empty.font.color.rgb = RGBColor(150, 150, 150)
 
-    # ─── TABLE 2: ACTIVIDADES GENERALES ──────────────────────────────
-    _build_activity_table(doc, "ACTIVIDADES GENERALES", acts_generales)
-
-    # ─── TABLE 3: ACTIVIDADES ESPECÍFICAS ────────────────────────────
+    # ─── TABLE: ACTIVIDADES ESPECÍFICAS ──────────────────────────────
     _build_activity_table(doc, "ACTIVIDADES ESPECÍFICAS", acts_especificas)
+
+    # ─── GENERALES COMO TEXTO NORMAL (no tabla) ──────────────────────
+    if generales_perfil:
+        _add_paragraph(doc, "ACTIVIDADES GENERALES DEL PERFIL", bold=True, size=11,
+                       color=COLOR_PRIMARY, alignment=WD_ALIGN_PARAGRAPH.LEFT,
+                       space_before=12, space_after=6)
+        _add_paragraph(doc,
+            "El contratista deberá cumplir además con las siguientes obligaciones generales:",
+            size=9, space_after=6)
+        for i, txt in enumerate(generales_perfil, 1):
+            _add_paragraph(doc, f"{i}. {_strip_html(txt)}", size=9, space_after=3)
 
     # ─── CLOSING ─────────────────────────────────────────────────────
     _add_paragraph(doc, "", size=6, space_after=12)  # spacer
