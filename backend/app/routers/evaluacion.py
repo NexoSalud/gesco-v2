@@ -23,6 +23,7 @@ from app.models.evidencia import Evidencia
 from app.models.documento_contratista import DocumentoContratista
 from app.models.periodo_evaluacion import PeriodoEvaluacion
 from app.models.perfil import Perfil, ActividadPerfil
+from app.models.supervisor import Supervisor
 from app.schemas.evidencia import (
     EvidenciaCreate, EvidenciaOut, EvidenciaEvaluar,
     DashboardContratista, ContratoEvaluacion, ActividadConEvidencias, ResumenCumplimiento,
@@ -1047,6 +1048,9 @@ async def descargar_informe(
             logger.error(f"Informe: error cargando imagen: {e}")
             return {"base64": None, "width": 0, "height": 0, "file_found": False}
 
+    periodo_activo_informe = await _get_periodo_activo(db)
+    periodo_fecha = str(periodo_activo_informe.fecha) if periodo_activo_informe else None
+
     contratos_data = []
     for c in contratos:
         actividades_data = []
@@ -1094,6 +1098,8 @@ async def descargar_informe(
             "cedula_supervisor": c.cedula_supervisor,
             "cargo_supervisor": c.cargo_supervisor,
             "unidad_atencion": c.unidad_atencion,
+            "supervisor_cargo": None,
+            "periodo_fecha": periodo_fecha,
             "lugar_ejecucion": c.lugar_ejecucion,
             "forma_pago": c.forma_pago,
             "no_cdp": c.no_cdp,
@@ -1113,6 +1119,13 @@ async def descargar_informe(
                     .order_by(ActividadPerfil.orden)
                 )).scalars().all()
                 contratos_data[-1]["generales"] = [a.descripcion for a in _g]
+        # Cargo completo del supervisor (desde tabla supervisores)
+        if c.cedula_supervisor:
+            _sup = (await db.execute(
+                select(Supervisor).where(Supervisor.identificacion == c.cedula_supervisor)
+            )).scalar_one_or_none()
+            if _sup and _sup.cargo:
+                contratos_data[-1]["supervisor_cargo"] = _sup.cargo
 
     contratista_dict = {
         "id": contratista.id,
@@ -1267,6 +1280,9 @@ async def descargar_informe_publico(
                     pass
         return {"base64": None, "width": 0, "height": 0, "file_found": False}
 
+    periodo_activo_informe = await _get_periodo_activo(db)
+    periodo_fecha = str(periodo_activo_informe.fecha) if periodo_activo_informe else None
+
     contratos_data = []
     for c in contratos:
         actividades_data = []
@@ -1314,6 +1330,8 @@ async def descargar_informe_publico(
             "cedula_supervisor": c.cedula_supervisor,
             "cargo_supervisor": c.cargo_supervisor,
             "unidad_atencion": c.unidad_atencion,
+            "supervisor_cargo": None,
+            "periodo_fecha": periodo_fecha,
             "lugar_ejecucion": c.lugar_ejecucion,
             "forma_pago": c.forma_pago,
             "no_cdp": c.no_cdp,
@@ -1333,6 +1351,13 @@ async def descargar_informe_publico(
                     .order_by(ActividadPerfil.orden)
                 )).scalars().all()
                 contratos_data[-1]["generales"] = [a.descripcion for a in _g]
+        # Cargo completo del supervisor (desde tabla supervisores)
+        if c.cedula_supervisor:
+            _sup = (await db.execute(
+                select(Supervisor).where(Supervisor.identificacion == c.cedula_supervisor)
+            )).scalar_one_or_none()
+            if _sup and _sup.cargo:
+                contratos_data[-1]["supervisor_cargo"] = _sup.cargo
 
     contratista_dict = {
         "id": contratista.id,

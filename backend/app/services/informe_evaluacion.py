@@ -6,6 +6,7 @@ import io
 import logging
 import base64
 import os
+import calendar
 from datetime import datetime
 from pathlib import Path
 
@@ -166,7 +167,7 @@ def _build_context(contratista: dict, contratos: list, resumen: dict) -> dict:
         "correo": contratista.get("correo"),
         "contrato": contratos[0]["numero_contrato"] if contratos else "",
         "perfil": contratos[0].get("perfil") if contratos else "",
-        "periodo": MESES[today.month],
+        "periodo": (_formatear_periodo_fecha(contratos[0].get("periodo_fecha")) or MESES[today.month]) if contratos else MESES[today.month],
         "fecha_informe": fecha_informe,
         "total_actividades": total_actividades,
         "aprobadas": resumen.get("aprobadas", 0),
@@ -566,6 +567,18 @@ def _make_col_header_row(table, headers, col_widths=None):
     return row
 
 
+def _formatear_periodo_fecha(fecha_str) -> str:
+    """Formatea la fecha de un periodo de evaluación como 'Del 1 al 31 de Julio'."""
+    if not fecha_str:
+        return ""
+    try:
+        d = datetime.strptime(str(fecha_str)[:10], "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return ""
+    ultimo = calendar.monthrange(d.year, d.month)[1]
+    return f"Del {d.day} al {ultimo} de {MESES_TITULO[d.month]}"
+
+
 def _formatear_numero(valor: float | int) -> str:
     entero = int(valor)
     decimales = int(round((valor - entero) * 100))
@@ -637,19 +650,24 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
     obj_short = obj[:120] + "..." if len(obj) > 120 else obj
 
     # Determine periodo from contract or pago data
-    periodo_ejecutado = periodo
-    if c.get("periodo_desde") and c.get("periodo_hasta"):
-        periodo_ejecutado = f"{c['periodo_desde']} al {c['periodo_hasta']}"
+    # PERIODO EJECUTADO: prioridad al periodo de evaluación (p.ej. "Del 1 al 31 de Julio")
+    periodo_ejecutado = _formatear_periodo_fecha(c.get("periodo_fecha"))
+    if not periodo_ejecutado:
+        periodo_ejecutado = periodo
+        if c.get("periodo_desde") and c.get("periodo_hasta"):
+            periodo_ejecutado = f"{c['periodo_desde']} al {c['periodo_hasta']}"
 
     # Valor en letras
     monto = float(c.get("monto_total", 0) or 0)
     valor_final = float(c.get("valor_final", 0) or monto)
     valor_letras = c.get("valor_letras", "") or ""
 
+    # SUPERVISOR DESIGNADO: nombre - cargo completo (desde tabla supervisores)
     supervisor_line = c.get("supervisor", "")
-    if c.get("cargo_supervisor"):
-        supervisor_line += f" {c['cargo_supervisor']}"
-    if c.get("unidad_atencion"):
+    sup_cargo = c.get("supervisor_cargo") or c.get("cargo_supervisor")
+    if sup_cargo:
+        supervisor_line = f"{supervisor_line} - {sup_cargo}"
+    if c.get("unidad_atencion") and not c.get("supervisor_cargo"):
         supervisor_line += f" de {c['unidad_atencion']}"
 
     ident_rows = [
