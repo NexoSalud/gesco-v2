@@ -107,7 +107,7 @@ def _populate_items_table(table, category, items):
         if category == "TECNOLOGICO":
             vals = [
                 str(idx),
-                str(item.get("tipo_elemento") or ""),
+                str(item.get("elemento") or item.get("tipo_elemento") or ""),
                 str(item.get("marca") or ""),
                 str(item.get("modelo") or ""),
                 str(item.get("serial") or ""),
@@ -118,7 +118,7 @@ def _populate_items_table(table, category, items):
         elif category == "BIOMEDICO":
             vals = [
                 str(idx),
-                str(item.get("tipo_elemento") or ""),
+                str(item.get("elemento") or item.get("tipo_elemento") or ""),
                 str(item.get("marca") or ""),
                 str(item.get("modelo") or ""),
                 str(item.get("serial") or ""),
@@ -128,7 +128,7 @@ def _populate_items_table(table, category, items):
         else:  # DOTACION
             vals = [
                 str(idx),
-                str(item.get("tipo_elemento") or ""),
+                str(item.get("elemento") or item.get("tipo_elemento") or ""),
                 str(item.get("cantidad") or "1"),
                 str(item.get("estado_declarado") or "Excelente"),
                 str(item.get("observaciones") or "")

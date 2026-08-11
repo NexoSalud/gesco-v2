@@ -122,8 +122,20 @@ def _pdf_a_imagen(pdf_path: str, max_width: int = 1200) -> bytes | None:
     return imgs[0] if imgs else None
 
 
+def _normalizar_evidencias(contratos: list):
+    """Fallback inteligente: fuerza el tipo a IMAGEN si la extensión corresponde."""
+    for c in contratos:
+        for act in c.get("actividades", []):
+            for ev in act.get("evidencias", []):
+                tipo = ev.get("tipo")
+                archivo_nombre = ev.get("archivo_nombre") or ""
+                if tipo == "ARCHIVO" and archivo_nombre.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp')):
+                    ev["tipo"] = "IMAGEN"
+
+
 def _build_context(contratista: dict, contratos: list, resumen: dict) -> dict:
     """Construye el contexto unificado para PDF y DOCX."""
+    _normalizar_evidencias(contratos)
     today = datetime.now()
     fecha_informe = f"{today.day:02d} de {MESES[today.month]} de {today.year}"
 
@@ -598,6 +610,7 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
       - Firma del contratista
       - ANEXOS
     """
+    _normalizar_evidencias(contratos)
     doc = Document()
     style = doc.styles["Normal"]
     style.font.name = FONT_NAME

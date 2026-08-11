@@ -18,3 +18,5 @@ templates_backup_*/
 *.tsbuildinfo
 guide_inventory/
 comandos.txt
+.agents/
+docker-compose.local.yml
