@@ -72,7 +72,7 @@ async def _resolve_periodo(db: AsyncSession, periodo_id: int | None) -> int | No
 
 def _estado_actividad(evs: list) -> str:
     """Estado de una actividad según sus evidencias (misma lógica que el frontend).
-    Prioridad: corrección pendiente > rechazada > aprobada > sin evidencia."""
+    Prioridad: pendiente > rechazada > aprobada > sin evidencia."""
     if any(e.estado == "PENDIENTE" for e in evs):
         return "PENDIENTE"
     if any(e.estado == "RECHAZADO" for e in evs):
@@ -88,8 +88,7 @@ def _estado_actividad(evs: list) -> str:
 async def listar_periodos_publicos(
     db: AsyncSession = Depends(get_db),
 ):
-    """Lista los periodos de evaluación (público, sin auth) para que el
-    contratista pueda elegir el mes en su dashboard."""
+    """Lista los periodos de evaluación (público, sin auth)."""
     result = await db.execute(
         select(PeriodoEvaluacion).order_by(PeriodoEvaluacion.fecha.desc())
     )
@@ -104,15 +103,9 @@ async def buscar_contratista(
 ):
     """Busca un contratista por cédula y devuelve sus contratos con actividades y evidencias.
 
-    Si no se indica periodo_id, usa el periodo activo. Si no hay periodos,
-    devuelve todas las actividades (comportamiento anterior).
+    Si se pasa periodo_id, filtra las actividades por ese periodo.
+    Si no se pasa, muestra todas las actividades sin filtrar.
     """
-    # Resolver periodo
-    pid = periodo_id
-    if pid is None:
-        periodo = await _get_periodo_activo(db)
-        pid = periodo.id if periodo else None
-
     # Buscar contratista
     result = await db.execute(
         select(Contratista).where(Contratista.identificacion == cedula)
@@ -143,8 +136,8 @@ async def buscar_contratista(
         if not acts_contrato:
             acts_contrato = list(c.actividades_contrato)
         for act in acts_contrato:
-            # Filtrar por periodo (si hay periodos configurados)
-            if pid is not None and act.periodo_id != pid:
+            # Filtrar por periodo solo si se pidió explícitamente
+            if periodo_id is not None and act.periodo_id != periodo_id:
                 continue
             evidencias_out = []
             for ev in act.evidencias:
@@ -288,104 +281,6 @@ async def subir_evidencia(
 
 
 # ─── PROTEGIDO: Dashboard (coordinadora) ─────────────────────────────────────
-
-# ─── PERIODOS DE EVALUACIÓN ────────────────────────────────────────────────────
-
-@router.get("/periodos", response_model=list[PeriodoEvaluacionOut])
-async def listar_periodos(
-    db: AsyncSession = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
-):
-    """Lista los periodos de evaluación existentes (más reciente primero)."""
-    result = await db.execute(
-        select(PeriodoEvaluacion).order_by(PeriodoEvaluacion.fecha.desc())
-    )
-    return result.scalars().all()
-
-
-@router.post("/periodos", response_model=PeriodoEvaluacionOut, status_code=201)
-async def crear_periodo(
-    data: PeriodoEvaluacionCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
-):
-    """Crea un nuevo periodo de evaluación (mes) y replica las actividades del
-    perfil para todos los contratistas con contratos activos.
-
-    El contrato NO se duplica: las actividades nuevas quedan asociadas al
-    mismo contrato pero con el periodo_id del nuevo periodo.
-    """
-    # Normalizar fecha al primer día del mes
-    fecha = data.fecha.replace(day=1)
-    nombre = _nombre_periodo(fecha)
-
-    # Buscar si ya existe un periodo para ese mes
-    existing = await db.execute(
-        select(PeriodoEvaluacion).where(PeriodoEvaluacion.fecha == fecha)
-    )
-    periodo = existing.scalar_one_or_none()
-    if not periodo:
-        periodo = PeriodoEvaluacion(fecha=fecha, nombre=nombre, activo=True)
-        db.add(periodo)
-        await db.flush()
-    else:
-        periodo.nombre = nombre
-        periodo.activo = True
-
-    # Desactivar los demás periodos
-    await db.execute(
-        update(PeriodoEvaluacion)
-        .where(PeriodoEvaluacion.id != periodo.id)
-        .values(activo=False)
-    )
-
-    # Replicar actividades del perfil para todos los contratos activos
-    contratos_res = await db.execute(
-        select(Contrato).where(Contrato.estado.in_(["EN_PROCESO", "ACTIVO"]))
-    )
-    contratos = contratos_res.scalars().all()
-
-    replicadas = 0
-    for contrato in contratos:
-        if not contrato.perfil:
-            continue
-        perfil_res = await db.execute(
-            select(Perfil).where(Perfil.nombre == contrato.perfil)
-        )
-        perfil = perfil_res.scalar_one_or_none()
-        if not perfil:
-            continue
-        acts_res = await db.execute(
-            select(ActividadPerfil)
-            .where(ActividadPerfil.perfil_id == perfil.id)
-            .order_by(ActividadPerfil.orden)
-        )
-        acts_perfil = acts_res.scalars().all()
-        for ap in acts_perfil:
-            # Evitar duplicados (mismo contrato + periodo + descripción)
-            dup = await db.execute(
-                select(ActividadContrato.id).where(
-                    ActividadContrato.contrato_id == contrato.numero_contrato,
-                    ActividadContrato.periodo_id == periodo.id,
-                    ActividadContrato.descripcion == ap.descripcion,
-                )
-            )
-            if dup.scalar_one_or_none():
-                continue
-            db.add(ActividadContrato(
-                contrato_id=contrato.numero_contrato,
-                descripcion=ap.descripcion,
-                tipo="GENERAL",
-                orden=ap.orden,
-                periodo_id=periodo.id,
-            ))
-            replicadas += 1
-
-    await db.commit()
-    await db.refresh(periodo)
-    logger.info(f"Periodo {periodo.nombre} creado/activado con {replicadas} actividades replicadas")
-    return periodo
-
 
 @router.get("/evidencias", response_model=list[EvidenciaOut])
 async def listar_evidencias(
@@ -655,14 +550,10 @@ async def evaluar_evidencia(
 @router.get("/contratista/{contratista_id}/resumen", response_model=ResumenCumplimiento)
 async def resumen_contratista(
     contratista_id: int,
-    periodo_id: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
-    """Resumen de cumplimiento de un contratista. Requiere autenticación.
-    Si no se indica periodo_id, usa el periodo activo."""
-    pid = await _resolve_periodo(db, periodo_id)
-
+    """Resumen de cumplimiento de un contratista. Requiere autenticación."""
     # Obtener contratista
     result = await db.execute(
         select(Contratista).where(Contratista.id == contratista_id)
@@ -693,41 +584,20 @@ async def resumen_contratista(
             porcentaje_cumplimiento=0,
         )
 
-    # Actividades del periodo (solo ESPECIFICA; salvaguarda si el perfil no tiene)
-    base_stmt = select(ActividadContrato.id).where(
-        ActividadContrato.contrato_id.in_(contrato_numeros)
+    # Contar actividades totales de esos contratos
+    act_result = await db.execute(
+        select(func.count(ActividadContrato.id))
+        .where(ActividadContrato.contrato_id.in_(contrato_numeros))
     )
-    if pid is not None:
-        base_stmt = base_stmt.where(ActividadContrato.periodo_id == pid)
-    acts_stmt = base_stmt.where(ActividadContrato.tipo == "ESPECIFICA")
-    acts_result = await db.execute(acts_stmt)
-    act_ids = [r[0] for r in acts_result.all()]
-    if not act_ids:
-        # Salvaguarda: perfiles sin documento (todo GENERAL) — mostrar todas
-        acts_result = await db.execute(base_stmt)
-        act_ids = [r[0] for r in acts_result.all()]
-    total_actividades = len(act_ids)
+    total_actividades = act_result.scalar() or 0
 
-    if not act_ids:
-        return ResumenCumplimiento(
-            contratista_id=contratista_id,
-            contratista_nombre=contratista.nombre,
-            total_actividades=0,
-            con_evidencia=0,
-            sin_evidencia=0,
-            aprobadas=0,
-            rechazadas=0,
-            pendientes=0,
-            porcentaje_cumplimiento=0,
-        )
-
-    # Contar evidencias agrupadas (solo del periodo)
+    # Contar evidencias agrupadas
     ev_result = await db.execute(
         select(
             Evidencia.estado,
             func.count(Evidencia.id),
         )
-        .where(Evidencia.actividad_contrato_id.in_(act_ids))
+        .where(Evidencia.contrato_id.in_(contrato_numeros))
         .group_by(Evidencia.estado)
     )
     counts = {row[0]: row[1] for row in ev_result.all()}
@@ -735,7 +605,7 @@ async def resumen_contratista(
     # Contar actividades con al menos una evidencia
     act_con_ev = await db.execute(
         select(func.count(func.distinct(Evidencia.actividad_contrato_id)))
-        .where(Evidencia.actividad_contrato_id.in_(act_ids))
+        .where(Evidencia.contrato_id.in_(contrato_numeros))
     )
     con_evidencia = act_con_ev.scalar() or 0
 
@@ -762,14 +632,11 @@ async def resumen_contratista(
 @router.get("/evidencias/pendientes")
 async def listar_evidencias_pendientes(
     buscar: str | None = Query(None),
-    periodo_id: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
-    """Lista todas las evidencias PENDIENTES del periodo (o del activo si no se indica),
+    """Lista todas las evidencias PENDIENTES de todos los contratistas activos,
     con datos del contratista, contrato y actividad para revisión rápida."""
-    pid = await _resolve_periodo(db, periodo_id)
-
     stmt = (
         select(
             Evidencia,
@@ -785,9 +652,6 @@ async def listar_evidencias_pendientes(
         .where(Evidencia.estado == "PENDIENTE")
         .order_by(Evidencia.created_at.desc())
     )
-
-    if pid is not None:
-        stmt = stmt.where(ActividadContrato.periodo_id == pid)
 
     if buscar:
         stmt = stmt.where(
@@ -824,94 +688,76 @@ async def listar_evidencias_pendientes(
 @router.get("/contratistas", response_model=list[dict])
 async def listar_contratistas_con_evidencias(
     buscar: str | None = Query(None),
-    periodo_id: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
-    """Lista contratistas que tienen contratos activos con información de evidencias,
-    filtrado por periodo de evaluación (si no se indica, usa el periodo activo).
-
-    Los 'pendientes' se calculan a nivel de ACTIVIDAD (PENDIENTE o SIN_EVIDENCIA),
-    no a nivel de evidencia, para que coincida con el detalle del contratista.
-    """
-    pid = await _resolve_periodo(db, periodo_id)
-
+    """Lista contratistas que tienen contratos activos con información de evidencias."""
     # Contratistas con contratos activos
     stmt = (
-        select(Contratista)
+        select(
+            Contratista.id,
+            Contratista.identificacion,
+            Contratista.nombre,
+            Contratista.telefono,
+            Contratista.correo,
+            func.count(Evidencia.id).label("total_evidencias"),
+            func.sum(
+                sql_case((Evidencia.estado == "PENDIENTE", 1), else_=0),
+            ).label("pendientes"),
+        )
+        .select_from(Contratista)
         .join(Contrato, Contrato.contratista_id == Contratista.id)
+        .outerjoin(Evidencia, Evidencia.contratista_id == Contratista.id)
         .where(Contrato.estado.in_(["EN_PROCESO", "ACTIVO"]))
-        .distinct()
+        .group_by(Contratista.id)
         .order_by(Contratista.nombre)
     )
+    
     if buscar:
         stmt = stmt.where(
-            Contratista.nombre.ilike(f"%{buscar}%")
-            | Contratista.identificacion.ilike(f"%{buscar}%")
+            Contratista.nombre.ilike(f"%{buscar}%") |
+            Contratista.identificacion.ilike(f"%{buscar}%")
         )
 
-    result = await db.execute(stmt)
-    contratistas = result.scalars().all()
-
-    out = []
-    for c in contratistas:
-        # Contratos activos del contratista
-        contratos_res = await db.execute(
-            select(Contrato.numero_contrato, Contrato.perfil)
-            .where(
-                Contrato.contratista_id == c.id,
-                Contrato.estado.in_(["EN_PROCESO", "ACTIVO"]),
+    try:
+        # Intentar con Postgres (no tiene iff)
+        result = await db.execute(stmt)
+        rows = result.all()
+        return [
+            {
+                "id": r.id,
+                "identificacion": r.identificacion,
+                "nombre": r.nombre,
+                "telefono": r.telefono,
+                "correo": r.correo,
+                "total_evidencias": r.total_evidencias,
+            } for r in rows
+        ]
+    except Exception:
+        # Fallback: consulta simple sin conteos
+        stmt_simple = (
+            select(Contratista)
+            .join(Contrato, Contrato.contratista_id == Contratista.id)
+            .where(Contrato.estado.in_(["EN_PROCESO", "ACTIVO"]))
+            .distinct()
+            .order_by(Contratista.nombre)
+        )
+        if buscar:
+            stmt_simple = stmt_simple.where(
+                Contratista.nombre.ilike(f"%{buscar}%") |
+                Contratista.identificacion.ilike(f"%{buscar}%")
             )
-        )
-        contratos_rows = contratos_res.all()
-        numeros = [r[0] for r in contratos_rows]
-        perfil = contratos_rows[0][1] if contratos_rows else None
-        if not numeros:
-            continue
-
-        # Actividades del periodo (solo ESPECIFICA; salvaguarda si el perfil no tiene)
-        base_acts = select(ActividadContrato).where(
-            ActividadContrato.contrato_id.in_(numeros)
-        )
-        if pid is not None:
-            base_acts = base_acts.where(ActividadContrato.periodo_id == pid)
-        acts_stmt = base_acts.where(ActividadContrato.tipo == "ESPECIFICA")
-        acts = (await db.execute(acts_stmt)).scalars().all()
-        if not acts:
-            acts = (await db.execute(base_acts)).scalars().all()
-
-        act_ids = [a.id for a in acts]
-        evs: list = []
-        if act_ids:
-            ev_res = await db.execute(
-                select(Evidencia).where(Evidencia.actividad_contrato_id.in_(act_ids))
-            )
-            evs = ev_res.scalars().all()
-
-        evs_por_act: dict[int, list] = {}
-        for ev in evs:
-            evs_por_act.setdefault(ev.actividad_contrato_id, []).append(ev)
-
-        total = len(acts)
-        pendientes = 0
-        for a in acts:
-            estado = _estado_actividad(evs_por_act.get(a.id, []))
-            if estado in ("PENDIENTE", "SIN_EVIDENCIA"):
-                pendientes += 1
-
-        out.append({
-            "id": c.id,
-            "identificacion": c.identificacion,
-            "nombre": c.nombre,
-            "telefono": c.telefono,
-            "correo": c.correo,
-            "perfil": perfil,
-            "total_actividades": total,
-            "total_evidencias": len(evs),
-            "pendientes": pendientes,
-        })
-
-    return out
+        result = await db.execute(stmt_simple)
+        contratistas = result.scalars().all()
+        return [
+            {
+                "id": c.id,
+                "identificacion": c.identificacion,
+                "nombre": c.nombre,
+                "telefono": c.telefono,
+                "correo": c.correo,
+            } for c in contratistas
+        ]
 
 
 @router.get("/contratista/{contratista_id}/informe")
@@ -1048,9 +894,6 @@ async def descargar_informe(
             logger.error(f"Informe: error cargando imagen: {e}")
             return {"base64": None, "width": 0, "height": 0, "file_found": False}
 
-    periodo_activo_informe = await _get_periodo_activo(db)
-    periodo_fecha = str(periodo_activo_informe.fecha) if periodo_activo_informe else None
-
     contratos_data = []
     for c in contratos:
         actividades_data = []
@@ -1098,34 +941,12 @@ async def descargar_informe(
             "cedula_supervisor": c.cedula_supervisor,
             "cargo_supervisor": c.cargo_supervisor,
             "unidad_atencion": c.unidad_atencion,
-            "supervisor_cargo": None,
-            "periodo_fecha": periodo_fecha,
             "lugar_ejecucion": c.lugar_ejecucion,
             "forma_pago": c.forma_pago,
             "no_cdp": c.no_cdp,
             "rp": c.rp,
             "actividades": actividades_data,
-            "generales": [],
         })
-        # Generales del perfil (referencia textual en el informe)
-        if c.perfil:
-            _p = (await db.execute(
-                select(Perfil).where(Perfil.nombre == c.perfil)
-            )).scalar_one_or_none()
-            if _p:
-                _g = (await db.execute(
-                    select(ActividadPerfil)
-                    .where(ActividadPerfil.perfil_id == _p.id, ActividadPerfil.tipo == "GENERAL")
-                    .order_by(ActividadPerfil.orden)
-                )).scalars().all()
-                contratos_data[-1]["generales"] = [a.descripcion for a in _g]
-        # Cargo completo del supervisor (desde tabla supervisores)
-        if c.cedula_supervisor:
-            _sup = (await db.execute(
-                select(Supervisor).where(Supervisor.identificacion == c.cedula_supervisor)
-            )).scalar_one_or_none()
-            if _sup and _sup.cargo:
-                contratos_data[-1]["supervisor_cargo"] = _sup.cargo
 
     contratista_dict = {
         "id": contratista.id,
@@ -1280,9 +1101,6 @@ async def descargar_informe_publico(
                     pass
         return {"base64": None, "width": 0, "height": 0, "file_found": False}
 
-    periodo_activo_informe = await _get_periodo_activo(db)
-    periodo_fecha = str(periodo_activo_informe.fecha) if periodo_activo_informe else None
-
     contratos_data = []
     for c in contratos:
         actividades_data = []
@@ -1330,34 +1148,12 @@ async def descargar_informe_publico(
             "cedula_supervisor": c.cedula_supervisor,
             "cargo_supervisor": c.cargo_supervisor,
             "unidad_atencion": c.unidad_atencion,
-            "supervisor_cargo": None,
-            "periodo_fecha": periodo_fecha,
             "lugar_ejecucion": c.lugar_ejecucion,
             "forma_pago": c.forma_pago,
             "no_cdp": c.no_cdp,
             "rp": c.rp,
             "actividades": actividades_data,
-            "generales": [],
         })
-        # Generales del perfil (referencia textual en el informe)
-        if c.perfil:
-            _p = (await db.execute(
-                select(Perfil).where(Perfil.nombre == c.perfil)
-            )).scalar_one_or_none()
-            if _p:
-                _g = (await db.execute(
-                    select(ActividadPerfil)
-                    .where(ActividadPerfil.perfil_id == _p.id, ActividadPerfil.tipo == "GENERAL")
-                    .order_by(ActividadPerfil.orden)
-                )).scalars().all()
-                contratos_data[-1]["generales"] = [a.descripcion for a in _g]
-        # Cargo completo del supervisor (desde tabla supervisores)
-        if c.cedula_supervisor:
-            _sup = (await db.execute(
-                select(Supervisor).where(Supervisor.identificacion == c.cedula_supervisor)
-            )).scalar_one_or_none()
-            if _sup and _sup.cargo:
-                contratos_data[-1]["supervisor_cargo"] = _sup.cargo
 
     contratista_dict = {
         "id": contratista.id,
