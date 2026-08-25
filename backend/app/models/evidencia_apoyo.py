@@ -17,6 +17,9 @@ class EvidenciaApoyo(Base):
     apoyo_id: Mapped[int] = mapped_column(
         ForeignKey("apoyo_administrativo.id", ondelete="CASCADE"), nullable=False
     )
+    periodo_id: Mapped[int | None] = mapped_column(
+        ForeignKey("periodos_evaluacion.id", ondelete="CASCADE"), nullable=True, index=True
+    )
 
     tipo: Mapped[str] = mapped_column(
         String(20), nullable=False, comment="ARCHIVO | TEXTO | IMAGEN"

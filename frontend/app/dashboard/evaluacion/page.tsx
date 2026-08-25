@@ -223,7 +223,7 @@ export default function EvaluacionDashboardPage() {
     try {
       const [contratistasResult, apoyosResult] = await Promise.allSettled([
         listarContratistasEvaluacion(q || undefined, periodoSeleccionado || undefined),
-        listarApoyosEvaluacion(q || undefined),
+        listarApoyosEvaluacion(q || undefined, periodoSeleccionado || undefined),
       ])
       const items: ContratistaListItem[] = []
       if (contratistasResult.status === "fulfilled") {
@@ -296,8 +296,8 @@ export default function EvaluacionDashboardPage() {
       if (c.tipo === "APOYO") {
         // Load Apoyo data
         const [dashRes, resumenRes] = await Promise.all([
-          buscarApoyoEvaluacion(c.identificacion),
-          getResumenApoyo(c.id),
+          buscarApoyoEvaluacion(c.identificacion, periodoSeleccionado || undefined),
+          getResumenApoyo(c.id, periodoSeleccionado || undefined),
         ])
         setDashboard(dashRes)
         setResumen(resumenRes)
@@ -346,8 +346,8 @@ export default function EvaluacionDashboardPage() {
       // Reload dashboard
       if (selectedContratista) {
         if (selectedContratista.tipo === "APOYO") {
-          setDashboard(await buscarApoyoEvaluacion(selectedContratista.identificacion))
-          setResumen(await getResumenApoyo(selectedContratista.id))
+          setDashboard(await buscarApoyoEvaluacion(selectedContratista.identificacion, periodoSeleccionado || undefined))
+          setResumen(await getResumenApoyo(selectedContratista.id, periodoSeleccionado || undefined))
         } else {
           const dashRes = await fetch(`${API}/api/v1/evaluacion/buscar?cedula=${encodeURIComponent(selectedContratista.identificacion)}${periodoSeleccionado ? `&periodo_id=${periodoSeleccionado}` : ""}`)
           if (dashRes.ok) setDashboard(await dashRes.json())

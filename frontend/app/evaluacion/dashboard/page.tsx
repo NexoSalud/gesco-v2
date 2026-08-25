@@ -213,6 +213,7 @@ function EvaluacionDashboard() {
       const formData = new FormData()
       formData.append("actividad_apoyo_id", String(apoyoUploadActividad.id))
       formData.append("apoyo_id", String((data as any).apoyo_id))
+      if (periodoSeleccionado) formData.append("periodo_id", String(periodoSeleccionado))
       formData.append("tipo", apoyoUploadActividad.tipo)
       if (apoyoUploadActividad.tipo === "TEXTO") {
         formData.append("contenido_texto", apoyoTextoEvidencia)
@@ -260,7 +261,7 @@ function EvaluacionDashboard() {
           return
         }
         // Si no tiene contratos, intentar como apoyo (puede ser ambas)
-        res = await fetch(`${API}/api/v1/apoyo/evaluacion/buscar?cedula=${encodeURIComponent(cedula)}`)
+        res = await fetch(`${API}/api/v1/apoyo/evaluacion/buscar?cedula=${encodeURIComponent(cedula)}${periodoSeleccionado ? `&periodo_id=${periodoSeleccionado}` : ""}`)
         if (res.ok) {
           const apoyoJson = await res.json()
           setData(apoyoJson)
@@ -277,7 +278,7 @@ function EvaluacionDashboard() {
 
       if (res.status === 404) {
         // No es contratista, buscar como apoyo
-        res = await fetch(`${API}/api/v1/apoyo/evaluacion/buscar?cedula=${encodeURIComponent(cedula)}`)
+        res = await fetch(`${API}/api/v1/apoyo/evaluacion/buscar?cedula=${encodeURIComponent(cedula)}${periodoSeleccionado ? `&periodo_id=${periodoSeleccionado}` : ""}`)
         if (res.ok) {
           const apoyoJson = await res.json()
           setData(apoyoJson)

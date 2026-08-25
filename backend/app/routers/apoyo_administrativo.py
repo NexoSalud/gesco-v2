@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
-from sqlalchemy import select, func, case as sql_case
+from sqlalchemy import select, func, case as sql_case, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,6 +17,7 @@ from app.database import get_db
 from app.models.apoyo_administrativo import ApoyoAdministrativo
 from app.models.actividad_apoyo import ActividadApoyo
 from app.models.evidencia_apoyo import EvidenciaApoyo
+from app.models.periodo_evaluacion import PeriodoEvaluacion
 from app.schemas.apoyo_administrativo import (
     ApoyoOut, ApoyoCreate, ApoyoUpdate,
     ActividadApoyoOut, ActividadApoyoCreate,
@@ -32,6 +33,17 @@ router = APIRouter(prefix="/api/v1/apoyo", tags=["Apoyo Administrativo"])
 
 EVIDENCIAS_DIR = "/app/uploads/evidencias_apoyo"
 os.makedirs(EVIDENCIAS_DIR, exist_ok=True)
+
+
+async def _get_periodo_activo(db: AsyncSession) -> PeriodoEvaluacion | None:
+    """Devuelve el periodo de evaluación activo (el más reciente marcado como activo)."""
+    result = await db.execute(
+        select(PeriodoEvaluacion)
+        .where(PeriodoEvaluacion.activo == True)
+        .order_by(PeriodoEvaluacion.fecha.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
 
 
 # ─── CRUD Apoyo Administrativo ─────────────────────────────────────────────
@@ -187,6 +199,7 @@ async def eliminar_actividad(
 @router.get("/evaluacion/buscar", response_model=DashboardApoyo)
 async def buscar_apoyo(
     cedula: str = Query(..., min_length=1),
+    periodo_id: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
     """Busca un apoyo administrativo por cédula y devuelve sus actividades con evidencias."""
@@ -205,14 +218,22 @@ async def buscar_apoyo(
     )
     actividades = acts_result.scalars().all()
 
+    pid = periodo_id
+    if pid is None:
+        periodo = await _get_periodo_activo(db)
+        pid = periodo.id if periodo else None
+
     actividades_data = []
     for act in actividades:
         evidencias_out = []
         for ev in act.evidencias_apoyo:
+            if pid is not None and ev.periodo_id != pid:
+                continue
             evidencias_out.append({
                 "id": ev.id,
                 "actividad_apoyo_id": ev.actividad_apoyo_id,
                 "apoyo_id": ev.apoyo_id,
+                "periodo_id": ev.periodo_id,
                 "tipo": ev.tipo,
                 "contenido_texto": ev.contenido_texto,
                 "archivo_ruta": ev.archivo_ruta,
@@ -247,10 +268,20 @@ async def buscar_apoyo(
 @router.get("/evaluacion/listar", response_model=list[dict])
 async def listar_apoyos_evaluacion(
     buscar: str | None = Query(None),
+    periodo_id: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
-    """Lista apoyos administrativos con información de evidencias."""
+    """Lista apoyos administrativos con información de evidencias (filtrado por periodo)."""
+    pid = periodo_id
+    if pid is None:
+        periodo = await _get_periodo_activo(db)
+        pid = periodo.id if periodo else None
+
+    ev_join = EvidenciaApoyo.apoyo_id == ApoyoAdministrativo.id
+    if pid is not None:
+        ev_join = and_(ev_join, EvidenciaApoyo.periodo_id == pid)
+
     stmt = (
         select(
             ApoyoAdministrativo.id,
@@ -265,7 +296,7 @@ async def listar_apoyos_evaluacion(
             ).label("pendientes"),
         )
         .outerjoin(ActividadApoyo, ActividadApoyo.apoyo_id == ApoyoAdministrativo.id)
-        .outerjoin(EvidenciaApoyo, EvidenciaApoyo.apoyo_id == ApoyoAdministrativo.id)
+        .outerjoin(EvidenciaApoyo, ev_join)
         .group_by(ApoyoAdministrativo.id)
         .order_by(ApoyoAdministrativo.nombre)
     )
@@ -300,6 +331,7 @@ async def subir_evidencia(
     apoyo_id: int = Form(...),
     tipo: str = Form(...),
     contenido_texto: str | None = Form(None),
+    periodo_id: int | None = Form(None),
     archivo: UploadFile | None = File(None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -323,9 +355,15 @@ async def subir_evidencia(
     if not result.scalar_one_or_none():
         raise HTTPException(404, "Apoyo administrativo no encontrado")
 
+    pid = periodo_id
+    if pid is None:
+        periodo = await _get_periodo_activo(db)
+        pid = periodo.id if periodo else None
+
     ev_data = {
         "actividad_apoyo_id": actividad_apoyo_id,
         "apoyo_id": apoyo_id,
+        "periodo_id": pid,
         "tipo": tipo,
         "contenido_texto": contenido_texto,
     }
@@ -548,6 +586,7 @@ async def evaluar_evidencia(
 @router.get("/{apoyo_id}/resumen", response_model=ResumenApoyo)
 async def resumen_apoyo(
     apoyo_id: int,
+    periodo_id: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
@@ -556,25 +595,33 @@ async def resumen_apoyo(
     if not apoyo:
         raise HTTPException(404, "Apoyo no encontrado")
 
+    pid = periodo_id
+    if pid is None:
+        periodo = await _get_periodo_activo(db)
+        pid = periodo.id if periodo else None
+
     # Total de actividades
     act_result = await db.execute(
         select(func.count(ActividadApoyo.id)).where(ActividadApoyo.apoyo_id == apoyo_id)
     )
     total_act = act_result.scalar() or 0
 
-    # Evidencias por estado
-    ev_result = await db.execute(
-        select(EvidenciaApoyo.estado, func.count(EvidenciaApoyo.id))
-        .where(EvidenciaApoyo.apoyo_id == apoyo_id)
-        .group_by(EvidenciaApoyo.estado)
+    # Evidencias por estado (filtradas por periodo)
+    ev_stmt = select(EvidenciaApoyo.estado, func.count(EvidenciaApoyo.id)).where(
+        EvidenciaApoyo.apoyo_id == apoyo_id
     )
+    if pid is not None:
+        ev_stmt = ev_stmt.where(EvidenciaApoyo.periodo_id == pid)
+    ev_result = await db.execute(ev_stmt.group_by(EvidenciaApoyo.estado))
     counts = {row[0]: row[1] for row in ev_result.all()}
 
-    # Actividades con al menos una evidencia
-    act_con_ev = await db.execute(
-        select(func.count(func.distinct(EvidenciaApoyo.actividad_apoyo_id)))
-        .where(EvidenciaApoyo.apoyo_id == apoyo_id)
+    # Actividades con al menos una evidencia (del periodo)
+    act_stmt = select(func.count(func.distinct(EvidenciaApoyo.actividad_apoyo_id))).where(
+        EvidenciaApoyo.apoyo_id == apoyo_id
     )
+    if pid is not None:
+        act_stmt = act_stmt.where(EvidenciaApoyo.periodo_id == pid)
+    act_con_ev = await db.execute(act_stmt)
     con_ev = act_con_ev.scalar() or 0
 
     aprobadas = counts.get("APROBADO", 0)

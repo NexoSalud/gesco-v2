@@ -836,16 +836,24 @@ export const listarEvidenciasPendientes = (buscar?: string, periodoId?: number) 
 
 // ─── Apoyo Administrativo ────────────────────────────────────────────────────
 
-export const listarApoyosEvaluacion = (buscar?: string) => {
-  const q = buscar ? `?buscar=${encodeURIComponent(buscar)}` : ""
-  return request<any[]>(`/api/v1/apoyo/evaluacion/listar${q}`)
+export const listarApoyosEvaluacion = (buscar?: string, periodoId?: number) => {
+  const q = new URLSearchParams()
+  if (buscar) q.set("buscar", buscar)
+  if (periodoId) q.set("periodo_id", String(periodoId))
+  const qs = q.toString()
+  return request<any[]>(`/api/v1/apoyo/evaluacion/listar${qs ? `?${qs}` : ""}`)
 }
 
-export const buscarApoyoEvaluacion = (cedula: string) =>
-  request<any>(`/api/v1/apoyo/evaluacion/buscar?cedula=${encodeURIComponent(cedula)}`)
+export const buscarApoyoEvaluacion = (cedula: string, periodoId?: number) => {
+  const q = new URLSearchParams({ cedula })
+  if (periodoId) q.set("periodo_id", String(periodoId))
+  return request<any>(`/api/v1/apoyo/evaluacion/buscar?${q.toString()}`)
+}
 
-export const getResumenApoyo = (apoyoId: number) =>
-  request<any>(`/api/v1/apoyo/${apoyoId}/resumen`)
+export const getResumenApoyo = (apoyoId: number, periodoId?: number) => {
+  const q = periodoId ? `?periodo_id=${periodoId}` : ""
+  return request<any>(`/api/v1/apoyo/${apoyoId}/resumen${q}`)
+}
 
 export const evaluarEvidenciaApoyo = (id: number, data: { estado: string; observacion?: string }) =>
   request<any>(`/api/v1/apoyo/evidencias/${id}`, {

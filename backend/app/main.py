@@ -288,6 +288,10 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE documentos_contratista ADD COLUMN IF NOT EXISTS periodo_id INTEGER "
                 "REFERENCES periodos_evaluacion(id) ON DELETE CASCADE"
             ))
+            await conn.execute(text(
+                "ALTER TABLE evidencias_apoyo ADD COLUMN IF NOT EXISTS periodo_id INTEGER "
+                "REFERENCES periodos_evaluacion(id) ON DELETE CASCADE"
+            ))
             logger.info("Migración OK: tabla periodos_evaluacion + columnas periodo_id")
     except Exception as e:
         logger.warning(f"Migración periodos_evaluacion (tabla/columnas): {e}")
@@ -405,6 +409,17 @@ async def lifespan(app: FastAPI):
             await db.execute(text(
                 "UPDATE documentos_contratista SET periodo_id = :p WHERE periodo_id IS NULL"
             ), {"p": activo_id})
+            # Evidencias de apoyo: asignar al periodo del mes de su created_at
+            # (fallback: periodo activo), para que las cargadas en agosto caigan en AGOSTO.
+            await db.execute(text("""
+                UPDATE evidencias_apoyo ea SET periodo_id = COALESCE(
+                    (SELECT p.id FROM periodos_evaluacion p
+                     WHERE p.fecha = DATE_TRUNC('month', ea.created_at)::date
+                     ORDER BY p.id LIMIT 1),
+                    :activo
+                )
+                WHERE ea.periodo_id IS NULL
+            """), {"activo": activo_id})
 
             await db.commit()
             logger.info("Migración OK: backfill de periodos de evaluación (con número de contrato)")
