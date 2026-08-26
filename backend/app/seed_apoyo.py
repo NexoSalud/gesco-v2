@@ -174,7 +174,7 @@ SECTIONS = [
     },
     {
         "role": "APOYO A LA GESTIÓN",
-        "names": ["NATHALIA ECHEVERRY"],
+        "names": ["NATHALIA ECHEVERRY", "ANDRES FELIPE PEREA RODRIGUEZ"],
         "identificacion_prefix": "APOYO-",
         "actividades": [
             "Realizar funciones de fotocopiado, escaneo e impresión de documentos, según la necesidad del proceso administrativo de los Equipos Básicos en Salud de la E.S.E. NORTE 3.",
