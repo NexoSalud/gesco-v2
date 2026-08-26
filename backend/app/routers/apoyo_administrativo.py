@@ -46,6 +46,29 @@ async def _get_periodo_activo(db: AsyncSession) -> PeriodoEvaluacion | None:
     return result.scalar_one_or_none()
 
 
+async def _asignar_actividades_por_perfil(db: AsyncSession, apoyo: ApoyoAdministrativo) -> int:
+    """Asigna las actividades del perfil (seed SECTIONS) a un apoyo sin actividades.
+
+    Devuelve el número de actividades creadas (0 si no aplica o ya tenía).
+    """
+    if not apoyo.perfil:
+        return 0
+    from app.seed_apoyo import SECTIONS
+    section = next((s for s in SECTIONS if s["role"] == apoyo.perfil), None)
+    if not section:
+        return 0
+    result = await db.execute(
+        select(ActividadApoyo.id).where(ActividadApoyo.apoyo_id == apoyo.id).limit(1)
+    )
+    if result.scalar_one_or_none():
+        return 0
+    for i, texto in enumerate(section["actividades"]):
+        db.add(ActividadApoyo(
+            apoyo_id=apoyo.id, descripcion=texto, tipo="GENERAL", orden=i + 1
+        ))
+    return len(section["actividades"])
+
+
 # ─── CRUD Apoyo Administrativo ─────────────────────────────────────────────
 
 @router.get("", response_model=list[ApoyoOut])
@@ -121,8 +144,14 @@ async def crear_apoyo(
 
     apoyo = ApoyoAdministrativo(**data.model_dump())
     db.add(apoyo)
+    await db.flush()  # obtener apoyo.id para asignar actividades
+    creadas = await _asignar_actividades_por_perfil(db, apoyo)
     await db.commit()
     await db.refresh(apoyo)
+    if creadas:
+        logger.info(
+            f"Apoyo '{apoyo.nombre}' creado — {creadas} actividades autoasignadas del perfil '{apoyo.perfil}'"
+        )
     return apoyo
 
 
@@ -141,6 +170,8 @@ async def actualizar_apoyo(
     for key, val in data.model_dump(exclude_unset=True).items():
         setattr(apoyo, key, val)
 
+    await db.flush()
+    await _asignar_actividades_por_perfil(db, apoyo)
     await db.commit()
     await db.refresh(apoyo)
     return apoyo
