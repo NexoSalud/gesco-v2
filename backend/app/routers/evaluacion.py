@@ -282,6 +282,104 @@ async def subir_evidencia(
 
 # ─── PROTEGIDO: Dashboard (coordinadora) ─────────────────────────────────────
 
+# ─── PERIODOS DE EVALUACIÓN ────────────────────────────────────────────────────
+
+@router.get("/periodos", response_model=list[PeriodoEvaluacionOut])
+async def listar_periodos(
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    """Lista los periodos de evaluación existentes (más reciente primero)."""
+    result = await db.execute(
+        select(PeriodoEvaluacion).order_by(PeriodoEvaluacion.fecha.desc())
+    )
+    return result.scalars().all()
+
+
+@router.post("/periodos", response_model=PeriodoEvaluacionOut, status_code=201)
+async def crear_periodo(
+    data: PeriodoEvaluacionCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    """Crea un nuevo periodo de evaluación (mes) y replica las actividades del
+    perfil para todos los contratistas con contratos activos.
+
+    El contrato NO se duplica: las actividades nuevas quedan asociadas al
+    mismo contrato pero con el periodo_id del nuevo periodo.
+    """
+    # Normalizar fecha al primer día del mes
+    fecha = data.fecha.replace(day=1)
+    nombre = _nombre_periodo(fecha)
+
+    # Buscar si ya existe un periodo para ese mes
+    existing = await db.execute(
+        select(PeriodoEvaluacion).where(PeriodoEvaluacion.fecha == fecha)
+    )
+    periodo = existing.scalar_one_or_none()
+    if not periodo:
+        periodo = PeriodoEvaluacion(fecha=fecha, nombre=nombre, activo=True)
+        db.add(periodo)
+        await db.flush()
+    else:
+        periodo.nombre = nombre
+        periodo.activo = True
+
+    # Desactivar los demás periodos
+    await db.execute(
+        update(PeriodoEvaluacion)
+        .where(PeriodoEvaluacion.id != periodo.id)
+        .values(activo=False)
+    )
+
+    # Replicar actividades del perfil para todos los contratos activos
+    contratos_res = await db.execute(
+        select(Contrato).where(Contrato.estado.in_(["EN_PROCESO", "ACTIVO"]))
+    )
+    contratos = contratos_res.scalars().all()
+
+    replicadas = 0
+    for contrato in contratos:
+        if not contrato.perfil:
+            continue
+        perfil_res = await db.execute(
+            select(Perfil).where(Perfil.nombre == contrato.perfil)
+        )
+        perfil = perfil_res.scalar_one_or_none()
+        if not perfil:
+            continue
+        acts_res = await db.execute(
+            select(ActividadPerfil)
+            .where(ActividadPerfil.perfil_id == perfil.id)
+            .order_by(ActividadPerfil.orden)
+        )
+        acts_perfil = acts_res.scalars().all()
+        for ap in acts_perfil:
+            # Evitar duplicados (mismo contrato + periodo + descripción)
+            dup = await db.execute(
+                select(ActividadContrato.id).where(
+                    ActividadContrato.contrato_id == contrato.numero_contrato,
+                    ActividadContrato.periodo_id == periodo.id,
+                    ActividadContrato.descripcion == ap.descripcion,
+                )
+            )
+            if dup.scalar_one_or_none():
+                continue
+            db.add(ActividadContrato(
+                contrato_id=contrato.numero_contrato,
+                descripcion=ap.descripcion,
+                tipo=ap.tipo,  # respeta clasificación GENERAL/ESPECIFICA del perfil
+                orden=ap.orden,
+                periodo_id=periodo.id,
+            ))
+            replicadas += 1
+
+    await db.commit()
+    await db.refresh(periodo)
+    logger.info(f"Periodo {periodo.nombre} creado/activado con {replicadas} actividades replicadas")
+    return periodo
+
+
 @router.get("/evidencias", response_model=list[EvidenciaOut])
 async def listar_evidencias(
     contratista_id: int | None = Query(None),
