@@ -548,48 +548,15 @@ async def _build_section_vi(doc, db: AsyncSession, apoyos: list[dict],
             ev_result = await db.execute(ev_stmt)
             evidencias = ev_result.scalars().all()
 
-            # Generar texto de actividad realizada basado en evidencias
-            if evidencias:
-                aprobadas = [e for e in evidencias if e.estado == "APROBADO"]
-                pendientes = [e for e in evidencias if e.estado == "PENDIENTE"]
-                rechazadas = [e for e in evidencias if e.estado == "RECHAZADO"]
-
-                texto_realizada = f"{act_idx}. "
-
-                if aprobadas:
-                    texto_realizada += (
-                        "Se ejecutó la actividad conforme a lo programado, presentando las "
-                        "evidencias requeridas para su verificación y registro documental. "
-                    )
-                    texto_realizada += f"Se cuenta con {len(aprobadas)} evidencia(s) aprobada(s)."
-                    # Detallar cada evidencia aprobada
-                    for ev in aprobadas:
-                        if ev.tipo == "TEXTO" and ev.contenido_texto:
-                            texto_realizada += f"\n\n- Evidencia de texto: {ev.contenido_texto}"
-                        elif ev.tipo == "IMAGEN":
-                            nombre = ev.archivo_nombre or "imagen"
-                            texto_realizada += f"\n\n- Evidencia gráfica: {nombre}"
-                        elif ev.tipo == "ARCHIVO":
-                            nombre = ev.archivo_nombre or "archivo"
-                            texto_realizada += f"\n\n- Evidencia documental: {nombre}"
-                elif rechazadas and not aprobadas:
-                    texto_realizada += (
-                        "La actividad se ejecutó parcialmente. Se presentaron soportes que "
-                        "requieren ajustes de acuerdo con la revisión del coordinador. "
-                    )
-                else:
-                    texto_realizada += (
-                        "Se desarrollaron las acciones correspondientes a la actividad durante "
-                        "el período, con soportes en proceso de revisión. "
-                    )
-
-                if rechazadas:
-                    texto_realizada += f"\n{len(rechazadas)} evidencia(s) rechazada(s) requieren corrección."
-            else:
-                texto_realizada = (
-                    f"{act_idx}. Actividad corresponde a las obligaciones contractuales del "
-                    f"perfil. Pendiente de reporte de ejecución detallada."
-                )
+            # ACTIVIDAD REALIZADA: solo los textos ingresados como evidencia
+            # (sin etiquetas ni texto de relleno) y las imágenes aprobadas.
+            aprobadas = [e for e in evidencias if e.estado == "APROBADO"]
+            textos = [
+                ev.contenido_texto
+                for ev in aprobadas
+                if ev.tipo == "TEXTO" and ev.contenido_texto
+            ]
+            texto_realizada = "\n\n".join(textos)
 
             _add_actividad_row_with_evidence(table, [
                 str(act_idx),
