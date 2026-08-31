@@ -30,6 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.apoyo_administrativo import ApoyoAdministrativo
 from app.models.actividad_apoyo import ActividadApoyo
 from app.models.evidencia_apoyo import EvidenciaApoyo
+from app.models.periodo_evaluacion import PeriodoEvaluacion
 
 logger = logging.getLogger(__name__)
 
@@ -475,9 +476,13 @@ def _build_section_v(doc):
     _add_formatted_paragraph(doc, "", space_after=Cm(0.3))
 
 
-async def _build_section_vi(doc, db: AsyncSession, mes: int, anio: int,
-                              apoyos: list[dict]):
-    """Construye la Sección VI: Actividades específicas por perfil funcional."""
+async def _build_section_vi(doc, db: AsyncSession, apoyos: list[dict],
+                              periodo_id: int | None = None):
+    """Construye la Sección VI: Actividades específicas por perfil funcional.
+
+    Filtra las evidencias por `periodo_id` para no mezclar textos de distintos
+    periodos en el mismo informe mensual.
+    """
     _make_section_title(doc, "VI", "DESCRIPCIÓN DE CUMPLIMIENTO DE ACTIVIDADES ESPECÍFICAS")
     _add_formatted_paragraph(doc,
         'A continuación, se presentan las actividades específicas desarrolladas, organizadas '
@@ -530,12 +535,17 @@ async def _build_section_vi(doc, db: AsyncSession, mes: int, anio: int,
         _add_table_header_row(table, ["ÍTEM", "ACTIVIDAD ACORDADA", "ACTIVIDAD REALIZADA"], col_widths)
 
         for act_idx, act in enumerate(actividades, 1):
-            # Buscar evidencias para esta actividad
-            ev_result = await db.execute(
-                select(EvidenciaApoyo)
-                .where(EvidenciaApoyo.actividad_apoyo_id == act.id)
-                .order_by(EvidenciaApoyo.created_at.desc())
+            # Buscar evidencias para esta actividad (SOLO del periodo solicitado)
+            ev_stmt = select(EvidenciaApoyo).where(
+                EvidenciaApoyo.actividad_apoyo_id == act.id
             )
+            if periodo_id is not None:
+                ev_stmt = ev_stmt.where(EvidenciaApoyo.periodo_id == periodo_id)
+            else:
+                # Sin periodo resuelto → no traer evidencias de otros meses
+                ev_stmt = ev_stmt.where(EvidenciaApoyo.periodo_id.is_(None))
+            ev_stmt = ev_stmt.order_by(EvidenciaApoyo.created_at.desc())
+            ev_result = await db.execute(ev_stmt)
             evidencias = ev_result.scalars().all()
 
             # Generar texto de actividad realizada basado en evidencias
@@ -555,7 +565,7 @@ async def _build_section_vi(doc, db: AsyncSession, mes: int, anio: int,
                     # Detallar cada evidencia aprobada
                     for ev in aprobadas:
                         if ev.tipo == "TEXTO" and ev.contenido_texto:
-                            texto_realizada += f"\n\n- Evidencia de texto: {ev.contenido_texto[:300]}"
+                            texto_realizada += f"\n\n- Evidencia de texto: {ev.contenido_texto}"
                         elif ev.tipo == "IMAGEN":
                             nombre = ev.archivo_nombre or "imagen"
                             texto_realizada += f"\n\n- Evidencia gráfica: {nombre}"
@@ -628,6 +638,16 @@ async def generar_informe_apoyo(
     apoyos = [{"id": a.id, "nombre": a.nombre, "identificacion": a.identificacion,
                "perfil": a.perfil} for a in apoyos_db]
 
+    # Resolver el periodo de evaluación correspondiente al mes/año solicitado.
+    # Sin esto, la Sección VI mezclaría evidencias de todos los periodos.
+    periodo_result = await db.execute(
+        select(PeriodoEvaluacion).where(
+            PeriodoEvaluacion.fecha == date(anio, mes, 1)
+        )
+    )
+    periodo = periodo_result.scalar_one_or_none()
+    periodo_id = periodo.id if periodo else None
+
     # ─── CARTA / ENCABEZADO ─────────────────────────────────────────────
     mes_nombre = MESES[mes]
     periodo = periodo_texto or f"01 al 31 de {MESES_TITULO[mes].lower()} de {anio}"
@@ -677,7 +697,7 @@ async def generar_informe_apoyo(
     _build_section_iii(doc)
     _build_section_iv(doc, apoyos)
     _build_section_v(doc)
-    await _build_section_vi(doc, db, mes, anio, apoyos)
+    await _build_section_vi(doc, db, apoyos, periodo_id)
 
     # Guardar
     buf = io.BytesIO()

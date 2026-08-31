@@ -4,13 +4,14 @@ import { useEffect, useState, useCallback, useRef } from "react"
 import {
   Loader2, Search, User, Plus, Pencil, Trash2, X,
   Save, Phone, Mail, RefreshCw, FileText, ListChecks,
-  Upload, FileSpreadsheet, CheckCircle2, Download,
+  Upload, FileSpreadsheet, CheckCircle2, Download, CalendarDays,
 } from "lucide-react"
 import {
   getApoyos, crearApoyo, actualizarApoyo, eliminarApoyo,
   getActividadesApoyo, crearActividadApoyo, eliminarActividadApoyo,
-  importarApoyosExcel,
+  importarApoyosExcel, listarPeriodos,
 } from "@/lib/api"
+import type { PeriodoEvaluacion } from "@/lib/api"
 import { toast } from "sonner"
 
 interface Apoyo {
@@ -155,6 +156,26 @@ export default function ApoyoPage() {
   const [importResult, setImportResult] = useState<any>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Periodo / mes para descargar el informe mensual
+  const [periodos, setPeriodos] = useState<PeriodoEvaluacion[]>([])
+  const [loadingPeriodos, setLoadingPeriodos] = useState(true)
+  const [periodoSeleccionado, setPeriodoSeleccionado] = useState<number | null>(null)
+
+  const loadPeriodos = useCallback(async () => {
+    setLoadingPeriodos(true)
+    try {
+      const data = (await listarPeriodos()) as PeriodoEvaluacion[]
+      setPeriodos(data)
+      const activo = data.find((p) => p.activo)
+      setPeriodoSeleccionado(activo?.id ?? data[0]?.id ?? null)
+    } catch {
+      /* ignore */
+    }
+    setLoadingPeriodos(false)
+  }, [])
+
+  useEffect(() => { loadPeriodos() }, [loadPeriodos])
+
   const load = useCallback(async (q?: string) => {
     setLoading(true)
     try {
@@ -238,6 +259,43 @@ export default function ApoyoPage() {
     if (fileRef.current) fileRef.current.value = ''
   }
 
+  const handleDownloadInforme = () => {
+    const token = localStorage.getItem("token")
+    let mes = new Date().getMonth() + 1
+    let anio = new Date().getFullYear()
+    const sel = periodos.find((p) => p.id === periodoSeleccionado)
+    if (sel?.fecha) {
+      const partes = sel.fecha.split("-")
+      const y = Number(partes[0])
+      const m = Number(partes[1])
+      if (y && m) { anio = y; mes = m }
+    }
+    const url = `${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1/apoyo/informe-mensual?mes=${mes}&anio=${anio}`
+    const xhr = new XMLHttpRequest()
+    xhr.open("GET", url)
+    xhr.setRequestHeader("Authorization", `Bearer ${token}`)
+    xhr.responseType = "blob"
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const link = document.createElement("a")
+        link.href = URL.createObjectURL(new Blob([xhr.response]))
+        link.download = `INFORME_ACTIVIDADES_APOYO_ADVO_EBS.docx`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(link.href)
+      } else {
+        console.error("Error al descargar informe:", xhr.status, xhr.statusText)
+        alert("Error al descargar el informe. Verifica la consola para más detalles.")
+      }
+    }
+    xhr.onerror = () => {
+      console.error("Error de red al descargar el informe")
+      alert("Error de conexión al descargar el informe.")
+    }
+    xhr.send()
+  }
+
   return (
     <div className="space-y-5 max-w-full pb-8">
       {/* Header */}
@@ -256,34 +314,29 @@ export default function ApoyoPage() {
           <button onClick={() => setImportOpen(true)} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg border border-gray-200">
             <FileSpreadsheet className="w-4 h-4" /> Importar
           </button>
+          <div className="relative">
+            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <select
+              value={periodoSeleccionado ?? ""}
+              onChange={(e) => setPeriodoSeleccionado(e.target.value ? Number(e.target.value) : null)}
+              className="pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm bg-white min-w-[150px]"
+              disabled={loadingPeriodos}
+            >
+              {loadingPeriodos ? (
+                <option value="">Cargando periodos...</option>
+              ) : periodos.length === 0 ? (
+                <option value="">Sin periodos</option>
+              ) : (
+                periodos.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre}{p.activo ? " (Activo)" : ""}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
           <button
-            onClick={() => {
-              const token = localStorage.getItem("token")
-              const url = `${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1/apoyo/informe-mensual?mes=${new Date().getMonth() + 1}&anio=${new Date().getFullYear()}`
-              const xhr = new XMLHttpRequest()
-              xhr.open("GET", url)
-              xhr.setRequestHeader("Authorization", `Bearer ${token}`)
-              xhr.responseType = "blob"
-              xhr.onload = () => {
-                if (xhr.status === 200) {
-                  const link = document.createElement("a")
-                  link.href = URL.createObjectURL(new Blob([xhr.response]))
-                  link.download = `INFORME_ACTIVIDADES_APOYO_ADVO_EBS.docx`
-                  document.body.appendChild(link)
-                  link.click()
-                  document.body.removeChild(link)
-                  URL.revokeObjectURL(link.href)
-                } else {
-                  console.error("Error al descargar informe:", xhr.status, xhr.statusText)
-                  alert("Error al descargar el informe. Verifica la consola para más detalles.")
-                }
-              }
-              xhr.onerror = () => {
-                console.error("Error de red al descargar el informe")
-                alert("Error de conexión al descargar el informe.")
-              }
-              xhr.send()
-            }}
+            onClick={handleDownloadInforme}
             className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
             <Download className="w-4 h-4" /> Informe
