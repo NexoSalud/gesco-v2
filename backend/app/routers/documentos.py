@@ -84,6 +84,24 @@ def _validar_pdf(contenido: bytes) -> None:
         raise HTTPException(400, msg)
 
 
+def _meses_ejecucion(contrato) -> int:
+    """Meses de ejecución del contrato, de fecha_inicio a fecha_fin (inclusive).
+
+    Fallbacks: cuotas_total si no hay fechas; 6 meses por defecto.
+    """
+    if contrato.fecha_inicio and contrato.fecha_fin:
+        meses = (
+            (contrato.fecha_fin.year - contrato.fecha_inicio.year) * 12
+            + (contrato.fecha_fin.month - contrato.fecha_inicio.month)
+            + 1
+        )
+        if meses > 0:
+            return meses
+    if contrato.cuotas_total and contrato.cuotas_total > 0:
+        return contrato.cuotas_total
+    return 6
+
+
 # ─── PÚBLICO: Rutas sin autenticación (solo validación por cédula) ──────────
 
 @router.get("/cuenta-cobro/generar")
@@ -135,14 +153,12 @@ async def generar_cuenta_cobro(
         anio = contrato.fecha_inicio.year if contrato.fecha_inicio else _date.today().year
         periodo_nombre = f"{_MESES[mes - 1]} {anio}"
 
-    # Calcular valor: parámetro o monto_total / cuotas / meses
+    # Calcular honorarios: valor del contrato / meses de ejecución
     if valor is not None and valor > 0:
         valor_cobro = valor
-    elif contrato.cuotas_total and contrato.cuotas_total > 0:
-        valor_cobro = round(contrato.monto_total / contrato.cuotas_total, 2)
     else:
-        # Default: 6 meses (jul-dic) para contratos EBS
-        valor_cobro = round(contrato.monto_total / 6, 2)
+        meses = _meses_ejecucion(contrato)
+        valor_cobro = round(contrato.monto_total / meses, 2) if meses > 0 else contrato.monto_total
 
     # Número de la cuenta de cobro (conteo de CUENTA_COBRO existentes + 1)
     count_res = await db.execute(

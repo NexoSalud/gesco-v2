@@ -44,6 +44,12 @@ PERFIL_NORMALIZATION = {
     "AUXILIAR VACUNACION": "AUXILIAR VACUNACION",
     "AUX VACUNACION": "AUXILIAR VACUNACION",
     "VACUNADOR": "AUXILIAR VACUNACION",
+    "VACUNADORA": "AUXILIAR VACUNACION",
+    "AUXILIAR DE VACUNACIÓN": "AUXILIAR VACUNACION",
+    "AUXILIAR DE VACUNACION": "AUXILIAR VACUNACION",
+    "AUX VACUNACIÓN": "AUXILIAR VACUNACION",
+    "VACUNACIÓN": "AUXILIAR VACUNACION",
+    "VACUNACION": "AUXILIAR VACUNACION",
     "GESTOR COMUNITARIO": "GESTOR COMUNITARIO",
     "SINDICATO": "SINDICATO",
     "SINDICATO_103": "SINDICATO",
@@ -331,11 +337,17 @@ async def importar_contratos_excel(
                     elif perfil_upper in perfiles_existentes:
                         perfil_normalized = perfiles_existentes[perfil_upper]
                     else:
-                        # 3. Búsqueda parcial contra nombres existentes
-                        for p_name in perfiles_existentes.values():
-                            if perfil_upper in p_name.upper() or p_name.upper() in perfil_upper:
-                                perfil_normalized = p_name
-                                break
+                        # 3. Búsqueda parcial contra nombres existentes.
+                        #    Priorizar VACUN antes que ENFERMERIA para que
+                        #    "AUXILIAR DE ENFERMERÍA VACUNADORA" no caiga en
+                        #    AUXILIAR ENFERMERIA.
+                        if "VACUN" in perfil_upper:
+                            perfil_normalized = "AUXILIAR VACUNACION"
+                        else:
+                            for p_name in perfiles_existentes.values():
+                                if perfil_upper in p_name.upper() or p_name.upper() in perfil_upper:
+                                    perfil_normalized = p_name
+                                    break
                         # 4. Último recurso: usar raw
                         if not perfil_normalized:
                             perfil_normalized = perfil_raw.upper()
