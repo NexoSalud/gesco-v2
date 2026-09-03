@@ -226,8 +226,17 @@ async def actualizar_contrato(
         await reheredar_actividades_perfil(db, contrato.numero_contrato, contrato.perfil)
 
     await db.commit()
-    await db.refresh(contrato)
-    return contrato
+
+    # Recargar con relaciones para serialización correcta
+    result = await db.execute(
+        select(Contrato)
+        .options(
+            selectinload(Contrato.contratista_rel),
+            selectinload(Contrato.pagos),
+        )
+        .where(Contrato.id == contrato.id)
+    )
+    return result.scalar_one()
 
 
 @router.post("/{numero_contrato}/anular")
