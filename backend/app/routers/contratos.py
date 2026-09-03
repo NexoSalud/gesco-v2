@@ -20,6 +20,7 @@ from app.schemas.contrato import ContratoCreate, ContratoUpdate, ContratoOut
 from app.schemas.contratista import ContratistaCreate
 from app.services.docx_generator import generar_contrato_docx
 from app.services.numero_letras import numero_a_letras
+from app.routers.actividades import reheredar_actividades_perfil
 
 router = APIRouter(prefix="/api/v1/contratos", tags=["Contratos"])
 
@@ -209,8 +210,21 @@ async def actualizar_contrato(
     contrato = result.scalar_one_or_none()
     if not contrato:
         raise HTTPException(404, "Contrato no encontrado")
-    for field, value in data.model_dump(exclude_unset=True).items():
+
+    cambios = data.model_dump(exclude_unset=True)
+    nuevo_perfil = cambios.get("perfil")
+    perfil_cambio = (
+        nuevo_perfil is not None
+        and (contrato.perfil or "").strip() != (nuevo_perfil or "").strip()
+    )
+
+    for field, value in cambios.items():
         setattr(contrato, field, value)
+
+    # Si cambió el perfil, dejar solo las actividades del nuevo perfil
+    if perfil_cambio and contrato.perfil:
+        await reheredar_actividades_perfil(db, contrato.numero_contrato, contrato.perfil)
+
     await db.commit()
     await db.refresh(contrato)
     return contrato

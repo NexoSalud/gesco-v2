@@ -1,6 +1,7 @@
 """Router para actividades de contrato y supervisión."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -10,7 +11,7 @@ from app.models.contrato import Contrato
 from app.models.actividad_contrato import ActividadContrato
 from app.models.actividad_supervision import ActividadSupervision
 from app.models.pago import Pago
-from app.models.perfil import ActividadPerfil
+from app.models.perfil import Perfil, ActividadPerfil
 from app.schemas.actividad_schema import (
     ActividadContratoCreate, ActividadContratoUpdate, ActividadContratoOut,
     EvaluarActividadesInput, ActividadSupervisionOut,
@@ -112,9 +113,51 @@ async def eliminar_actividad_contrato(actividad_id: int, db: AsyncSession = Depe
     await db.commit()
 
 
+async def reheredar_actividades_perfil(db: AsyncSession, numero_contrato: str, perfil_nombre: str) -> int:
+    """Borra las actividades actuales del contrato y las reemplaza por las del perfil.
+
+    Preserva el periodo_id de las actividades previas. NO hace commit.
+    Retorna cuántas actividades insertó (0 si el perfil no existe).
+    """
+    result = await db.execute(select(Perfil).where(Perfil.nombre == perfil_nombre))
+    perfil = result.scalar_one_or_none()
+    if not perfil:
+        return 0
+
+    # Preservar el periodo_id actual del contrato (si ya estaba asignado)
+    res_p = await db.execute(
+        select(ActividadContrato.periodo_id)
+        .where(ActividadContrato.contrato_id == numero_contrato)
+        .limit(1)
+    )
+    periodo_id = res_p.scalar_one_or_none()
+
+    # Eliminar actividades existentes
+    await db.execute(
+        delete(ActividadContrato).where(ActividadContrato.contrato_id == numero_contrato)
+    )
+
+    # Insertar las del perfil
+    result = await db.execute(
+        select(ActividadPerfil)
+        .where(ActividadPerfil.perfil_id == perfil.id)
+        .order_by(ActividadPerfil.orden)
+    )
+    acts_perfil = result.scalars().all()
+    for ap in acts_perfil:
+        db.add(ActividadContrato(
+            contrato_id=numero_contrato,
+            descripcion=ap.descripcion,
+            tipo=ap.tipo,
+            orden=ap.orden,
+            periodo_id=periodo_id,
+        ))
+    return len(acts_perfil)
+
+
 @router.post("/contratos/{numero_contrato}/actividades/heredar")
 async def heredar_actividades_perfil(numero_contrato: str, db: AsyncSession = Depends(get_db)):
-    """Hereda actividades del perfil al contrato."""
+    """Reemplaza las actividades del contrato por las de su perfil."""
     result = await db.execute(
         select(Contrato).where(Contrato.numero_contrato == numero_contrato)
     )
@@ -124,45 +167,9 @@ async def heredar_actividades_perfil(numero_contrato: str, db: AsyncSession = De
     if not contrato.perfil:
         raise HTTPException(400, "El contrato no tiene perfil asignado")
 
-    # Buscar perfil
-    from app.models.perfil import Perfil
-    result = await db.execute(select(Perfil).where(Perfil.nombre == contrato.perfil))
-    perfil = result.scalar_one_or_none()
-    if not perfil:
-        raise HTTPException(404, f"Perfil {contrato.perfil} no encontrado")
-
-    # Cargar actividades del perfil
-    result = await db.execute(
-        select(ActividadPerfil).where(ActividadPerfil.perfil_id == perfil.id).order_by(ActividadPerfil.orden)
-    )
-    acts_perfil = result.scalars().all()
-
-    if not acts_perfil:
-        raise HTTPException(400, "El perfil no tiene actividades definidas")
-
-    # Eliminar actividades existentes del contrato
-    await db.execute(
-        select(ActividadContrato).where(ActividadContrato.contrato_id == numero_contrato)
-    )
-
-    creadas = 0
-    for ap in acts_perfil:
-        # Verificar si ya existe una igual
-        existing = await db.execute(
-            select(ActividadContrato).where(
-                ActividadContrato.contrato_id == numero_contrato,
-                ActividadContrato.descripcion == ap.descripcion,
-            )
-        )
-        if not existing.scalar_one_or_none():
-            act = ActividadContrato(
-                contrato_id=numero_contrato,
-                descripcion=ap.descripcion,
-                tipo=ap.tipo,
-                orden=ap.orden,
-            )
-            db.add(act)
-            creadas += 1
+    creadas = await reheredar_actividades_perfil(db, numero_contrato, contrato.perfil)
+    if creadas == 0:
+        raise HTTPException(404, f"Perfil {contrato.perfil} no encontrado o sin actividades")
 
     await db.commit()
     return {"message": f"Se heredaron {creadas} actividades del perfil {contrato.perfil}"}
