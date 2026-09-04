@@ -265,6 +265,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Migración agosto 2026 — ya ejecutada o error: {e}")
 
+    # Migración: correcciones puntuales del portal (contratos 279 y 001)
+    try:
+        from app.migrations import migrar_fix_portal_agosto
+        resultado = await migrar_fix_portal_agosto()
+        logger.info(f"Migración fix portal agosto: {resultado}")
+    except Exception as e:
+        logger.warning(f"Migración fix portal agosto: {e}")
+
     # ─── Migración: PERIODOS DE EVALUACIÓN (evaluaciones por mes) ───
     # Crea la tabla periodos_evaluacion, agrega periodo_id a
     # actividades_contrato y documentos_contratista, y hace backfill

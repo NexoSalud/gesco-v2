@@ -135,10 +135,15 @@ async def buscar_contratista(
         acts_contrato = [a for a in c.actividades_contrato if a.tipo == "ESPECIFICA"]
         if not acts_contrato:
             acts_contrato = list(c.actividades_contrato)
+        # Filtrar por periodo solo si se pidió explícitamente Y ese periodo tiene
+        # actividades. Si el periodo solicitado no tiene ninguna (p.ej. la
+        # replicación mensual falló para este contrato), se muestran todas para
+        # que el contratista nunca quede sin actividades visibles.
+        if periodo_id is not None:
+            acts_periodo = [a for a in acts_contrato if a.periodo_id == periodo_id]
+            if acts_periodo:
+                acts_contrato = acts_periodo
         for act in acts_contrato:
-            # Filtrar por periodo solo si se pidió explícitamente
-            if periodo_id is not None and act.periodo_id != periodo_id:
-                continue
             evidencias_out = []
             for ev in act.evidencias:
                 evidencias_out.append(EvidenciaOut(

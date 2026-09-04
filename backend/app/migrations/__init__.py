@@ -143,3 +143,75 @@ async def migrar_fechas_agosto_2026() -> dict:
         f"{no_encontrados} no encontrados"
     )
     return resultado
+
+
+async def migrar_fix_portal_agosto() -> dict:
+    """Correcciones puntuales del portal de evaluación (2026-09-03).
+
+    1. Contrato 279 (MEDICINA, 'DEL 01 DE JULIO') tenía fecha_inicio/fecha_fin
+       mal (2026-09-01 / 2026-12-03) → se corrige a julio-diciembre (igual que
+       su par 278): 2026-07-01 / 2026-12-28.
+    2. Contrato 001 (ENFERMERÍA, 'DEL 01/08/2026') tenía fechas NULL y cero
+       actividades → se fijan fechas agosto-diciembre y se heredan las
+       actividades del perfil ENFERMERÍA al periodo AGOSTO.
+
+    Idempotente: solo corrige fechas si están mal/NULL, y las actividades se
+    insertan con dedup (contrato + periodo + descripcion).
+    """
+    async with async_session_factory() as db:
+        # 1) Contrato 279 → julio-diciembre
+        await db.execute(
+            text(
+                "UPDATE contratos SET fecha_inicio = :fi, fecha_fin = :ff "
+                "WHERE numero_contrato = :nc "
+                "AND (fecha_inicio IS DISTINCT FROM :fi OR fecha_fin IS DISTINCT FROM :ff)"
+            ),
+            {"fi": date(2026, 7, 1), "ff": date(2026, 12, 28),
+             "nc": "279 DEL 01 DE JULIO DE 2026"},
+        )
+
+        # 2) Contrato 001 → agosto-diciembre (solo si las fechas están NULL)
+        await db.execute(
+            text(
+                "UPDATE contratos SET fecha_inicio = :fi, fecha_fin = :ff "
+                "WHERE numero_contrato = :nc "
+                "AND (fecha_inicio IS NULL OR fecha_fin IS NULL)"
+            ),
+            {"fi": date(2026, 8, 1), "ff": date(2026, 12, 28),
+             "nc": "001 DEL 01/08/2026"},
+        )
+
+        # 3) Heredar actividades de ENFERMERÍA al periodo AGOSTO para 001
+        pid = await db.execute(
+            text("SELECT id FROM periodos_evaluacion WHERE fecha = :f"),
+            {"f": date(2026, 8, 1)},
+        )
+        periodo_id = pid.scalar_one_or_none()
+        heredadas = 0
+        if periodo_id:
+            res = await db.execute(
+                text(
+                    "INSERT INTO actividades_contrato "
+                    "(contrato_id, descripcion, tipo, orden, periodo_id) "
+                    "SELECT c.numero_contrato, ap.descripcion, ap.tipo, ap.orden, :p "
+                    "FROM contratos c "
+                    "JOIN perfiles p ON p.nombre = c.perfil "
+                    "JOIN actividades_perfil ap ON ap.perfil_id = p.id "
+                    "WHERE c.numero_contrato = :nc "
+                    "AND NOT EXISTS ("
+                    "  SELECT 1 FROM actividades_contrato ac "
+                    "  WHERE ac.contrato_id = c.numero_contrato "
+                    "    AND ac.periodo_id = :p "
+                    "    AND ac.descripcion = ap.descripcion"
+                    ")"
+                ),
+                {"p": periodo_id, "nc": "001 DEL 01/08/2026"},
+            )
+            heredadas = res.rowcount
+
+        await db.commit()
+
+    resultado = {"contrato_279": "corregido", "contrato_001": "corregido",
+                 "actividades_heredadas_001": heredadas}
+    logger.info(f"Migración fix portal agosto: {resultado}")
+    return resultado
