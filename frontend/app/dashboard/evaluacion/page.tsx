@@ -411,7 +411,7 @@ export default function EvaluacionDashboardPage() {
       return
     }
     const token = localStorage.getItem("token")
-    const url = `${API}/api/v1/evaluacion/contratista/${selectedContratista.id}/informe?formato=${formato}`
+    const url = `${API}/api/v1/evaluacion/contratista/${selectedContratista.id}/informe?formato=${formato}${periodoSeleccionado ? `&periodo_id=${periodoSeleccionado}` : ""}`
     const xhr = new XMLHttpRequest()
     xhr.open("GET", url)
     xhr.setRequestHeader("Authorization", `Bearer ${token}`)

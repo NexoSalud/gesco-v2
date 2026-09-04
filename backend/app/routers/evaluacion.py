@@ -70,6 +70,16 @@ async def _resolve_periodo(db: AsyncSession, periodo_id: int | None) -> int | No
     return periodo.id if periodo else None
 
 
+def _filtrar_actividades_por_periodo(actividades: list, periodo_id: int | None) -> list:
+    """Filtra actividades por periodo con salvaguarda: si el periodo solicitado
+    no tiene actividades para el contrato, se devuelven todas para que el
+    contratista nunca quede sin actividades visibles."""
+    if periodo_id is None:
+        return list(actividades)
+    filtradas = [a for a in actividades if a.periodo_id == periodo_id]
+    return filtradas if filtradas else list(actividades)
+
+
 def _estado_actividad(evs: list) -> str:
     """Estado de una actividad según sus evidencias (misma lógica que el frontend).
     Prioridad: pendiente > rechazada > aprobada > sin evidencia."""
@@ -867,6 +877,7 @@ async def listar_contratistas_con_evidencias(
 async def descargar_informe(
     contratista_id: int,
     formato: str = Query("pdf", regex="^(pdf|docx)$"),
+    periodo_id: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
@@ -895,36 +906,44 @@ async def descargar_informe(
     )
     contratos = contratos_result.scalars().all()
 
-    # Obtener resumen
-    res_result = await db.execute(
-        select(Evidencia.estado, func.count(Evidencia.id))
-        .where(Evidencia.contratista_id == contratista_id)
-        .group_by(Evidencia.estado)
-    )
-    counts = {row[0]: row[1] for row in res_result.all()}
+    # Resolver periodo (indicado o activo) para filtrar solo el mes actual
+    pid = await _resolve_periodo(db, periodo_id)
+    periodo_obj = None
+    if pid is not None:
+        pr = await db.execute(
+            select(PeriodoEvaluacion).where(PeriodoEvaluacion.id == pid)
+        )
+        periodo_obj = pr.scalar_one_or_none()
 
-    # Contar actividades
-    contrato_numeros = [c.numero_contrato for c in contratos]
-    act_result = await db.execute(
-        select(func.count(ActividadContrato.id))
-        .where(ActividadContrato.contrato_id.in_(contrato_numeros))
-    )
-    total_actividades = act_result.scalar() or 0
+    # Calcular resumen a partir de las actividades del periodo (con salvaguarda)
+    actividades_periodo = []
+    for c in contratos:
+        actividades_periodo.extend(
+            _filtrar_actividades_por_periodo(c.actividades_contrato, pid)
+        )
 
-    act_con_ev = await db.execute(
-        select(func.count(func.distinct(Evidencia.actividad_contrato_id)))
-        .where(Evidencia.contratista_id == contratista_id)
-    )
-    con_evidencia = act_con_ev.scalar() or 0
+    total_actividades = len(actividades_periodo)
+    aprobadas = rechazadas = pendientes = 0
+    con_evidencia = 0
+    for act in actividades_periodo:
+        if act.evidencias:
+            con_evidencia += 1
+        for ev in act.evidencias:
+            if ev.estado == "APROBADO":
+                aprobadas += 1
+            elif ev.estado == "RECHAZADO":
+                rechazadas += 1
+            elif ev.estado == "PENDIENTE":
+                pendientes += 1
 
     resumen = {
         "total_actividades": total_actividades,
-        "aprobadas": counts.get("APROBADO", 0),
-        "rechazadas": counts.get("RECHAZADO", 0),
-        "pendientes": counts.get("PENDIENTE", 0),
+        "aprobadas": aprobadas,
+        "rechazadas": rechazadas,
+        "pendientes": pendientes,
         "sin_evidencia": total_actividades - con_evidencia,
         "porcentaje_cumplimiento": round(
-            counts.get("APROBADO", 0) / max(total_actividades, 1) * 100, 1
+            aprobadas / max(total_actividades, 1) * 100, 1
         ),
     }
 
@@ -1000,7 +1019,7 @@ async def descargar_informe(
     contratos_data = []
     for c in contratos:
         actividades_data = []
-        for act in c.actividades_contrato:
+        for act in _filtrar_actividades_por_periodo(c.actividades_contrato, pid):
             evidencias_out = []
             for ev in act.evidencias:
                 if ev.estado != "APROBADO":
@@ -1037,6 +1056,7 @@ async def descargar_informe(
             "fecha_inicio": str(c.fecha_inicio) if c.fecha_inicio else None,
             "fecha_fin": str(c.fecha_fin) if c.fecha_fin else None,
             "fecha_contrato": str(c.fecha_contrato) if c.fecha_contrato else None,
+            "periodo_fecha": str(periodo_obj.fecha) if periodo_obj else None,
             "monto_total": c.monto_total,
             "valor_final": c.valor_final or c.monto_total,
             "valor_letras": c.valor_letras,
@@ -1062,12 +1082,18 @@ async def descargar_informe(
         "direccion": contratista.direccion,
     }
 
-    # Obtener documentos contractuales de todos los contratos
+    # Obtener documentos contractuales SOLO del periodo actual (anexos)
     for c_data in contratos_data:
+        docs_query = select(DocumentoContratista).where(
+            DocumentoContratista.contrato_numero == c_data["numero_contrato"]
+        )
+        if pid is not None:
+            docs_query = docs_query.where(DocumentoContratista.periodo_id == pid)
         docs_result = await db.execute(
-            select(DocumentoContratista).where(
-                DocumentoContratista.contrato_numero == c_data["numero_contrato"]
-            ).order_by(DocumentoContratista.tipo_documento, DocumentoContratista.created_at.desc())
+            docs_query.order_by(
+                DocumentoContratista.tipo_documento,
+                DocumentoContratista.created_at.desc(),
+            )
         )
         documentos_data = []
         for doc in docs_result.scalars().all():
@@ -1105,6 +1131,7 @@ async def descargar_informe(
 async def descargar_informe_publico(
     cedula: str = Query(..., min_length=1),
     formato: str = Query("pdf", regex="^(pdf|docx)$"),
+    periodo_id: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
     """Endpoint público: descarga informe por cédula (sin auth)."""
@@ -1134,35 +1161,44 @@ async def descargar_informe_publico(
     )
     contratos = contratos_result.scalars().all()
 
-    # Resumen
-    res_result = await db.execute(
-        select(Evidencia.estado, func.count(Evidencia.id))
-        .where(Evidencia.contratista_id == contratista_id)
-        .group_by(Evidencia.estado)
-    )
-    counts = {row[0]: row[1] for row in res_result.all()}
+    # Resolver periodo (indicado o activo) para filtrar solo el mes actual
+    pid = await _resolve_periodo(db, periodo_id)
+    periodo_obj = None
+    if pid is not None:
+        pr = await db.execute(
+            select(PeriodoEvaluacion).where(PeriodoEvaluacion.id == pid)
+        )
+        periodo_obj = pr.scalar_one_or_none()
 
-    contrato_numeros = [c.numero_contrato for c in contratos]
-    total_act = await db.execute(
-        select(func.count(ActividadContrato.id))
-        .where(ActividadContrato.contrato_id.in_(contrato_numeros))
-    )
-    total_actividades = total_act.scalar() or 0
+    # Calcular resumen a partir de las actividades del periodo (con salvaguarda)
+    actividades_periodo = []
+    for c in contratos:
+        actividades_periodo.extend(
+            _filtrar_actividades_por_periodo(c.actividades_contrato, pid)
+        )
 
-    act_con_ev = await db.execute(
-        select(func.count(func.distinct(Evidencia.actividad_contrato_id)))
-        .where(Evidencia.contratista_id == contratista_id)
-    )
-    con_evidencia = act_con_ev.scalar() or 0
+    total_actividades = len(actividades_periodo)
+    aprobadas = rechazadas = pendientes = 0
+    con_evidencia = 0
+    for act in actividades_periodo:
+        if act.evidencias:
+            con_evidencia += 1
+        for ev in act.evidencias:
+            if ev.estado == "APROBADO":
+                aprobadas += 1
+            elif ev.estado == "RECHAZADO":
+                rechazadas += 1
+            elif ev.estado == "PENDIENTE":
+                pendientes += 1
 
     resumen = {
         "total_actividades": total_actividades,
-        "aprobadas": counts.get("APROBADO", 0),
-        "rechazadas": counts.get("RECHAZADO", 0),
-        "pendientes": counts.get("PENDIENTE", 0),
+        "aprobadas": aprobadas,
+        "rechazadas": rechazadas,
+        "pendientes": pendientes,
         "sin_evidencia": total_actividades - con_evidencia,
         "porcentaje_cumplimiento": round(
-            counts.get("APROBADO", 0) / max(total_actividades, 1) * 100, 1
+            aprobadas / max(total_actividades, 1) * 100, 1
         ),
     }
 
@@ -1207,7 +1243,7 @@ async def descargar_informe_publico(
     contratos_data = []
     for c in contratos:
         actividades_data = []
-        for act in c.actividades_contrato:
+        for act in _filtrar_actividades_por_periodo(c.actividades_contrato, pid):
             evidencias_out = []
             for ev in act.evidencias:
                 if ev.estado != "APROBADO":
@@ -1244,6 +1280,7 @@ async def descargar_informe_publico(
             "fecha_inicio": str(c.fecha_inicio) if c.fecha_inicio else None,
             "fecha_fin": str(c.fecha_fin) if c.fecha_fin else None,
             "fecha_contrato": str(c.fecha_contrato) if c.fecha_contrato else None,
+            "periodo_fecha": str(periodo_obj.fecha) if periodo_obj else None,
             "monto_total": c.monto_total,
             "valor_final": c.valor_final or c.monto_total,
             "valor_letras": c.valor_letras,
@@ -1269,12 +1306,18 @@ async def descargar_informe_publico(
         "direccion": contratista.direccion,
     }
 
-    # Obtener documentos contractuales de todos los contratos
+    # Obtener documentos contractuales SOLO del periodo actual (anexos)
     for c_data in contratos_data:
+        docs_query = select(DocumentoContratista).where(
+            DocumentoContratista.contrato_numero == c_data["numero_contrato"]
+        )
+        if pid is not None:
+            docs_query = docs_query.where(DocumentoContratista.periodo_id == pid)
         docs_result = await db.execute(
-            select(DocumentoContratista).where(
-                DocumentoContratista.contrato_numero == c_data["numero_contrato"]
-            ).order_by(DocumentoContratista.tipo_documento, DocumentoContratista.created_at.desc())
+            docs_query.order_by(
+                DocumentoContratista.tipo_documento,
+                DocumentoContratista.created_at.desc(),
+            )
         )
         documentos_data = []
         for doc in docs_result.scalars().all():

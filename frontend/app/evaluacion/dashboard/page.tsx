@@ -635,7 +635,7 @@ function EvaluacionDashboard() {
               {/* Botones de descarga */}
               <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
                 <a
-                  href={`${API}/api/v1/evaluacion/publico/informe?cedula=${encodeURIComponent(data.identificacion)}&formato=pdf`}
+                  href={`${API}/api/v1/evaluacion/publico/informe?cedula=${encodeURIComponent(data.identificacion)}&formato=pdf${periodoSeleccionado ? `&periodo_id=${periodoSeleccionado}` : ""}`}
                   target="_blank"
                   className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors"
                 >
@@ -643,7 +643,7 @@ function EvaluacionDashboard() {
                   Descargar PDF
                 </a>
                 <a
-                  href={`${API}/api/v1/evaluacion/publico/informe?cedula=${encodeURIComponent(data.identificacion)}&formato=docx`}
+                  href={`${API}/api/v1/evaluacion/publico/informe?cedula=${encodeURIComponent(data.identificacion)}&formato=docx${periodoSeleccionado ? `&periodo_id=${periodoSeleccionado}` : ""}`}
                   target="_blank"
                   className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
                 >

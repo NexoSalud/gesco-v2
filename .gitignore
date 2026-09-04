@@ -20,3 +20,8 @@ guide_inventory/
 comandos.txt
 .agents/
 docker-compose.local.yml
+
+# Local dev artifacts (dumps y volúmenes copiados de producción)
+gesco_v2_prod.sql
+gesco_v2_clean.sql
+uploads/
