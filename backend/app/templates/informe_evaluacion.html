@@ -316,13 +316,10 @@
   </div>
 
   {% set especificas = contrato.actividades | selectattr("tipo", "equalto", "ESPECIFICA") | list %}
-  {% set generales_act = contrato.actividades | rejectattr("tipo", "equalto", "ESPECIFICA") | list %}
-  {% set generales_texto = contrato.generales | default([]) %}
 
   {# Salvaguarda: si no hay específicas, mostrar todas #}
   {% if especificas | length == 0 %}
     {% set especificas = contrato.actividades %}
-    {% set generales_act = [] %}
   {% endif %}
 
   <table class="act-table">
@@ -439,22 +436,6 @@
       {% endfor %}
     </tbody>
   </table>
-
-  {# ── GENERALES COMO TEXTO NORMAL (no tabla) ── #}
-  {% if generales_texto | length > 0 or generales_act | length > 0 %}
-  <div style="margin: 12px 0 4px 0; font-weight: bold; color: #1a3a5c; font-size: 9pt;">
-    Actividades Generales del Perfil
-  </div>
-  <div style="font-size:8pt; color:#333; line-height:1.5; margin-bottom:8px;">
-    {% for g in generales_texto %}
-    <div style="margin:2px 0;">{{ loop.index }}. {{ g|safe }}</div>
-    {% endfor %}
-    {% set base = generales_texto | length %}
-    {% for act in generales_act %}
-    <div style="margin:2px 0;">{{ base + loop.index }}. {{ act.descripcion|safe }}</div>
-    {% endfor %}
-  </div>
-  {% endif %}
   {% endfor %}
 </div>
 

@@ -51,6 +51,10 @@ _DOC_LABEL = {
     "CEDULA": "Cédula de ciudadanía",
 }
 
+# Documentos que solo aplican a ciertos perfiles (match exacto, sin auxiliares)
+_PERFILES_CON_DOCS_EXCLUSIVOS = {"ENFERMERIA", "MEDICINA"}
+_DOCS_EXCLUSIVOS_PERFIL = {"RETENCION", "LISTADO_ASISTENCIA"}
+
 # ─── Renderizado común ───────────────────────────────────────────────────
 
 def _cargar_logo_base64() -> str:
@@ -598,6 +602,20 @@ def _formatear_numero(valor: float | int) -> str:
     return f"${s}.{decimales:02d}"
 
 
+def _calcular_numero_informe(fecha_inicio: str | None, periodo_fecha: str | None) -> int:
+    """Calcula el número secuencial del informe (1, 2, 3...) según el periodo
+    relativo al mes de inicio del contrato. Julio = 1, Agosto = 2, etc."""
+    if not fecha_inicio or not periodo_fecha:
+        return 1
+    try:
+        fi = datetime.strptime(str(fecha_inicio)[:10], "%Y-%m-%d").date()
+        pf = datetime.strptime(str(periodo_fecha)[:10], "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return 1
+    n = (pf.year - fi.year) * 12 + (pf.month - fi.month) + 1
+    return max(n, 1)
+
+
 def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
     """Genera DOCX con estructura INFORME DE ACTIVIDADES.
 
@@ -605,7 +623,6 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
       - Título centrado: INFORME DE ACTIVIDADES No. XX-2026
       - Párrafo introductorio
       - Tabla IDENTIFICACIÓN CONTRACTUAL
-      - Tabla ACTIVIDADES GENERALES (4 cols)
       - Tabla ACTIVIDADES ESPECÍFICAS (4 cols)
       - Firma del contratista
       - ANEXOS
@@ -628,7 +645,8 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
     perfil = c.get("perfil", "") or ""
 
     # ─── TITLE ───────────────────────────────────────────────────────
-    _add_paragraph(doc, f"INFORME DE ACTIVIDADES No. {c.get('numero_contrato', '')}-{today.year}",
+    numero_informe = _calcular_numero_informe(c.get("fecha_inicio"), c.get("periodo_fecha"))
+    _add_paragraph(doc, f"INFORME DE ACTIVIDADES No. {numero_informe}",
                    bold=True, size=FONT_SIZE_TITLE, color=COLOR_PRIMARY,
                    alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=12)
 
@@ -718,19 +736,12 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
 
     _add_paragraph(doc, "", size=6, space_after=6)  # spacer
 
-    # ─── SPLIT ACTIVITIES: ESPECÍFICAS (tabla) vs GENERALES (texto) ──
-    acts_generales = [a for a in c.get("actividades", []) if a.get("tipo") == "GENERAL" or a.get("tipo") is None]
+    # ─── SOLO ACTIVIDADES ESPECÍFICAS (las generales NO van en el informe) ──
     acts_especificas = [a for a in c.get("actividades", []) if a.get("tipo") == "ESPECIFICA"]
 
     # Si no hay específicas, usar todas (compatibilidad con datos sin clasificar)
     if not acts_especificas:
         acts_especificas = c.get("actividades", [])
-        acts_generales = []
-
-    # Generales del perfil (referencia textual en el informe)
-    generales_perfil = c.get("generales") or []
-    if not generales_perfil:
-        generales_perfil = [a.get("descripcion", "") for a in acts_generales]
 
     def _build_activity_table(doc, title, actividades, col_widths=[1.0, 5.5, 6.0, 4.0]):
         if not actividades:
@@ -856,17 +867,6 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
     # ─── TABLE: ACTIVIDADES ESPECÍFICAS ──────────────────────────────
     _build_activity_table(doc, "ACTIVIDADES ESPECÍFICAS", acts_especificas)
 
-    # ─── GENERALES COMO TEXTO NORMAL (no tabla) ──────────────────────
-    if generales_perfil:
-        _add_paragraph(doc, "ACTIVIDADES GENERALES DEL PERFIL", bold=True, size=11,
-                       color=COLOR_PRIMARY, alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                       space_before=12, space_after=6)
-        _add_paragraph(doc,
-            "El contratista deberá cumplir además con las siguientes obligaciones generales:",
-            size=9, space_after=6)
-        for i, txt in enumerate(generales_perfil, 1):
-            _add_paragraph(doc, f"{i}. {_strip_html(txt)}", size=9, space_after=3)
-
     # ─── CLOSING ─────────────────────────────────────────────────────
     _add_paragraph(doc, "", size=6, space_after=12)  # spacer
 
@@ -889,7 +889,12 @@ def generar_docx(contratista: dict, contratos: list, resumen: dict) -> bytes:
     # ─── DOCUMENTOS CONTRACTUALES APROBADOS ──────────────────────────
     docs_aprobados = []
     for c in contratos:
+        perfil = (c.get("perfil") or "").strip().upper()
         for d in c.get("documentos", []):
+            tipo = d.get("tipo_documento", "")
+            # RETENCION y LISTADO_ASISTENCIA solo para ENFERMERIA y MEDICINA
+            if tipo in _DOCS_EXCLUSIVOS_PERFIL and perfil not in _PERFILES_CON_DOCS_EXCLUSIVOS:
+                continue
             if d.get("estado") == "APROBADO" and d.get("archivo_ruta"):
                 docs_aprobados.append(d)
 

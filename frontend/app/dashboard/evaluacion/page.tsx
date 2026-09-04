@@ -19,6 +19,7 @@ import {
   listarEvidenciasPendientes,
   listarPeriodos, crearPeriodo,
   TIPOS_DOCUMENTO,
+  getTiposDocumentoPorPerfil,
   type Evidencia, type ResumenCumplimiento, type DocumentoContratista,
   type EvidenciaPendiente, type PeriodoEvaluacion,
 } from "@/lib/api"
@@ -475,7 +476,7 @@ export default function EvaluacionDashboardPage() {
     }[] = []
     if (!isApoyo && dashboard?.contratos) {
       for (const c of dashboard.contratos) {
-        for (const tipo of TIPOS_DOCUMENTO) {
+        for (const tipo of getTiposDocumentoPorPerfil(c.perfil)) {
           const doc = documentos.find(
             d => d.contrato_numero === c.numero_contrato && d.tipo_documento === tipo.valor
           ) || null

@@ -908,6 +908,18 @@ export const TIPOS_DOCUMENTO = [
   { valor: "CEDULA", etiqueta: "Cédula de ciudadanía", icono: "🪪" },
 ]
 
+// Documentos que solo aplican a ciertos perfiles (exacto, sin incluir auxiliares)
+export const PERFILES_CON_DOCS_EXCLUSIVOS = ["ENFERMERIA", "MEDICINA"]
+export const DOCS_EXCLUSIVOS_PERFIL = ["RETENCION", "LISTADO_ASISTENCIA"]
+
+export function getTiposDocumentoPorPerfil(perfil?: string | null) {
+  const p = (perfil || "").trim().toUpperCase()
+  if (PERFILES_CON_DOCS_EXCLUSIVOS.includes(p)) {
+    return TIPOS_DOCUMENTO
+  }
+  return TIPOS_DOCUMENTO.filter(t => !DOCS_EXCLUSIVOS_PERFIL.includes(t.valor))
+}
+
 export interface DocumentoContratista {
   id: number
   contratista_id: number

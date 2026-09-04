@@ -11,7 +11,7 @@ import {
   ListChecks, Pencil,
 } from "lucide-react"
 import type { DashboardContratista, ContratoEvaluacion, ActividadConEvidencias, DocumentoContratista, PeriodoEvaluacion } from "@/lib/api"
-import { TIPOS_DOCUMENTO, listarPeriodos } from "@/lib/api"
+import { TIPOS_DOCUMENTO, getTiposDocumentoPorPerfil, listarPeriodos } from "@/lib/api"
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
 
@@ -637,7 +637,7 @@ function EvaluacionDashboard() {
                 <a
                   href={`${API}/api/v1/evaluacion/publico/informe?cedula=${encodeURIComponent(data.identificacion)}&formato=pdf${periodoSeleccionado ? `&periodo_id=${periodoSeleccionado}` : ""}`}
                   target="_blank"
-                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors hidden"
                 >
                   <FileText className="w-4 h-4" />
                   Descargar PDF
@@ -1410,7 +1410,9 @@ function DocumentosContratoCard({
 }) {
   const [expandedDocs, setExpandedDocs] = useState(false)
 
-  const docsCompletos = TIPOS_DOCUMENTO.filter(
+  const tiposPorPerfil = getTiposDocumentoPorPerfil(contrato.perfil)
+
+  const docsCompletos = tiposPorPerfil.filter(
     t => getDocumentoEstado(contrato.numero_contrato, t.valor)
   ).length
 
@@ -1433,13 +1435,13 @@ function DocumentosContratoCard({
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-500 flex-shrink-0">
           <span className={`px-2 py-1 rounded-lg font-medium ${
-            docsCompletos === TIPOS_DOCUMENTO.length
+            docsCompletos === tiposPorPerfil.length
               ? "bg-emerald-100 text-emerald-700"
               : docsCompletos > 0
               ? "bg-amber-100 text-amber-700"
               : "bg-gray-100 text-gray-500"
           }`}>
-            {docsCompletos}/{TIPOS_DOCUMENTO.length} docs
+            {docsCompletos}/{tiposPorPerfil.length} docs
           </span>
         </div>
       </button>
@@ -1451,7 +1453,7 @@ function DocumentosContratoCard({
               <Loader2 className="w-5 h-5 animate-spin text-gray-400 mx-auto" />
             </div>
           ) : (
-            TIPOS_DOCUMENTO.map((tipo) => {
+            tiposPorPerfil.map((tipo) => {
               const doc = getDocumentoEstado(contrato.numero_contrato, tipo.valor)
               return (
                 <DocumentoRow
@@ -1870,7 +1872,7 @@ function ActividadRow({
             </button>
             <button
               onClick={() => onSubirArchivo(actividad.id, contratoId)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors border border-orange-200"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors border border-orange-200 hidden"
             >
               <FileText className="w-3.5 h-3.5" />
               Subir archivo
