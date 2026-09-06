@@ -15,10 +15,22 @@ from app.models.planilla import Planilla
 from app.models.actividad_contrato import ActividadContrato
 from app.models.actividad_supervision import ActividadSupervision
 from app.models.perfil import Perfil, ActividadPerfil
+from app.models.periodo_evaluacion import PeriodoEvaluacion
 from app.schemas.pago import PagoCreate, PagoUpdate, PagoOut
 from app.services.pdf_generator import generar_supervision_pdf
 
 router = APIRouter(prefix="/api/v1/pagos", tags=["Pagos"])
+
+
+async def _get_periodo_activo(db: AsyncSession) -> PeriodoEvaluacion | None:
+    """Devuelve el periodo de evaluación activo (el más reciente marcado activo)."""
+    result = await db.execute(
+        select(PeriodoEvaluacion)
+        .where(PeriodoEvaluacion.activo == True)
+        .order_by(PeriodoEvaluacion.fecha.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
 
 
 @router.get("", response_model=list[PagoOut])
@@ -82,13 +94,19 @@ async def crear_pago(data: PagoCreate, db: AsyncSession = Depends(get_db)):
         )
         db.add(planilla)
 
-    # Heredar actividades del CONTRATO al pago
+    # Heredar actividades del CONTRATO al pago (solo las del periodo activo,
+    # para no arrastrar actividades de meses anteriores ya replicadas)
+    periodo_activo = await _get_periodo_activo(db)
     acts_contrato = await db.execute(
         select(ActividadContrato)
         .where(ActividadContrato.contrato_id == data.contrato_id)
         .order_by(ActividadContrato.orden)
     )
     acts_contrato_list = acts_contrato.scalars().all()
+    if periodo_activo is not None and acts_contrato_list:
+        acts_periodo = [a for a in acts_contrato_list if a.periodo_id == periodo_activo.id]
+        if acts_periodo:
+            acts_contrato_list = acts_periodo
 
     if acts_contrato_list:
         for ac in acts_contrato_list:
