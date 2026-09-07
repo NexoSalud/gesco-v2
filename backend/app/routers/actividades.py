@@ -100,8 +100,8 @@ async def listar_actividades_contrato_por_id(contrato_id: int, db: AsyncSession 
     contrato = ctr.scalar_one_or_none()
     if not contrato:
         raise HTTPException(404, "Contrato no encontrado")
-    # Delegar en la función por número
-    return await listar_actividades_contrato(contrato.numero_contrato, db)
+    # Delegar en la función por número (pasar db por keyword: el 2º arg ahora es periodo_id)
+    return await listar_actividades_contrato(contrato.numero_contrato, db=db)
 
 
 @router.post("/contratos/{numero_contrato}/actividades", response_model=ActividadContratoOut, status_code=201)
