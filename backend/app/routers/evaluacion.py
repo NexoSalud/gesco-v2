@@ -368,11 +368,11 @@ async def crear_periodo(
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
-    """Crea un nuevo periodo de evaluación (mes) y replica las actividades del
-    perfil para todos los contratistas con contratos activos.
+    """Crea/activa un nuevo periodo de evaluación (mes).
 
-    El contrato NO se duplica: las actividades nuevas quedan asociadas al
-    mismo contrato pero con el periodo_id del nuevo periodo.
+    Ya NO replica actividades por periodo: las actividades se resuelven del
+    PERFIL en cada consulta y las evidencias se atan a (actividad_perfil_id,
+    contrato_id, periodo_id).
     """
     # Normalizar fecha al primer día del mes
     fecha = data.fecha.replace(day=1)
@@ -398,51 +398,9 @@ async def crear_periodo(
         .values(activo=False)
     )
 
-    # Replicar actividades del perfil para todos los contratos activos
-    contratos_res = await db.execute(
-        select(Contrato).where(Contrato.estado.in_(["EN_PROCESO", "ACTIVO"]))
-    )
-    contratos = contratos_res.scalars().all()
-
-    replicadas = 0
-    for contrato in contratos:
-        if not contrato.perfil:
-            continue
-        perfil_res = await db.execute(
-            select(Perfil).where(Perfil.nombre == contrato.perfil)
-        )
-        perfil = perfil_res.scalar_one_or_none()
-        if not perfil:
-            continue
-        acts_res = await db.execute(
-            select(ActividadPerfil)
-            .where(ActividadPerfil.perfil_id == perfil.id)
-            .order_by(ActividadPerfil.orden)
-        )
-        acts_perfil = acts_res.scalars().all()
-        for ap in acts_perfil:
-            # Evitar duplicados (mismo contrato + periodo + descripción)
-            dup = await db.execute(
-                select(ActividadContrato.id).where(
-                    ActividadContrato.contrato_id == contrato.numero_contrato,
-                    ActividadContrato.periodo_id == periodo.id,
-                    ActividadContrato.descripcion == ap.descripcion,
-                )
-            )
-            if dup.scalar_one_or_none():
-                continue
-            db.add(ActividadContrato(
-                contrato_id=contrato.numero_contrato,
-                descripcion=ap.descripcion,
-                tipo=ap.tipo,  # respeta clasificación GENERAL/ESPECIFICA del perfil
-                orden=ap.orden,
-                periodo_id=periodo.id,
-            ))
-            replicadas += 1
-
     await db.commit()
     await db.refresh(periodo)
-    logger.info(f"Periodo {periodo.nombre} creado/activado con {replicadas} actividades replicadas")
+    logger.info(f"Periodo {periodo.nombre} creado/activado")
     return periodo
 
 
@@ -974,13 +932,9 @@ async def descargar_informe(
     if not contratista:
         raise HTTPException(404, "Contratista no encontrado")
 
-    # Obtener contratos activos con actividades y evidencias
+    # Obtener contratos activos
     contratos_result = await db.execute(
         select(Contrato)
-        .options(
-            selectinload(Contrato.actividades_contrato)
-            .selectinload(ActividadContrato.evidencias)
-        )
         .where(Contrato.contratista_id == contratista_id)
         .where(Contrato.estado.in_(["EN_PROCESO", "ACTIVO"]))
         .order_by(Contrato.fecha_inicio.desc())
@@ -996,26 +950,31 @@ async def descargar_informe(
         )
         periodo_obj = pr.scalar_one_or_none()
 
-    # Calcular resumen a partir de las actividades del periodo (con salvaguarda)
-    actividades_periodo = []
+    # Actividades del perfil + evidencias del periodo, por contrato
+    contratos_con_actividades = []
     for c in contratos:
-        actividades_periodo.extend(
-            _filtrar_actividades_por_periodo(c.actividades_contrato, pid)
+        acts, evs_by_act = await _actividades_perfil_con_evidencias(
+            db, c.perfil, c.numero_contrato, pid
         )
+        contratos_con_actividades.append((c, acts, evs_by_act))
 
-    total_actividades = len(actividades_periodo)
+    # Calcular resumen a partir de las actividades del perfil y sus evidencias
+    total_actividades = 0
     aprobadas = rechazadas = pendientes = 0
     con_evidencia = 0
-    for act in actividades_periodo:
-        if act.evidencias:
-            con_evidencia += 1
-        for ev in act.evidencias:
-            if ev.estado == "APROBADO":
-                aprobadas += 1
-            elif ev.estado == "RECHAZADO":
-                rechazadas += 1
-            elif ev.estado == "PENDIENTE":
-                pendientes += 1
+    for _c, acts, evs_by_act in contratos_con_actividades:
+        total_actividades += len(acts)
+        for act in acts:
+            evs = evs_by_act.get(act.id, [])
+            if evs:
+                con_evidencia += 1
+            for ev in evs:
+                if ev.estado == "APROBADO":
+                    aprobadas += 1
+                elif ev.estado == "RECHAZADO":
+                    rechazadas += 1
+                elif ev.estado == "PENDIENTE":
+                    pendientes += 1
 
     resumen = {
         "total_actividades": total_actividades,
@@ -1098,11 +1057,11 @@ async def descargar_informe(
             return {"base64": None, "width": 0, "height": 0, "file_found": False}
 
     contratos_data = []
-    for c in contratos:
+    for c, acts, evs_by_act in contratos_con_actividades:
         actividades_data = []
-        for act in _filtrar_actividades_por_periodo(c.actividades_contrato, pid):
+        for act in acts:
             evidencias_out = []
-            for ev in act.evidencias:
+            for ev in evs_by_act.get(act.id, []):
                 if ev.estado != "APROBADO":
                     continue
                 img_data = {}
@@ -1229,13 +1188,9 @@ async def descargar_informe_publico(
 
     contratista_id = contratista.id
 
-    # Obtener contratos activos con actividades y evidencias
+    # Obtener contratos activos
     contratos_result = await db.execute(
         select(Contrato)
-        .options(
-            selectinload(Contrato.actividades_contrato)
-            .selectinload(ActividadContrato.evidencias)
-        )
         .where(Contrato.contratista_id == contratista_id)
         .where(Contrato.estado.in_(["EN_PROCESO", "ACTIVO"]))
         .order_by(Contrato.fecha_inicio.desc())
@@ -1251,26 +1206,31 @@ async def descargar_informe_publico(
         )
         periodo_obj = pr.scalar_one_or_none()
 
-    # Calcular resumen a partir de las actividades del periodo (con salvaguarda)
-    actividades_periodo = []
+    # Actividades del perfil + evidencias del periodo, por contrato
+    contratos_con_actividades = []
     for c in contratos:
-        actividades_periodo.extend(
-            _filtrar_actividades_por_periodo(c.actividades_contrato, pid)
+        acts, evs_by_act = await _actividades_perfil_con_evidencias(
+            db, c.perfil, c.numero_contrato, pid
         )
+        contratos_con_actividades.append((c, acts, evs_by_act))
 
-    total_actividades = len(actividades_periodo)
+    # Calcular resumen a partir de las actividades del perfil y sus evidencias
+    total_actividades = 0
     aprobadas = rechazadas = pendientes = 0
     con_evidencia = 0
-    for act in actividades_periodo:
-        if act.evidencias:
-            con_evidencia += 1
-        for ev in act.evidencias:
-            if ev.estado == "APROBADO":
-                aprobadas += 1
-            elif ev.estado == "RECHAZADO":
-                rechazadas += 1
-            elif ev.estado == "PENDIENTE":
-                pendientes += 1
+    for _c, acts, evs_by_act in contratos_con_actividades:
+        total_actividades += len(acts)
+        for act in acts:
+            evs = evs_by_act.get(act.id, [])
+            if evs:
+                con_evidencia += 1
+            for ev in evs:
+                if ev.estado == "APROBADO":
+                    aprobadas += 1
+                elif ev.estado == "RECHAZADO":
+                    rechazadas += 1
+                elif ev.estado == "PENDIENTE":
+                    pendientes += 1
 
     resumen = {
         "total_actividades": total_actividades,
@@ -1322,11 +1282,11 @@ async def descargar_informe_publico(
         return {"base64": None, "width": 0, "height": 0, "file_found": False}
 
     contratos_data = []
-    for c in contratos:
+    for c, acts, evs_by_act in contratos_con_actividades:
         actividades_data = []
-        for act in _filtrar_actividades_por_periodo(c.actividades_contrato, pid):
+        for act in acts:
             evidencias_out = []
-            for ev in act.evidencias:
+            for ev in evs_by_act.get(act.id, []):
                 if ev.estado != "APROBADO":
                     continue
                 img_data = {}

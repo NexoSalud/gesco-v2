@@ -247,6 +247,11 @@ async def migrar_evidencias_actividad_perfil() -> dict:
         await db.execute(text(
             "ALTER TABLE evidencias ALTER COLUMN actividad_contrato_id DROP NOT NULL"
         ))
+        # Fase 3: supervisiones referencian la actividad del perfil (trazabilidad)
+        await db.execute(text(
+            "ALTER TABLE actividades_supervision ADD COLUMN IF NOT EXISTS "
+            "actividad_perfil_id INTEGER REFERENCES actividades_perfil(id) ON DELETE SET NULL"
+        ))
         await db.commit()
 
         # 2) Backfill exacto

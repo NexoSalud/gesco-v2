@@ -38,6 +38,7 @@ class ActividadSupervisionOut(BaseModel):
     id: int
     pago_id: int
     actividad_contrato_id: int | None = None
+    actividad_perfil_id: int | None = None
     descripcion: str
     cumple: bool | None = None
     orden: int

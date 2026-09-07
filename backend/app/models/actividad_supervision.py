@@ -14,6 +14,10 @@ class ActividadSupervision(Base):
     actividad_contrato_id: Mapped[int | None] = mapped_column(
         ForeignKey("actividades_contrato.id", ondelete="SET NULL"), nullable=True
     )
+    # Fase 3: referencia a la actividad del perfil (fuente de verdad de la actividad)
+    actividad_perfil_id: Mapped[int | None] = mapped_column(
+        ForeignKey("actividades_perfil.id", ondelete="SET NULL"), nullable=True
+    )
     descripcion: Mapped[str] = mapped_column(Text, nullable=False)
     cumple: Mapped[bool | None] = mapped_column(Boolean, nullable=True, comment="null=sin evaluar, true=cumple, false=no cumple")
     orden: Mapped[int] = mapped_column(Integer, default=0)

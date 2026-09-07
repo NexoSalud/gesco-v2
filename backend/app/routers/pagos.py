@@ -94,32 +94,10 @@ async def crear_pago(data: PagoCreate, db: AsyncSession = Depends(get_db)):
         )
         db.add(planilla)
 
-    # Heredar actividades del CONTRATO al pago (solo las del periodo activo,
-    # para no arrastrar actividades de meses anteriores ya replicadas)
-    periodo_activo = await _get_periodo_activo(db)
-    acts_contrato = await db.execute(
-        select(ActividadContrato)
-        .where(ActividadContrato.contrato_id == data.contrato_id)
-        .order_by(ActividadContrato.orden)
-    )
-    acts_contrato_list = acts_contrato.scalars().all()
-    if periodo_activo is not None and acts_contrato_list:
-        acts_periodo = [a for a in acts_contrato_list if a.periodo_id == periodo_activo.id]
-        if acts_periodo:
-            acts_contrato_list = acts_periodo
-
-    if acts_contrato_list:
-        for ac in acts_contrato_list:
-            act_sup = ActividadSupervision(
-                pago_id=pago.id,
-                actividad_contrato_id=ac.id,
-                descripcion=ac.descripcion,
-                cumple=None,
-                orden=ac.orden,
-            )
-            db.add(act_sup)
-    elif contrato.perfil:
-        # Fallback: copiar del perfil directamente
+    # Heredar actividades del PERFIL al pago (la actividad es una entidad del
+    # perfil; el snapshot de supervisión guarda la descripción en ese momento).
+    heredadas = 0
+    if contrato.perfil:
         result_perfil = await db.execute(
             select(Perfil).where(Perfil.nombre == contrato.perfil)
         )
@@ -133,14 +111,16 @@ async def crear_pago(data: PagoCreate, db: AsyncSession = Depends(get_db)):
             for ap in acts_perfil.scalars().all():
                 act_sup = ActividadSupervision(
                     pago_id=pago.id,
+                    actividad_perfil_id=ap.id,
                     descripcion=ap.descripcion,
                     cumple=None,
                     orden=ap.orden,
                 )
                 db.add(act_sup)
+                heredadas += 1
 
-    if not acts_contrato_list and not contrato.perfil:
-        # Sin actividades ni perfil, crear una genérica
+    if heredadas == 0:
+        # Sin perfil ni actividades, crear una genérica
         act_sup = ActividadSupervision(
             pago_id=pago.id,
             descripcion="ACTIVIDADES DESARROLLADAS SEGÚN LO ESTABLECIDO EN EL CONTRATO.",
