@@ -392,10 +392,11 @@ async def lifespan(app: FastAPI):
                 ), {"p": pid, "n": num})
 
             # 3) Periodo activo: el más reciente con evidencias reales; si no, el más reciente.
+            #    Fuente normalizada: evidencias.periodo_id (ya no depende del JOIN legacy
+            #    actividades_contrato ← evidencias.actividad_contrato_id).
             activo_res = await db.execute(text("""
                 SELECT p.id FROM periodos_evaluacion p
-                JOIN actividades_contrato ac ON ac.periodo_id = p.id
-                JOIN evidencias e ON e.actividad_contrato_id = ac.id
+                JOIN evidencias e ON e.periodo_id = p.id
                 GROUP BY p.id, p.fecha ORDER BY p.fecha DESC LIMIT 1
             """))
             activo_id = activo_res.scalar_one_or_none()

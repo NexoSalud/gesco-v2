@@ -1,18 +1,6 @@
 """Schemas para ActividadContrato y ActividadSupervision."""
 
-from pydantic import BaseModel, Field
-
-
-class ActividadContratoCreate(BaseModel):
-    descripcion: str = Field(..., min_length=1)
-    tipo: str = Field("GENERAL", pattern=r"^(GENERAL|ESPECIFICA)$")
-    orden: int = 0
-
-
-class ActividadContratoUpdate(BaseModel):
-    descripcion: str | None = None
-    tipo: str | None = Field(None, pattern=r"^(GENERAL|ESPECIFICA)$")
-    orden: int | None = None
+from pydantic import BaseModel
 
 
 class ActividadContratoOut(BaseModel):

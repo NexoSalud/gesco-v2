@@ -12,7 +12,6 @@ from app.database import get_db
 from app.models.contrato import Contrato
 from app.models.pago import Pago
 from app.models.planilla import Planilla
-from app.models.actividad_contrato import ActividadContrato
 from app.models.actividad_supervision import ActividadSupervision
 from app.models.perfil import Perfil, ActividadPerfil
 from app.models.periodo_evaluacion import PeriodoEvaluacion

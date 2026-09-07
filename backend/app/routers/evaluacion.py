@@ -18,7 +18,6 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models.contratista import Contratista
 from app.models.contrato import Contrato
-from app.models.actividad_contrato import ActividadContrato
 from app.models.evidencia import Evidencia
 from app.models.documento_contratista import DocumentoContratista
 from app.models.periodo_evaluacion import PeriodoEvaluacion

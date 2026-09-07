@@ -385,22 +385,6 @@ export const getActividadesContrato = (numero: string) =>
 export const getActividadesContratoById = (id: number) =>
   request<ActividadContrato[]>(`/api/v1/contratos/id/${id}/actividades`)
 
-export const createActividadContrato = (numero: string, data: { descripcion: string; tipo?: string; orden?: number }) =>
-  request<ActividadContrato>(`/api/v1/contratos/${encodeURIComponent(numero)}/actividades`, {
-    method: "POST", body: JSON.stringify(data),
-  })
-
-export const updateActividadContrato = (id: number, data: any) =>
-  request<ActividadContrato>(`/api/v1/contratos/actividades/${id}`, {
-    method: "PUT", body: JSON.stringify(data),
-  })
-
-export const deleteActividadContrato = (id: number) =>
-  request<void>(`/api/v1/contratos/actividades/${id}`, { method: "DELETE" })
-
-export const heredarActividadesPerfil = (numero: string) =>
-  request<{ message: string }>(`/api/v1/contratos/${encodeURIComponent(numero)}/actividades/heredar`, { method: "POST" })
-
 
 // ─── Actividades de Supervisión ─────────────────────────────────────────────────
 export interface ActividadSupervision {
