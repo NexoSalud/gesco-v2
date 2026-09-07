@@ -215,3 +215,87 @@ async def migrar_fix_portal_agosto() -> dict:
                  "actividades_heredadas_001": heredadas}
     logger.info(f"Migración fix portal agosto: {resultado}")
     return resultado
+
+
+async def migrar_evidencias_actividad_perfil() -> dict:
+    """Fase 1 del refactor de actividades (evidencias por actividad del perfil).
+
+    Añade a `evidencias` las columnas `actividad_perfil_id` y `periodo_id` y las
+    rellena mapeando cada evidencia (vía su `actividad_contrato_id`) a la actividad
+    del PERFIL correspondiente, copiando el `periodo_id` original.
+
+    NO destructiva: solo agrega columnas y hace backfill. `actividad_contrato_id`
+    se conserva intacto como fallback durante la transición.
+
+    Mapeo:
+      1. Exacto: (perfil del contrato, descripcion) de actividades_contrato == actividades_perfil.
+      2. Fallback: normalizando HTML entities (&lt;br&gt; -> <br>), para redacciones
+         que cambiaron entre la copia y el perfil actual (p.ej. "587 atenciones").
+    """
+    async with async_session_factory() as db:
+        # 1) Columnas (idempotente)
+        await db.execute(text(
+            "ALTER TABLE evidencias ADD COLUMN IF NOT EXISTS "
+            "actividad_perfil_id INTEGER REFERENCES actividades_perfil(id) ON DELETE SET NULL"
+        ))
+        await db.execute(text(
+            "ALTER TABLE evidencias ADD COLUMN IF NOT EXISTS "
+            "periodo_id INTEGER REFERENCES periodos_evaluacion(id) ON DELETE SET NULL"
+        ))
+        await db.commit()
+
+        # 2) Backfill exacto
+        res = await db.execute(text("""
+            UPDATE evidencias e
+            SET actividad_perfil_id = ap.id,
+                periodo_id = ac.periodo_id
+            FROM actividades_contrato ac
+            JOIN contratos c ON c.numero_contrato = ac.contrato_id
+            JOIN perfiles p ON p.nombre = c.perfil
+            JOIN actividades_perfil ap
+              ON ap.perfil_id = p.id AND ap.descripcion = ac.descripcion
+            WHERE e.actividad_contrato_id = ac.id
+              AND e.actividad_perfil_id IS NULL
+        """))
+        exactas = res.rowcount
+
+        # 3) Fallback por normalización HTML (redacciones que cambiaron de
+        #    escape: la copia guardó &lt;br&gt; y el perfil actual <br>)
+        res = await db.execute(text("""
+            UPDATE evidencias e
+            SET actividad_perfil_id = ap.id,
+                periodo_id = ac.periodo_id
+            FROM actividades_contrato ac
+            JOIN contratos c ON c.numero_contrato = ac.contrato_id
+            JOIN perfiles p ON p.nombre = c.perfil
+            JOIN actividades_perfil ap ON ap.perfil_id = p.id
+                AND replace(replace(ac.descripcion, '&lt;br&gt;', '<br>'), '&amp;', '&')
+                    = replace(replace(ap.descripcion, '&lt;br&gt;', '<br>'), '&amp;', '&')
+            WHERE e.actividad_contrato_id = ac.id
+              AND e.actividad_perfil_id IS NULL
+        """))
+        fallback = res.rowcount
+        await db.commit()
+
+        # 4) Verificación
+        sin_mapear = (await db.execute(text(
+            "SELECT count(*) FROM evidencias WHERE actividad_perfil_id IS NULL"
+        ))).scalar_one()
+        total = (await db.execute(text("SELECT count(*) FROM evidencias"))).scalar_one()
+        mal_periodo = (await db.execute(text("""
+            SELECT count(*)
+            FROM evidencias e
+            JOIN actividades_contrato ac ON ac.id = e.actividad_contrato_id
+            WHERE e.periodo_id IS DISTINCT FROM ac.periodo_id
+        """))).scalar_one()
+
+    resultado = {
+        "exactas": exactas,
+        "fallback_html": fallback,
+        "total_evidencias": total,
+        "sin_mapear": sin_mapear,
+        "periodo_desincronizado": mal_periodo,
+    }
+    logger.info(f"Migración evidencias→actividad_perfil: {resultado}")
+    return resultado
+

@@ -434,6 +434,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Migración periodos_evaluacion (backfill): {e}")
 
+    # ─── Fase 1 refactor actividades: evidencias → actividad_perfil ───
+    # Añade actividad_perfil_id y periodo_id a evidencias y hace backfill
+    # (no destructiva; ver app/migrations/migrar_evidencias_actividad_perfil).
+    try:
+        from app.migrations import migrar_evidencias_actividad_perfil
+        resultado = await migrar_evidencias_actividad_perfil()
+        logger.info(f"Migración evidencias→actividad_perfil: {resultado}")
+    except Exception as e:
+        logger.warning(f"Migración evidencias→actividad_perfil: {e}")
+
     await seed_database()
     logger.info("Gesco V2 listo!")
     yield

@@ -14,6 +14,16 @@ class Evidencia(Base):
     actividad_contrato_id: Mapped[int] = mapped_column(
         ForeignKey("actividades_contrato.id", ondelete="CASCADE"), nullable=False
     )
+    # Fase 1 refactor: evidencias referencian la actividad del PERFIL (fuente
+    # única de verdad) y el periodo de evaluación, en lugar de la copia de texto
+    # actividades_contrato. actividad_contrato_id se conserva NULLable durante
+    # la transición (legacy/fallback).
+    actividad_perfil_id: Mapped[int | None] = mapped_column(
+        ForeignKey("actividades_perfil.id", ondelete="SET NULL"), nullable=True
+    )
+    periodo_id: Mapped[int | None] = mapped_column(
+        ForeignKey("periodos_evaluacion.id", ondelete="SET NULL"), nullable=True
+    )
     contratista_id: Mapped[int] = mapped_column(
         ForeignKey("contratistas.id", ondelete="CASCADE"), nullable=False
     )
@@ -49,6 +59,7 @@ class Evidencia(Base):
 
     # Relationships
     actividad = relationship("ActividadContrato", backref="evidencias")
+    actividad_perfil = relationship("ActividadPerfil")
     contratista = relationship("Contratista")
     contrato = relationship("Contrato")
     evaluador = relationship("Usuario")
