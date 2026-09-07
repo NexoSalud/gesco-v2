@@ -12,7 +12,6 @@ from app.models.actividad_contrato import ActividadContrato
 from app.models.actividad_supervision import ActividadSupervision
 from app.models.pago import Pago
 from app.models.perfil import Perfil, ActividadPerfil
-from app.models.periodo_evaluacion import PeriodoEvaluacion
 from app.schemas.actividad_schema import (
     ActividadContratoCreate, ActividadContratoUpdate, ActividadContratoOut,
     EvaluarActividadesInput, ActividadSupervisionOut,
@@ -21,45 +20,16 @@ from app.schemas.actividad_schema import (
 router = APIRouter(prefix="/api/v1", tags=["Actividades"])
 
 
-async def _get_periodo_activo(db: AsyncSession) -> PeriodoEvaluacion | None:
-    """Devuelve el periodo de evaluación activo (el más reciente marcado activo)."""
-    result = await db.execute(
-        select(PeriodoEvaluacion)
-        .where(PeriodoEvaluacion.activo == True)
-        .order_by(PeriodoEvaluacion.fecha.desc())
-        .limit(1)
-    )
-    return result.scalar_one_or_none()
-
-
 # ─── Actividades del Contrato ─────────────────────────────────────────────────
 
 @router.get("/contratos/{numero_contrato}/actividades", response_model=list[ActividadContratoOut])
-async def listar_actividades_contrato(
-    numero_contrato: str,
-    periodo_id: int | None = Query(None),
-    db: AsyncSession = Depends(get_db),
-):
+async def listar_actividades_contrato(numero_contrato: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(ActividadContrato)
         .where(ActividadContrato.contrato_id == numero_contrato)
         .order_by(ActividadContrato.orden)
     )
-    acts = list(result.scalars().all())
-
-    # Filtrar por periodo: el indicado o, si no, el periodo activo.
-    # Salvaguarda: si el periodo elegido no tiene actividades para este contrato
-    # (p.ej. la replicación mensual falló), se devuelven todas para no dejar al
-    # contratista sin actividades visibles.
-    if periodo_id is None:
-        pa = await _get_periodo_activo(db)
-        if pa is not None:
-            periodo_id = pa.id
-    if periodo_id is not None and acts:
-        acts_periodo = [a for a in acts if a.periodo_id == periodo_id]
-        if acts_periodo:
-            acts = acts_periodo
-
+    acts = result.scalars().all()
     # Si no hay actividades en el contrato, buscar del perfil
     if not acts:
         ctr = await db.execute(

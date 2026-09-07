@@ -663,15 +663,10 @@ async def evaluar_evidencia(
 @router.get("/contratista/{contratista_id}/resumen", response_model=ResumenCumplimiento)
 async def resumen_contratista(
     contratista_id: int,
-    periodo_id: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
     """Resumen de cumplimiento de un contratista. Requiere autenticación."""
-    # Resolver periodo (indicado o activo) para no contar actividades de meses
-    # anteriores que quedaron replicadas en el contrato.
-    pid = await _resolve_periodo(db, periodo_id)
-
     # Obtener contratista
     result = await db.execute(
         select(Contratista).where(Contratista.id == contratista_id)
@@ -702,51 +697,29 @@ async def resumen_contratista(
             porcentaje_cumplimiento=0,
         )
 
-    # IDs de actividades del periodo activo (para filtrar conteos y evidencias).
-    # Salvaguarda: si el periodo no tiene actividades para estos contratos,
-    # se usa el conjunto completo para no reportar cero.
-    act_ids_periodo = None
-    if pid is not None:
-        res_ids = await db.execute(
-            select(ActividadContrato.id).where(
-                ActividadContrato.contrato_id.in_(contrato_numeros),
-                ActividadContrato.periodo_id == pid,
-            )
-        )
-        ids = [r[0] for r in res_ids.all()]
-        if ids:
-            act_ids_periodo = ids
-
-    # Contar actividades totales de esos contratos (filtradas por periodo si aplica)
-    act_stmt = select(func.count(ActividadContrato.id)).where(
-        ActividadContrato.contrato_id.in_(contrato_numeros)
+    # Contar actividades totales de esos contratos
+    act_result = await db.execute(
+        select(func.count(ActividadContrato.id))
+        .where(ActividadContrato.contrato_id.in_(contrato_numeros))
     )
-    if act_ids_periodo is not None:
-        act_stmt = act_stmt.where(ActividadContrato.id.in_(act_ids_periodo))
-    act_result = await db.execute(act_stmt)
     total_actividades = act_result.scalar() or 0
 
-    # Contar evidencias agrupadas (del periodo si aplica)
-    ev_stmt = (
-        select(Evidencia.estado, func.count(Evidencia.id))
+    # Contar evidencias agrupadas
+    ev_result = await db.execute(
+        select(
+            Evidencia.estado,
+            func.count(Evidencia.id),
+        )
         .where(Evidencia.contrato_id.in_(contrato_numeros))
+        .group_by(Evidencia.estado)
     )
-    if act_ids_periodo is not None:
-        ev_stmt = ev_stmt.where(Evidencia.actividad_contrato_id.in_(act_ids_periodo))
-    ev_stmt = ev_stmt.group_by(Evidencia.estado)
-    ev_result = await db.execute(ev_stmt)
     counts = {row[0]: row[1] for row in ev_result.all()}
 
-    # Contar actividades con al menos una evidencia (del periodo si aplica)
-    act_con_ev_stmt = (
+    # Contar actividades con al menos una evidencia
+    act_con_ev = await db.execute(
         select(func.count(func.distinct(Evidencia.actividad_contrato_id)))
         .where(Evidencia.contrato_id.in_(contrato_numeros))
     )
-    if act_ids_periodo is not None:
-        act_con_ev_stmt = act_con_ev_stmt.where(
-            Evidencia.actividad_contrato_id.in_(act_ids_periodo)
-        )
-    act_con_ev = await db.execute(act_con_ev_stmt)
     con_evidencia = act_con_ev.scalar() or 0
 
     aprobadas = counts.get("APROBADO", 0)
