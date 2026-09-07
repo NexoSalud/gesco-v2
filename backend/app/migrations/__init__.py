@@ -242,6 +242,11 @@ async def migrar_evidencias_actividad_perfil() -> dict:
             "ALTER TABLE evidencias ADD COLUMN IF NOT EXISTS "
             "periodo_id INTEGER REFERENCES periodos_evaluacion(id) ON DELETE SET NULL"
         ))
+        # Fase 2/3: actividad_contrato_id deja de ser obligatoria (las nuevas
+        # evidencias referencian actividad_perfil_id + periodo_id).
+        await db.execute(text(
+            "ALTER TABLE evidencias ALTER COLUMN actividad_contrato_id DROP NOT NULL"
+        ))
         await db.commit()
 
         # 2) Backfill exacto

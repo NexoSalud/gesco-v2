@@ -16,7 +16,9 @@ class EvidenciaCreate(BaseModel):
 
 class EvidenciaOut(BaseModel):
     id: int
-    actividad_contrato_id: int
+    actividad_contrato_id: int | None = None
+    actividad_perfil_id: int | None = None
+    periodo_id: int | None = None
     contratista_id: int
     contrato_id: str
     tipo: str

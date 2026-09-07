@@ -92,6 +92,51 @@ def _estado_actividad(evs: list) -> str:
     return "SIN_EVIDENCIA"
 
 
+async def _actividades_perfil_con_evidencias(
+    db: AsyncSession,
+    perfil_nombre: str | None,
+    contrato_id: str,
+    periodo_id: int | None,
+) -> tuple[list[ActividadPerfil], dict[int, list[Evidencia]]]:
+    """Devuelve las actividades del PERFIL (ordenadas) y un dict
+    {actividad_perfil_id: [evidencias]} de las evidencias de ese contrato+periodo.
+
+    La actividad es una entidad estable ligada al perfil; las evidencias se
+    adjuntan por (actividad_perfil_id, contrato_id, periodo_id). Si no hay
+    perfil o periodo, retorna ([], {}).
+    """
+    if not perfil_nombre:
+        return [], {}
+    perfil = (await db.execute(
+        select(Perfil).where(Perfil.nombre == perfil_nombre)
+    )).scalar_one_or_none()
+    if not perfil:
+        return [], {}
+
+    acts = list((await db.execute(
+        select(ActividadPerfil)
+        .where(ActividadPerfil.perfil_id == perfil.id)
+        .order_by(ActividadPerfil.orden)
+    )).scalars().all())
+
+    act_ids = [a.id for a in acts]
+    evs: list[Evidencia] = []
+    if act_ids and periodo_id is not None:
+        evs = list((await db.execute(
+            select(Evidencia).where(
+                Evidencia.actividad_perfil_id.in_(act_ids),
+                Evidencia.contrato_id == contrato_id,
+                Evidencia.periodo_id == periodo_id,
+            ).order_by(Evidencia.created_at.desc())
+        )).scalars().all())
+
+    evs_by_act: dict[int, list[Evidencia]] = {}
+    for ev in evs:
+        if ev.actividad_perfil_id is not None:
+            evs_by_act.setdefault(ev.actividad_perfil_id, []).append(ev)
+    return acts, evs_by_act
+
+
 # ─── PÚBLICO: Sin autenticación ──────────────────────────────────────────────
 
 @router.get("/periodos/publicos", response_model=list[PeriodoEvaluacionOut])
@@ -111,10 +156,11 @@ async def buscar_contratista(
     periodo_id: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Busca un contratista por cédula y devuelve sus contratos con actividades y evidencias.
+    """Busca un contratista por cédula y devuelve sus contratos con las
+    actividades de su PERFIL y las evidencias del periodo indicado (o activo).
 
-    Si se pasa periodo_id, filtra las actividades por ese periodo.
-    Si no se pasa, muestra todas las actividades sin filtrar.
+    Las actividades se resuelven desde la tabla del perfil (entidad estable);
+    las evidencias se adjuntan por (actividad_perfil_id, contrato, periodo).
     """
     # Buscar contratista
     result = await db.execute(
@@ -124,13 +170,12 @@ async def buscar_contratista(
     if not contratista:
         raise HTTPException(404, "No se encontró un contratista con esa cédula")
 
-    # Buscar contratos activos del contratista
+    # Resolver periodo: el indicado o el activo
+    pid = await _resolve_periodo(db, periodo_id)
+
+    # Buscar contratos activos del contratista (sin cargar actividades_contrato)
     contratos_result = await db.execute(
         select(Contrato)
-        .options(
-            selectinload(Contrato.actividades_contrato)
-            .selectinload(ActividadContrato.evidencias)
-        )
         .where(Contrato.contratista_id == contratista.id)
         .where(Contrato.estado.in_(["EN_PROCESO", "ACTIVO"]))
         .order_by(Contrato.fecha_inicio.desc())
@@ -139,26 +184,25 @@ async def buscar_contratista(
 
     contratos_data = []
     for c in contratos:
-        actividades_data = []
+        acts_perfil, evs_by_act = await _actividades_perfil_con_evidencias(
+            db, c.perfil, c.numero_contrato, pid
+        )
+
         # Solo actividades ESPECIFICA (las que se diligencian); salvaguarda:
-        # si el contrato no tiene ninguna, mostrar todas (perfiles sin documento)
-        acts_contrato = [a for a in c.actividades_contrato if a.tipo == "ESPECIFICA"]
-        if not acts_contrato:
-            acts_contrato = list(c.actividades_contrato)
-        # Filtrar por periodo solo si se pidió explícitamente Y ese periodo tiene
-        # actividades. Si el periodo solicitado no tiene ninguna (p.ej. la
-        # replicación mensual falló para este contrato), se muestran todas para
-        # que el contratista nunca quede sin actividades visibles.
-        if periodo_id is not None:
-            acts_periodo = [a for a in acts_contrato if a.periodo_id == periodo_id]
-            if acts_periodo:
-                acts_contrato = acts_periodo
-        for act in acts_contrato:
-            evidencias_out = []
-            for ev in act.evidencias:
-                evidencias_out.append(EvidenciaOut(
+        # si el perfil no tiene ESPECIFICAS, mostrar todas.
+        acts_mostrar = [a for a in acts_perfil if a.tipo == "ESPECIFICA"]
+        if not acts_mostrar:
+            acts_mostrar = acts_perfil
+
+        actividades_data = []
+        for act in acts_mostrar:
+            evs = evs_by_act.get(act.id, [])
+            evidencias_out = [
+                EvidenciaOut(
                     id=ev.id,
                     actividad_contrato_id=ev.actividad_contrato_id,
+                    actividad_perfil_id=ev.actividad_perfil_id,
+                    periodo_id=ev.periodo_id,
                     contratista_id=ev.contratista_id,
                     contrato_id=ev.contrato_id,
                     tipo=ev.tipo,
@@ -172,8 +216,9 @@ async def buscar_contratista(
                     evaluated_at=ev.evaluated_at,
                     evaluated_by=ev.evaluated_by,
                     actividad_descripcion=act.descripcion,
-                ))
-
+                )
+                for ev in evs
+            ]
             actividades_data.append(ActividadConEvidencias(
                 id=act.id,
                 descripcion=act.descripcion,
@@ -206,29 +251,32 @@ async def buscar_contratista(
 
 @router.post("/evidencias", response_model=EvidenciaOut, status_code=201)
 async def subir_evidencia(
-    actividad_contrato_id: int = Form(...),
+    actividad_perfil_id: int = Form(...),
     contratista_id: int = Form(...),
     contrato_id: str = Form(...),
+    periodo_id: int | None = Form(None),
     tipo: str = Form(...),
     contenido_texto: str | None = Form(None),
     archivo: UploadFile | None = File(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Sube una evidencia (archivo, imagen o texto) para una actividad de contrato."""
+    """Sube una evidencia (archivo, imagen o texto) para una actividad del perfil
+    en un periodo de evaluación. La evidencia queda atada a
+    (actividad_perfil_id, contrato_id, periodo_id)."""
     # Validar tipo
     if tipo not in ("ARCHIVO", "TEXTO", "IMAGEN"):
         raise HTTPException(400, "Tipo debe ser ARCHIVO, TEXTO o IMAGEN")
 
-    # Validar que la actividad existe y pertenece al contrato
+    # Validar que la actividad del perfil existe
     result = await db.execute(
-        select(ActividadContrato).where(
-            ActividadContrato.id == actividad_contrato_id,
-            ActividadContrato.contrato_id == contrato_id,
-        )
+        select(ActividadPerfil).where(ActividadPerfil.id == actividad_perfil_id)
     )
     actividad = result.scalar_one_or_none()
     if not actividad:
-        raise HTTPException(404, "Actividad no encontrada para ese contrato")
+        raise HTTPException(404, "Actividad del perfil no encontrada")
+
+    # Resolver periodo (el indicado o el activo)
+    pid = await _resolve_periodo(db, periodo_id)
 
     # Validar que el contratista existe
     result = await db.execute(
@@ -239,9 +287,10 @@ async def subir_evidencia(
         raise HTTPException(404, "Contratista no encontrado")
 
     evidencia_data = {
-        "actividad_contrato_id": actividad_contrato_id,
+        "actividad_perfil_id": actividad_perfil_id,
         "contratista_id": contratista_id,
         "contrato_id": contrato_id,
+        "periodo_id": pid,
         "tipo": tipo,
         "contenido_texto": contenido_texto,
     }
@@ -279,6 +328,8 @@ async def subir_evidencia(
     return EvidenciaOut(
         id=evidencia.id,
         actividad_contrato_id=evidencia.actividad_contrato_id,
+        actividad_perfil_id=evidencia.actividad_perfil_id,
+        periodo_id=evidencia.periodo_id,
         contratista_id=evidencia.contratista_id,
         contrato_id=evidencia.contrato_id,
         tipo=evidencia.tipo,
@@ -414,20 +465,22 @@ async def listar_evidencias(
     if estado:
         stmt = stmt.where(Evidencia.estado == estado)
     if actividad_id:
-        stmt = stmt.where(Evidencia.actividad_contrato_id == actividad_id)
+        stmt = stmt.where(Evidencia.actividad_perfil_id == actividad_id)
 
     result = await db.execute(stmt)
     evidencias = result.scalars().all()
 
     out = []
     for ev in evidencias:
-        # Obtener descripción de la actividad
-        act_result = await db.execute(
-            select(ActividadContrato.descripcion).where(
-                ActividadContrato.id == ev.actividad_contrato_id
+        # Obtener descripción de la actividad (del perfil, fuente de verdad)
+        act_desc = None
+        if ev.actividad_perfil_id is not None:
+            act_result = await db.execute(
+                select(ActividadPerfil.descripcion).where(
+                    ActividadPerfil.id == ev.actividad_perfil_id
+                )
             )
-        )
-        act_desc = act_result.scalar_one_or_none()
+            act_desc = act_result.scalar_one_or_none()
 
         # Obtener nombre del contratista
         cont_result = await db.execute(
@@ -438,6 +491,8 @@ async def listar_evidencias(
         out.append(EvidenciaOut(
             id=ev.id,
             actividad_contrato_id=ev.actividad_contrato_id,
+            actividad_perfil_id=ev.actividad_perfil_id,
+            periodo_id=ev.periodo_id,
             contratista_id=ev.contratista_id,
             contrato_id=ev.contrato_id,
             tipo=ev.tipo,
@@ -540,13 +595,15 @@ async def editar_evidencia(
     await db.commit()
     await db.refresh(evidencia)
 
-    # Obtener descripción de la actividad
-    act_result = await db.execute(
-        select(ActividadContrato.descripcion).where(
-            ActividadContrato.id == evidencia.actividad_contrato_id
+    # Obtener descripción de la actividad (del perfil)
+    act_desc = None
+    if evidencia.actividad_perfil_id is not None:
+        act_result = await db.execute(
+            select(ActividadPerfil.descripcion).where(
+                ActividadPerfil.id == evidencia.actividad_perfil_id
+            )
         )
-    )
-    act_desc = act_result.scalar_one_or_none()
+        act_desc = act_result.scalar_one_or_none()
 
     # Obtener nombre del contratista
     cont_result = await db.execute(
@@ -557,6 +614,8 @@ async def editar_evidencia(
     return EvidenciaOut(
         id=evidencia.id,
         actividad_contrato_id=evidencia.actividad_contrato_id,
+        actividad_perfil_id=evidencia.actividad_perfil_id,
+        periodo_id=evidencia.periodo_id,
         contratista_id=evidencia.contratista_id,
         contrato_id=evidencia.contrato_id,
         tipo=evidencia.tipo,
@@ -626,13 +685,15 @@ async def evaluar_evidencia(
     await db.commit()
     await db.refresh(evidencia)
 
-    # Obtener descripción de la actividad
-    act_result = await db.execute(
-        select(ActividadContrato.descripcion).where(
-            ActividadContrato.id == evidencia.actividad_contrato_id
+    # Obtener descripción de la actividad (del perfil)
+    act_desc = None
+    if evidencia.actividad_perfil_id is not None:
+        act_result = await db.execute(
+            select(ActividadPerfil.descripcion).where(
+                ActividadPerfil.id == evidencia.actividad_perfil_id
+            )
         )
-    )
-    act_desc = act_result.scalar_one_or_none()
+        act_desc = act_result.scalar_one_or_none()
 
     # Obtener nombre del contratista
     cont_result = await db.execute(
@@ -643,6 +704,8 @@ async def evaluar_evidencia(
     return EvidenciaOut(
         id=evidencia.id,
         actividad_contrato_id=evidencia.actividad_contrato_id,
+        actividad_perfil_id=evidencia.actividad_perfil_id,
+        periodo_id=evidencia.periodo_id,
         contratista_id=evidencia.contratista_id,
         contrato_id=evidencia.contrato_id,
         tipo=evidencia.tipo,
@@ -680,9 +743,9 @@ async def resumen_contratista(
     if not contratista:
         raise HTTPException(404, "Contratista no encontrado")
 
-    # Obtener contratos activos
+    # Obtener contratos activos con su perfil
     contratos_result = await db.execute(
-        select(Contrato.id, Contrato.numero_contrato)
+        select(Contrato.numero_contrato, Contrato.perfil)
         .where(Contrato.contratista_id == contratista_id)
         .where(Contrato.estado.in_(["EN_PROCESO", "ACTIVO"]))
     )
@@ -702,58 +765,42 @@ async def resumen_contratista(
             porcentaje_cumplimiento=0,
         )
 
-    # IDs de actividades del periodo activo (para filtrar conteos y evidencias).
-    # Salvaguarda: si el periodo no tiene actividades para estos contratos,
-    # se usa el conjunto completo para no reportar cero.
-    act_ids_periodo = None
-    if pid is not None:
-        res_ids = await db.execute(
-            select(ActividadContrato.id).where(
-                ActividadContrato.contrato_id.in_(contrato_numeros),
-                ActividadContrato.periodo_id == pid,
-            )
-        )
-        ids = [r[0] for r in res_ids.all()]
-        if ids:
-            act_ids_periodo = ids
+    # Actividades del perfil de cada contrato (ESPECIFICA; si no hay, todas)
+    total_actividades = 0
+    for c in contratos:
+        acts, _ = await _actividades_perfil_con_evidencias(db, c.perfil, c.numero_contrato, None)
+        esp = [a for a in acts if a.tipo == "ESPECIFICA"] or acts
+        total_actividades += len(esp)
 
-    # Contar actividades totales de esos contratos (filtradas por periodo si aplica)
-    act_stmt = select(func.count(ActividadContrato.id)).where(
-        ActividadContrato.contrato_id.in_(contrato_numeros)
-    )
-    if act_ids_periodo is not None:
-        act_stmt = act_stmt.where(ActividadContrato.id.in_(act_ids_periodo))
-    act_result = await db.execute(act_stmt)
-    total_actividades = act_result.scalar() or 0
-
-    # Contar evidencias agrupadas (del periodo si aplica)
+    # Evidencias del periodo para estos contratos (agrupadas por estado)
     ev_stmt = (
         select(Evidencia.estado, func.count(Evidencia.id))
-        .where(Evidencia.contrato_id.in_(contrato_numeros))
+        .where(
+            Evidencia.contrato_id.in_(contrato_numeros),
+            Evidencia.periodo_id == pid,
+        )
+        .group_by(Evidencia.estado)
     )
-    if act_ids_periodo is not None:
-        ev_stmt = ev_stmt.where(Evidencia.actividad_contrato_id.in_(act_ids_periodo))
-    ev_stmt = ev_stmt.group_by(Evidencia.estado)
     ev_result = await db.execute(ev_stmt)
     counts = {row[0]: row[1] for row in ev_result.all()}
 
-    # Contar actividades con al menos una evidencia (del periodo si aplica)
-    act_con_ev_stmt = (
-        select(func.count(func.distinct(Evidencia.actividad_contrato_id)))
-        .where(Evidencia.contrato_id.in_(contrato_numeros))
-    )
-    if act_ids_periodo is not None:
-        act_con_ev_stmt = act_con_ev_stmt.where(
-            Evidencia.actividad_contrato_id.in_(act_ids_periodo)
+    # Actividades con al menos una evidencia (distintas actividad_perfil por contrato)
+    act_con_ev = await db.execute(
+        select(func.count(func.distinct(
+            func.concat(Evidencia.actividad_perfil_id, ":", Evidencia.contrato_id)
+        )))
+        .where(
+            Evidencia.contrato_id.in_(contrato_numeros),
+            Evidencia.periodo_id == pid,
         )
-    act_con_ev = await db.execute(act_con_ev_stmt)
+    )
     con_evidencia = act_con_ev.scalar() or 0
 
     aprobadas = counts.get("APROBADO", 0)
     rechazadas = counts.get("RECHAZADO", 0)
     pendientes = counts.get("PENDIENTE", 0)
     total_evidencias = aprobadas + rechazadas + pendientes
-    sin_evidencia = total_actividades - con_evidencia
+    sin_evidencia = max(total_actividades - con_evidencia, 0)
     porcentaje = (aprobadas / total_evidencias * 100) if total_evidencias > 0 else 0
 
     return ResumenCumplimiento(
@@ -772,11 +819,13 @@ async def resumen_contratista(
 @router.get("/evidencias/pendientes")
 async def listar_evidencias_pendientes(
     buscar: str | None = Query(None),
+    periodo_id: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
     """Lista todas las evidencias PENDIENTES de todos los contratistas activos,
-    con datos del contratista, contrato y actividad para revisión rápida."""
+    con datos del contratista, contrato y actividad (del perfil) para revisión.
+    Filtra por periodo si se indica."""
     stmt = (
         select(
             Evidencia,
@@ -784,11 +833,11 @@ async def listar_evidencias_pendientes(
             Contratista.identificacion.label("contratista_identificacion"),
             Contrato.numero_contrato,
             Contrato.perfil,
-            ActividadContrato.descripcion.label("actividad_descripcion"),
+            ActividadPerfil.descripcion.label("actividad_descripcion"),
         )
         .join(Contratista, Evidencia.contratista_id == Contratista.id)
         .join(Contrato, Evidencia.contrato_id == Contrato.numero_contrato)
-        .join(ActividadContrato, Evidencia.actividad_contrato_id == ActividadContrato.id)
+        .outerjoin(ActividadPerfil, Evidencia.actividad_perfil_id == ActividadPerfil.id)
         .where(Evidencia.estado == "PENDIENTE")
         .order_by(Evidencia.created_at.desc())
     )
@@ -798,6 +847,9 @@ async def listar_evidencias_pendientes(
             Contratista.nombre.ilike(f"%{buscar}%")
             | Contratista.identificacion.ilike(f"%{buscar}%")
         )
+
+    if periodo_id:
+        stmt = stmt.where(Evidencia.periodo_id == periodo_id)
 
     result = await db.execute(stmt)
     rows = result.all()
@@ -819,6 +871,8 @@ async def listar_evidencias_pendientes(
             "numero_contrato": row.numero_contrato,
             "perfil": row.perfil,
             "actividad_contrato_id": row.Evidencia.actividad_contrato_id,
+            "actividad_perfil_id": row.Evidencia.actividad_perfil_id,
+            "periodo_id": row.Evidencia.periodo_id,
             "actividad_descripcion": row.actividad_descripcion,
         }
         for row in rows

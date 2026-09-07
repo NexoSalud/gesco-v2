@@ -11,8 +11,11 @@ class Evidencia(Base):
     __tablename__ = "evidencias"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    actividad_contrato_id: Mapped[int] = mapped_column(
-        ForeignKey("actividades_contrato.id", ondelete="CASCADE"), nullable=False
+    # Legacy: referencia a la copia de texto actividades_contrato. Se conserva
+    # NULLable durante el refactor; la fuente de verdad pasa a ser
+    # actividad_perfil_id + periodo_id.
+    actividad_contrato_id: Mapped[int | None] = mapped_column(
+        ForeignKey("actividades_contrato.id", ondelete="CASCADE"), nullable=True
     )
     # Fase 1 refactor: evidencias referencian la actividad del PERFIL (fuente
     # única de verdad) y el periodo de evaluación, en lugar de la copia de texto

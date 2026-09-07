@@ -400,9 +400,10 @@ function EvaluacionDashboard() {
 
     try {
       const formData = new FormData()
-      formData.append("actividad_contrato_id", String(uploadModals.actividadId))
+      formData.append("actividad_perfil_id", String(uploadModals.actividadId))
       formData.append("contratista_id", String(data.contratista_id))
       formData.append("contrato_id", uploadModals.contratoId)
+      if (periodoSeleccionado) formData.append("periodo_id", String(periodoSeleccionado))
       formData.append("tipo", uploadModals.tipo)
       if (uploadModals.tipo === "TEXTO") {
         formData.append("contenido_texto", textoEvidencia)

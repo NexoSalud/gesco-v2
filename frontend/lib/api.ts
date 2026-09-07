@@ -664,7 +664,9 @@ export const saveRoleAccesos = (roleId: number, data: any[]) =>
 
 export interface Evidencia {
   id: number
-  actividad_contrato_id: number
+  actividad_contrato_id: number | null
+  actividad_perfil_id: number | null
+  periodo_id: number | null
   contratista_id: number
   contrato_id: string
   tipo: "ARCHIVO" | "TEXTO" | "IMAGEN"

@@ -40,55 +40,42 @@ async def listar_actividades_contrato(
     periodo_id: int | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(ActividadContrato)
-        .where(ActividadContrato.contrato_id == numero_contrato)
-        .order_by(ActividadContrato.orden)
-    )
-    acts = list(result.scalars().all())
+    """Lista las actividades del PERFIL asociado al contrato.
 
-    # Filtrar por periodo: el indicado o, si no, el periodo activo.
-    # Salvaguarda: si el periodo elegido no tiene actividades para este contrato
-    # (p.ej. la replicación mensual falló), se devuelven todas para no dejar al
-    # contratista sin actividades visibles.
-    if periodo_id is None:
-        pa = await _get_periodo_activo(db)
-        if pa is not None:
-            periodo_id = pa.id
-    if periodo_id is not None and acts:
-        acts_periodo = [a for a in acts if a.periodo_id == periodo_id]
-        if acts_periodo:
-            acts = acts_periodo
+    La actividad es una entidad estable ligada al perfil (ya no se replica por
+    periodo como texto). `periodo_id` se conserva por compatibilidad pero no
+    cambia el resultado (el set de actividades es el mismo en todos los periodos).
+    """
+    contrato = (await db.execute(
+        select(Contrato).where(Contrato.numero_contrato == numero_contrato)
+    )).scalar_one_or_none()
+    if not contrato:
+        raise HTTPException(404, "Contrato no encontrado")
+    if not contrato.perfil:
+        return []
 
-    # Si no hay actividades en el contrato, buscar del perfil
-    if not acts:
-        ctr = await db.execute(
-            select(Contrato).where(Contrato.numero_contrato == numero_contrato)
+    perfil = (await db.execute(
+        select(Perfil).where(Perfil.nombre == contrato.perfil)
+    )).scalar_one_or_none()
+    if not perfil:
+        return []
+
+    acts = (await db.execute(
+        select(ActividadPerfil)
+        .where(ActividadPerfil.perfil_id == perfil.id)
+        .order_by(ActividadPerfil.orden)
+    )).scalars().all()
+
+    return [
+        ActividadContratoOut(
+            id=ap.id,
+            contrato_id=numero_contrato,
+            descripcion=ap.descripcion,
+            tipo=ap.tipo,
+            orden=ap.orden,
         )
-        contrato = ctr.scalar_one_or_none()
-        if contrato and contrato.perfil:
-            from app.models.perfil import Perfil, ActividadPerfil
-            result = await db.execute(
-                select(Perfil).where(Perfil.nombre == contrato.perfil)
-            )
-            perfil = result.scalar_one_or_none()
-            if perfil:
-                acts_perfil = await db.execute(
-                    select(ActividadPerfil)
-                    .where(ActividadPerfil.perfil_id == perfil.id)
-                    .order_by(ActividadPerfil.orden)
-                )
-                return [
-                    ActividadContratoOut(
-                        id=ap.id,
-                        contrato_id=numero_contrato,
-                        descripcion=ap.descripcion,
-                        tipo=ap.tipo,
-                        orden=ap.orden,
-                    )
-                    for ap in acts_perfil.scalars().all()
-                ]
-    return acts
+        for ap in acts
+    ]
 
 
 @router.get("/contratos/id/{contrato_id}/actividades", response_model=list[ActividadContratoOut])
