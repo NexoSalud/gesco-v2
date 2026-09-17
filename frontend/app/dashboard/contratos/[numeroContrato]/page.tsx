@@ -49,6 +49,41 @@ const CCF_OPCIONES = ["COMFACAUCA", "COMFENALCO"]
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
 
+/** Fila de planilla vacía para el formulario de pago. */
+const nuevaPlanilla = () => ({
+  planilla_no: "", periodo_cotizado: "", ibc: "0",
+  eps_nombre: "", eps_valor: 0,
+  arl_nombre: "", arl_valor: 0,
+  afp_nombre: "", afp_valor: 0,
+  ccf_nombre: "", ccf_valor: 0,
+  sena_valor: 0, icbf_valor: 0,
+})
+
+/**
+ * Convierte las planillas que devuelve el backend a filas del formulario.
+ * Si el pago no tiene planillas, devuelve una fila vacía.
+ * (El PUT /pagos/{id} borra y recrea las planillas: hay que enviarlas completas.)
+ */
+const planillasDelPago = (planillas: any[] | undefined) => {
+  const filas = (planillas ?? []).map(pl => ({
+    planilla_no: pl.planilla_no ?? "",
+    periodo_cotizado: pl.periodo_cotizado ?? "",
+    ibc: pl.ibc ?? "0",
+    eps_nombre: pl.eps_nombre ?? "", eps_valor: pl.eps_valor ?? 0,
+    arl_nombre: pl.arl_nombre ?? "", arl_valor: pl.arl_valor ?? 0,
+    afp_nombre: pl.afp_nombre ?? "", afp_valor: pl.afp_valor ?? 0,
+    ccf_nombre: pl.ccf_nombre ?? "", ccf_valor: pl.ccf_valor ?? 0,
+    sena_valor: pl.sena_valor ?? 0, icbf_valor: pl.icbf_valor ?? 0,
+  }))
+  return filas.length > 0 ? filas : [nuevaPlanilla()]
+}
+
+const MOTIVOS_ANULACION = [
+  "Renuncia del contratista", "Incumplimiento contractual",
+  "Terminación por mutuo acuerdo", "Decisión administrativa",
+  "Fallecimiento del contratista", "Otro",
+]
+
 /** Valor especial del selector de entidad para permitir escribir un nombre libre. */
 const OTRO = "Otro"
 
@@ -100,12 +135,6 @@ function EntidadSelect({
   )
 }
 
-const MOTIVOS_ANULACION = [
-  "Renuncia del contratista", "Incumplimiento contractual",
-  "Terminación por mutuo acuerdo", "Decisión administrativa",
-  "Fallecimiento del contratista", "Otro",
-]
-
 export default function ContratoDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -128,14 +157,7 @@ export default function ContratoDetailPage() {
     observaciones: "",
     act: "",
   })
-  const [pagoPlantillas, setPagoPlantillas] = useState([{
-    planilla_no: "", periodo_cotizado: "", ibc: "0",
-    eps_nombre: "", eps_valor: 0,
-    arl_nombre: "", arl_valor: 0,
-    afp_nombre: "", afp_valor: 0,
-    ccf_nombre: "", ccf_valor: 0,
-    sena_valor: 0, icbf_valor: 0,
-  }])
+  const [pagoPlantillas, setPagoPlantillas] = useState([nuevaPlanilla()])
   const [finalizarContrato, setFinalizarContrato] = useState(false)
   const [submittingPago, setSubmittingPago] = useState(false)
   const [pagoEditando, setPagoEditando] = useState<Pago | null>(null)
@@ -154,6 +176,7 @@ export default function ContratoDetailPage() {
       folios: "", actividades: "", observaciones: "", act: "",
     })
     setFinalizarContrato(false)
+    setPagoPlantillas([nuevaPlanilla()])
     setShowPago(true)
     // Cargar actividades del contrato para evaluación
     if (contrato?.id) {
@@ -192,6 +215,9 @@ export default function ContratoDetailPage() {
       act: p.act || "",
     })
     setShowPago(true)
+    // Cargar las planillas existentes del pago en el formulario
+    // (el PUT borra y recrea las planillas: si no se envían, se pierden)
+    setPagoPlantillas(planillasDelPago(p.planillas))
     // Cargar actividades de supervisión existentes
     setLoadingActividades(true)
     getActividadesSupervision(p.id)
@@ -235,14 +261,7 @@ export default function ContratoDetailPage() {
   useEffect(() => { loadData() }, [numero])
 
   const addPlanillaRow = () => {
-    setPagoPlantillas([...pagoPlantillas, {
-      planilla_no: "", periodo_cotizado: "", ibc: "0",
-      eps_nombre: "", eps_valor: 0,
-      arl_nombre: "", arl_valor: 0,
-      afp_nombre: "", afp_valor: 0,
-      ccf_nombre: "", ccf_valor: 0,
-      sena_valor: 0, icbf_valor: 0,
-    }])
+    setPagoPlantillas([...pagoPlantillas, nuevaPlanilla()])
   }
 
   const handleSavePago = async (e: React.FormEvent) => {
@@ -296,12 +315,7 @@ export default function ContratoDetailPage() {
         fecha_firma: "", valor_a_pagar: 0,
         folios: "", actividades: "", observaciones: "", act: "",
       })
-      setPagoPlantillas([{
-        planilla_no: "", periodo_cotizado: "", ibc: "0",
-        eps_nombre: "", eps_valor: 0, arl_nombre: "", arl_valor: 0,
-        afp_nombre: "", afp_valor: 0, ccf_nombre: "", ccf_valor: 0,
-        sena_valor: 0, icbf_valor: 0,
-      }])
+      setPagoPlantillas([nuevaPlanilla()])
       loadData()
     } catch (err: any) {
       toast.error("Error: " + err.message)
