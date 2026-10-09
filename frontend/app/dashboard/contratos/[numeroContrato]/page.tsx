@@ -503,6 +503,10 @@ export default function ContratoDetailPage() {
               <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Objeto</p>
               <p className="font-medium">{contrato.objeto || "—"}</p>
             </div>
+            <div className="col-span-2 md:col-span-4">
+              <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Forma de Pago</p>
+              <p className="font-medium whitespace-pre-wrap">{contrato.forma_pago || "—"}</p>
+            </div>
           </div>
         </CardContent>
       </Card>

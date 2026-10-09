@@ -51,6 +51,7 @@ export default function NuevoContratoPage() {
     unidad_atencion: "",
     lugar_ejecucion: "",
     costo_tipo: "DIRECTO",
+    forma_pago: "",
   })
 
   const [contratistaForm, setContratistaForm] = useState({
@@ -144,6 +145,7 @@ export default function NuevoContratoPage() {
         unidad_atencion: form.unidad_atencion || null,
         lugar_ejecucion: form.lugar_ejecucion || null,
         costo_tipo: form.costo_tipo || "DIRECTO",
+        forma_pago: form.forma_pago || null,
       }
 
       if (contratistaSel) {
@@ -343,6 +345,11 @@ export default function NuevoContratoPage() {
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-500">Cuotas</label>
               <Input placeholder="Ej: 2 o DOS (2)" value={form.cuotas} onChange={e => setForm({ ...form, cuotas: e.target.value })} />
+            </div>
+            <div className="col-span-2 space-y-1">
+              <label className="text-xs font-medium text-gray-500">Forma de Pago</label>
+              <Textarea rows={4} value={form.forma_pago} onChange={e => setForm({ ...form, forma_pago: e.target.value })}
+                placeholder="Cláusula de forma de pago del contrato..." />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-500">Fecha Contrato</label>

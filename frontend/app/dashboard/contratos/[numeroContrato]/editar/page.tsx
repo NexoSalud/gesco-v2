@@ -43,6 +43,7 @@ export default function EditarContratoPage() {
     rp: "",
     lugar_ejecucion: "",
     costo_tipo: "DIRECTO",
+    forma_pago: "",
   })
 
   useEffect(() => {
@@ -72,6 +73,7 @@ export default function EditarContratoPage() {
         rp: c.rp || "",
         lugar_ejecucion: c.lugar_ejecucion || "",
         costo_tipo: c.costo_tipo || "DIRECTO",
+        forma_pago: c.forma_pago || "",
       })
     }).catch(() => {
       toast.error("Error cargando contrato")
@@ -227,6 +229,13 @@ export default function EditarContratoPage() {
               )}
             </div>
             <Textarea rows={5} value={form.objeto} onChange={e => setForm({ ...form, objeto: e.target.value })} className="resize-y" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Forma de Pago</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <Textarea rows={5} value={form.forma_pago} onChange={e => setForm({ ...form, forma_pago: e.target.value })} className="resize-y" />
           </CardContent>
         </Card>
 
