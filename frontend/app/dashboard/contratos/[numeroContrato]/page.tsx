@@ -49,11 +49,91 @@ const CCF_OPCIONES = ["COMFACAUCA", "COMFENALCO"]
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
 
+/** Fila de planilla vacía para el formulario de pago. */
+const nuevaPlanilla = () => ({
+  planilla_no: "", periodo_cotizado: "", ibc: "0",
+  eps_nombre: "", eps_valor: 0,
+  arl_nombre: "", arl_valor: 0,
+  afp_nombre: "", afp_valor: 0,
+  ccf_nombre: "", ccf_valor: 0,
+  sena_valor: 0, icbf_valor: 0,
+})
+
+/**
+ * Convierte las planillas que devuelve el backend a filas del formulario.
+ * Si el pago no tiene planillas, devuelve una fila vacía.
+ * (El PUT /pagos/{id} borra y recrea las planillas: hay que enviarlas completas.)
+ */
+const planillasDelPago = (planillas: any[] | undefined) => {
+  const filas = (planillas ?? []).map(pl => ({
+    planilla_no: pl.planilla_no ?? "",
+    periodo_cotizado: pl.periodo_cotizado ?? "",
+    ibc: pl.ibc ?? "0",
+    eps_nombre: pl.eps_nombre ?? "", eps_valor: pl.eps_valor ?? 0,
+    arl_nombre: pl.arl_nombre ?? "", arl_valor: pl.arl_valor ?? 0,
+    afp_nombre: pl.afp_nombre ?? "", afp_valor: pl.afp_valor ?? 0,
+    ccf_nombre: pl.ccf_nombre ?? "", ccf_valor: pl.ccf_valor ?? 0,
+    sena_valor: pl.sena_valor ?? 0, icbf_valor: pl.icbf_valor ?? 0,
+  }))
+  return filas.length > 0 ? filas : [nuevaPlanilla()]
+}
+
 const MOTIVOS_ANULACION = [
   "Renuncia del contratista", "Incumplimiento contractual",
   "Terminación por mutuo acuerdo", "Decisión administrativa",
   "Fallecimiento del contratista", "Otro",
 ]
+
+/** Valor especial del selector de entidad para permitir escribir un nombre libre. */
+const OTRO = "Otro"
+
+/** true si el valor no está en la lista de opciones (o es el marcador "Otro"). */
+const esOtro = (valor: string, opciones: string[]) =>
+  valor === OTRO || (valor !== "" && !opciones.includes(valor))
+
+/**
+ * Selector de entidad (EPS / ARL / AFP / CCF) con opción "Otro".
+ * Al elegir "Otro" se muestra un campo de texto para escribir el nombre,
+ * que se guarda en el mismo campo (el backend lo acepta como texto libre).
+ * El marcador "Otro" sin texto se envía como vacío al guardar.
+ */
+function EntidadSelect({
+  label, value, opciones, onChange,
+}: {
+  label: string
+  value: string
+  opciones: string[]
+  onChange: (valor: string) => void
+}) {
+  const otro = esOtro(value, opciones)
+  const seleccion = value === "" ? "" : otro ? OTRO : value
+  return (
+    <div className="space-y-1">
+      <label className="text-[10px] font-medium text-gray-400">{label}</label>
+      <Select
+        className="h-8 text-xs"
+        value={seleccion}
+        onChange={e => {
+          const v = e.target.value
+          onChange(v === OTRO ? OTRO : v)
+        }}
+      >
+        <option value="">Seleccionar...</option>
+        {opciones.map(o => <option key={o} value={o}>{o}</option>)}
+        <option value={OTRO}>{OTRO}</option>
+      </Select>
+      {otro && (
+        <Input
+          className="h-8 text-xs"
+          placeholder="Especificar entidad..."
+          aria-label={`${label} — especificar entidad`}
+          value={value === OTRO ? "" : value}
+          onChange={e => onChange(e.target.value || OTRO)}
+        />
+      )}
+    </div>
+  )
+}
 
 export default function ContratoDetailPage() {
   const params = useParams()
@@ -77,14 +157,7 @@ export default function ContratoDetailPage() {
     observaciones: "",
     act: "",
   })
-  const [pagoPlantillas, setPagoPlantillas] = useState([{
-    planilla_no: "", periodo_cotizado: "", ibc: "0",
-    eps_nombre: "", eps_valor: 0,
-    arl_nombre: "", arl_valor: 0,
-    afp_nombre: "", afp_valor: 0,
-    ccf_nombre: "", ccf_valor: 0,
-    sena_valor: 0, icbf_valor: 0,
-  }])
+  const [pagoPlantillas, setPagoPlantillas] = useState([nuevaPlanilla()])
   const [finalizarContrato, setFinalizarContrato] = useState(false)
   const [submittingPago, setSubmittingPago] = useState(false)
   const [pagoEditando, setPagoEditando] = useState<Pago | null>(null)
@@ -103,6 +176,7 @@ export default function ContratoDetailPage() {
       folios: "", actividades: "", observaciones: "", act: "",
     })
     setFinalizarContrato(false)
+    setPagoPlantillas([nuevaPlanilla()])
     setShowPago(true)
     // Cargar actividades del contrato para evaluación
     if (contrato?.id) {
@@ -141,6 +215,9 @@ export default function ContratoDetailPage() {
       act: p.act || "",
     })
     setShowPago(true)
+    // Cargar las planillas existentes del pago en el formulario
+    // (el PUT borra y recrea las planillas: si no se envían, se pierden)
+    setPagoPlantillas(planillasDelPago(p.planillas))
     // Cargar actividades de supervisión existentes
     setLoadingActividades(true)
     getActividadesSupervision(p.id)
@@ -184,21 +261,22 @@ export default function ContratoDetailPage() {
   useEffect(() => { loadData() }, [numero])
 
   const addPlanillaRow = () => {
-    setPagoPlantillas([...pagoPlantillas, {
-      planilla_no: "", periodo_cotizado: "", ibc: "0",
-      eps_nombre: "", eps_valor: 0,
-      arl_nombre: "", arl_valor: 0,
-      afp_nombre: "", afp_valor: 0,
-      ccf_nombre: "", ccf_valor: 0,
-      sena_valor: 0, icbf_valor: 0,
-    }])
+    setPagoPlantillas([...pagoPlantillas, nuevaPlanilla()])
   }
 
   const handleSavePago = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmittingPago(true)
     try {
-      const body = { ...pagoForm, planillas: pagoPlantillas }
+      // Si quedó el marcador "Otro" sin texto, se envía vacío (el backend lo acepta)
+      const planillasLimpias = pagoPlantillas.map(pl => ({
+        ...pl,
+        eps_nombre: pl.eps_nombre === OTRO ? "" : pl.eps_nombre,
+        arl_nombre: pl.arl_nombre === OTRO ? "" : pl.arl_nombre,
+        afp_nombre: pl.afp_nombre === OTRO ? "" : pl.afp_nombre,
+        ccf_nombre: pl.ccf_nombre === OTRO ? "" : pl.ccf_nombre,
+      }))
+      const body = { ...pagoForm, planillas: planillasLimpias }
       if (pagoEditando) {
         await updatePago(pagoEditando.id, body)
         // Evaluar actividades existentes
@@ -237,12 +315,7 @@ export default function ContratoDetailPage() {
         fecha_firma: "", valor_a_pagar: 0,
         folios: "", actividades: "", observaciones: "", act: "",
       })
-      setPagoPlantillas([{
-        planilla_no: "", periodo_cotizado: "", ibc: "0",
-        eps_nombre: "", eps_valor: 0, arl_nombre: "", arl_valor: 0,
-        afp_nombre: "", afp_valor: 0, ccf_nombre: "", ccf_valor: 0,
-        sena_valor: 0, icbf_valor: 0,
-      }])
+      setPagoPlantillas([nuevaPlanilla()])
       loadData()
     } catch (err: any) {
       toast.error("Error: " + err.message)
@@ -819,53 +892,29 @@ export default function ContratoDetailPage() {
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-medium text-gray-400">EPS</label>
-                      <Select className="h-8 text-xs" value={pl.eps_nombre}
-                        onChange={e => { const n = [...pagoPlantillas]; n[i].eps_nombre = e.target.value; setPagoPlantillas(n) }}>
-                        <option value="">Seleccionar...</option>
-                        {EPS_OPCIONES.map(o => <option key={o} value={o}>{o}</option>)}
-                      </Select>
-                    </div>
+                    <EntidadSelect label="EPS" value={pl.eps_nombre} opciones={EPS_OPCIONES}
+                      onChange={v => { const n = [...pagoPlantillas]; n[i].eps_nombre = v; setPagoPlantillas(n) }} />
                     <div className="space-y-1">
                       <label className="text-[10px] font-medium text-gray-400">EPS $</label>
                       <Input type="number" className="h-8 text-xs" value={pl.eps_valor}
                         onChange={e => { const n = [...pagoPlantillas]; n[i].eps_valor = parseFloat(e.target.value) || 0; setPagoPlantillas(n) }} />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-medium text-gray-400">ARL</label>
-                      <Select className="h-8 text-xs" value={pl.arl_nombre}
-                        onChange={e => { const n = [...pagoPlantillas]; n[i].arl_nombre = e.target.value; setPagoPlantillas(n) }}>
-                        <option value="">Seleccionar...</option>
-                        {ARL_OPCIONES.map(o => <option key={o} value={o}>{o}</option>)}
-                      </Select>
-                    </div>
+                    <EntidadSelect label="ARL" value={pl.arl_nombre} opciones={ARL_OPCIONES}
+                      onChange={v => { const n = [...pagoPlantillas]; n[i].arl_nombre = v; setPagoPlantillas(n) }} />
                     <div className="space-y-1">
                       <label className="text-[10px] font-medium text-gray-400">ARL $</label>
                       <Input type="number" className="h-8 text-xs" value={pl.arl_valor}
                         onChange={e => { const n = [...pagoPlantillas]; n[i].arl_valor = parseFloat(e.target.value) || 0; setPagoPlantillas(n) }} />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-medium text-gray-400">AFP</label>
-                      <Select className="h-8 text-xs" value={pl.afp_nombre}
-                        onChange={e => { const n = [...pagoPlantillas]; n[i].afp_nombre = e.target.value; setPagoPlantillas(n) }}>
-                        <option value="">Seleccionar...</option>
-                        {AFP_OPCIONES.map(o => <option key={o} value={o}>{o}</option>)}
-                      </Select>
-                    </div>
+                    <EntidadSelect label="AFP" value={pl.afp_nombre} opciones={AFP_OPCIONES}
+                      onChange={v => { const n = [...pagoPlantillas]; n[i].afp_nombre = v; setPagoPlantillas(n) }} />
                     <div className="space-y-1">
                       <label className="text-[10px] font-medium text-gray-400">AFP $</label>
                       <Input type="number" className="h-8 text-xs" value={pl.afp_valor}
                         onChange={e => { const n = [...pagoPlantillas]; n[i].afp_valor = parseFloat(e.target.value) || 0; setPagoPlantillas(n) }} />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-medium text-gray-400">CCF</label>
-                      <Select className="h-8 text-xs" value={pl.ccf_nombre}
-                        onChange={e => { const n = [...pagoPlantillas]; n[i].ccf_nombre = e.target.value; setPagoPlantillas(n) }}>
-                        <option value="">Seleccionar...</option>
-                        {CCF_OPCIONES.map(o => <option key={o} value={o}>{o}</option>)}
-                      </Select>
-                    </div>
+                    <EntidadSelect label="CCF" value={pl.ccf_nombre} opciones={CCF_OPCIONES}
+                      onChange={v => { const n = [...pagoPlantillas]; n[i].ccf_nombre = v; setPagoPlantillas(n) }} />
                     <div className="space-y-1">
                       <label className="text-[10px] font-medium text-gray-400">CCF $</label>
                       <Input type="number" className="h-8 text-xs" value={pl.ccf_valor}
