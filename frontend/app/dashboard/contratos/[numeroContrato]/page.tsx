@@ -572,6 +572,30 @@ export default function ContratoDetailPage() {
               <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Cédula Supervisor</p>
               <p className="font-medium">{contrato.cedula_supervisor || "—"}</p>
             </div>
+            <div>
+              <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Código CIIU</p>
+              <p className="font-medium">{contrato.codigo_ciiu || "—"}</p>
+            </div>
+            <div>
+              <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Nivel Prof. Supervisor</p>
+              <p className="font-medium">{contrato.nivel_prof_supervisor || "—"}</p>
+            </div>
+            <div>
+              <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Interventor</p>
+              <p className="font-medium">{contrato.interventor || "—"}</p>
+            </div>
+            <div>
+              <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Nivel Prof. Interventor</p>
+              <p className="font-medium">{contrato.nivel_prof_interventor || "—"}</p>
+            </div>
+            <div>
+              <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Tiempo Adición</p>
+              <p className="font-medium">{contrato.tiempo_adicion || "—"}</p>
+            </div>
+            <div>
+              <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Valor Final</p>
+              <p className="font-medium">{contrato.valor_final ? fmt.format(contrato.valor_final) : "—"}</p>
+            </div>
             <div className="col-span-2 md:col-span-4">
               <p className="text-gray-400 text-xs uppercase font-medium mb-0.5">Objeto</p>
               <p className="font-medium">{contrato.objeto || "—"}</p>

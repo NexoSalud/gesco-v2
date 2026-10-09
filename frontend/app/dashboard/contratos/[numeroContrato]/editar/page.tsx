@@ -44,6 +44,12 @@ export default function EditarContratoPage() {
     lugar_ejecucion: "",
     costo_tipo: "DIRECTO",
     forma_pago: "",
+    codigo_ciiu: "",
+    nivel_prof_supervisor: "",
+    interventor: "",
+    nivel_prof_interventor: "",
+    tiempo_adicion: "",
+    valor_final: "",
   })
 
   useEffect(() => {
@@ -74,6 +80,12 @@ export default function EditarContratoPage() {
         lugar_ejecucion: c.lugar_ejecucion || "",
         costo_tipo: c.costo_tipo || "DIRECTO",
         forma_pago: c.forma_pago || "",
+        codigo_ciiu: c.codigo_ciiu || "",
+        nivel_prof_supervisor: c.nivel_prof_supervisor || "",
+        interventor: c.interventor || "",
+        nivel_prof_interventor: c.nivel_prof_interventor || "",
+        tiempo_adicion: c.tiempo_adicion || "",
+        valor_final: c.valor_final != null ? String(c.valor_final) : "",
       })
     }).catch(() => {
       toast.error("Error cargando contrato")
@@ -236,6 +248,36 @@ export default function EditarContratoPage() {
           <CardHeader><CardTitle className="text-base">Forma de Pago</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <Textarea rows={5} value={form.forma_pago} onChange={e => setForm({ ...form, forma_pago: e.target.value })} className="resize-y" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Supervisión (PDF)</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Código CIIU</label>
+              <Input value={form.codigo_ciiu} onChange={e => setForm({ ...form, codigo_ciiu: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Nivel Prof. Supervisor</label>
+              <Input value={form.nivel_prof_supervisor} onChange={e => setForm({ ...form, nivel_prof_supervisor: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Interventor</label>
+              <Input value={form.interventor} onChange={e => setForm({ ...form, interventor: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Nivel Prof. Interventor</label>
+              <Input value={form.nivel_prof_interventor} onChange={e => setForm({ ...form, nivel_prof_interventor: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Tiempo Adición</label>
+              <Input value={form.tiempo_adicion} onChange={e => setForm({ ...form, tiempo_adicion: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Valor Final</label>
+              <Input type="number" value={form.valor_final} onChange={e => setForm({ ...form, valor_final: e.target.value })} />
+            </div>
           </CardContent>
         </Card>
 

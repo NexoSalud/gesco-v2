@@ -52,6 +52,12 @@ export default function NuevoContratoPage() {
     lugar_ejecucion: "",
     costo_tipo: "DIRECTO",
     forma_pago: "",
+    codigo_ciiu: "",
+    nivel_prof_supervisor: "",
+    interventor: "",
+    nivel_prof_interventor: "",
+    tiempo_adicion: "",
+    valor_final: "",
   })
 
   const [contratistaForm, setContratistaForm] = useState({
@@ -146,6 +152,12 @@ export default function NuevoContratoPage() {
         lugar_ejecucion: form.lugar_ejecucion || null,
         costo_tipo: form.costo_tipo || "DIRECTO",
         forma_pago: form.forma_pago || null,
+        codigo_ciiu: form.codigo_ciiu || null,
+        nivel_prof_supervisor: form.nivel_prof_supervisor || null,
+        interventor: form.interventor || null,
+        nivel_prof_interventor: form.nivel_prof_interventor || null,
+        tiempo_adicion: form.tiempo_adicion || null,
+        valor_final: form.valor_final ? Number(form.valor_final) : null,
       }
 
       if (contratistaSel) {
@@ -389,6 +401,37 @@ export default function NuevoContratoPage() {
             <div className="col-span-2 space-y-1">
               <label className="text-xs font-medium text-gray-500">Lugar Ejecución</label>
               <Input value={form.lugar_ejecucion} onChange={e => setForm({ ...form, lugar_ejecucion: e.target.value })} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ─── SUPERVISIÓN (PDF) ─── */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">Supervisión (PDF)</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Código CIIU</label>
+              <Input value={form.codigo_ciiu} onChange={e => setForm({ ...form, codigo_ciiu: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Nivel Prof. Supervisor</label>
+              <Input value={form.nivel_prof_supervisor} onChange={e => setForm({ ...form, nivel_prof_supervisor: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Interventor</label>
+              <Input value={form.interventor} onChange={e => setForm({ ...form, interventor: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Nivel Prof. Interventor</label>
+              <Input value={form.nivel_prof_interventor} onChange={e => setForm({ ...form, nivel_prof_interventor: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Tiempo Adición</label>
+              <Input value={form.tiempo_adicion} onChange={e => setForm({ ...form, tiempo_adicion: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500">Valor Final</label>
+              <Input type="number" value={form.valor_final} onChange={e => setForm({ ...form, valor_final: e.target.value })} />
             </div>
           </CardContent>
         </Card>
