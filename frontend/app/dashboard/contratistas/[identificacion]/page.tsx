@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/table"
 import { User, Phone, MapPin, FileText, ChevronLeft, Save, Package, Boxes, Plus, Eye, Download, Search, FileCheck, X } from "lucide-react"
 import { toast } from "sonner"
+import { CONTRATOS_SOLO_LECTURA } from "@/lib/solo-lectura"
+import { AvisoGestionContractual } from "@/components/layout/aviso-gestion-contractual"
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
 
@@ -256,16 +258,20 @@ export default function ContratistaDetailPage() {
             <Badge variant="default">{contratista.tipo_persona}</Badge>
           </div>
         </div>
-        <Button
-          variant={editMode ? "default" : "outline"}
-          size="sm"
-          onClick={() => editMode ? handleSave() : setEditMode(true)}
-          disabled={saving}
-        >
-          <Save className="w-4 h-4 mr-1" />
-          {editMode ? (saving ? "Guardando..." : "Guardar") : "Editar"}
-        </Button>
+        {!CONTRATOS_SOLO_LECTURA && (
+          <Button
+            variant={editMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => editMode ? handleSave() : setEditMode(true)}
+            disabled={saving}
+          >
+            <Save className="w-4 h-4 mr-1" />
+            {editMode ? (saving ? "Guardando..." : "Guardar") : "Editar"}
+          </Button>
+        )}
       </div>
+
+      {CONTRATOS_SOLO_LECTURA && <AvisoGestionContractual accion="Editar los datos del contratista" />}
 
       {/* Datos del contratista */}
       <Card>

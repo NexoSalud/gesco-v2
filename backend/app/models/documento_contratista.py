@@ -17,7 +17,7 @@ class DocumentoContratista(Base):
         ForeignKey("contratistas.id", ondelete="CASCADE"), nullable=False, index=True
     )
     contrato_numero: Mapped[str] = mapped_column(
-        ForeignKey("contratos.numero_contrato", ondelete="CASCADE"), nullable=False
+        ForeignKey("contratos.numero_contrato", ondelete="CASCADE", onupdate="CASCADE"), nullable=False
     )
     periodo_id: Mapped[int | None] = mapped_column(
         ForeignKey("periodos_evaluacion.id", ondelete="CASCADE"), nullable=True,

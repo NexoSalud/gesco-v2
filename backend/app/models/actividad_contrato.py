@@ -10,7 +10,7 @@ class ActividadContrato(Base):
     __tablename__ = "actividades_contrato"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    contrato_id: Mapped[str] = mapped_column(ForeignKey("contratos.numero_contrato", ondelete="CASCADE"))
+    contrato_id: Mapped[str] = mapped_column(ForeignKey("contratos.numero_contrato", ondelete="CASCADE", onupdate="CASCADE"))
     descripcion: Mapped[str] = mapped_column(Text, nullable=False)
     tipo: Mapped[str] = mapped_column(String(20), default="GENERAL", comment="GENERAL | ESPECIFICA")
     orden: Mapped[int] = mapped_column(Integer, default=0)

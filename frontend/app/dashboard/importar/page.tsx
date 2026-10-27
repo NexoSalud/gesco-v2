@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AlertCircle, CheckCircle, Upload, FileSpreadsheet, X, Download, Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { CONTRATOS_SOLO_LECTURA } from "@/lib/solo-lectura"
+import { AvisoGestionContractual } from "@/components/layout/aviso-gestion-contractual"
 
 interface ImportResult {
   total: number
@@ -15,7 +17,19 @@ interface ImportResult {
   errors: { fila: number; numero_contrato: string | null; error: string }[]
 }
 
-export default function ImportarPage() {
+export default function Page() {
+  if (CONTRATOS_SOLO_LECTURA) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <h1 className="text-2xl font-bold text-gray-900">Importar Contratos</h1>
+        <AvisoGestionContractual accion="Crear o importar contratos" />
+      </div>
+    )
+  }
+  return <ImportarContratos />
+}
+
+function ImportarContratos() {
   const [resoluciones, setResoluciones] = useState<Resolucion[]>([])
   const [selectedResolucion, setSelectedResolucion] = useState<string>("")
   const [file, setFile] = useState<File | null>(null)

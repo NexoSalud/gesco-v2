@@ -44,6 +44,7 @@ import {
   Loader2, User,
 } from "lucide-react"
 import { toast } from "sonner"
+import { CONTRATOS_SOLO_LECTURA } from "@/lib/solo-lectura"
 
 const fmt = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 })
 
@@ -430,10 +431,12 @@ export default function ResolucionDetailPage() {
             <Download className="w-4 h-4" />
             PDFs Masivos
           </Button>
-          <Button size="sm" className="gap-1.5" onClick={() => setShowModal(true)}>
-            <Plus className="w-4 h-4" />
-            Contrato
-          </Button>
+          {!CONTRATOS_SOLO_LECTURA && (
+            <Button size="sm" className="gap-1.5" onClick={() => setShowModal(true)}>
+              <Plus className="w-4 h-4" />
+              Contrato
+            </Button>
+          )}
         </div>
       </div>
 
@@ -543,7 +546,7 @@ export default function ResolucionDetailPage() {
                   ? "No hay contratos en esta resolución"
                   : "No se encontraron contratos con los filtros actuales"}
               </p>
-              {contratos.length === 0 && (
+              {contratos.length === 0 && !CONTRATOS_SOLO_LECTURA && (
                 <Button className="mt-3" size="sm" onClick={() => setShowModal(true)}>
                   <Plus className="w-4 h-4 mr-1" />
                   Crear primer contrato
@@ -608,7 +611,7 @@ export default function ResolucionDetailPage() {
                             >
                               DOCX
                             </Button>
-                            {c.estado !== "ANULADO" && c.estado !== "FINALIZADO" && (
+                            {c.estado !== "ANULADO" && c.estado !== "FINALIZADO" && !CONTRATOS_SOLO_LECTURA && (
                               <Button
                                 variant="ghost"
                                 size="sm"

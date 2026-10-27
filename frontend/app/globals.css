@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* La variante dark: sigue el tema elegido en la app (clase .dark en <html>) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --color-white-theme: #ffffff;
   --color-gray-50-theme: #f9fafb;

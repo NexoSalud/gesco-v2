@@ -27,6 +27,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function checkAuth() {
+      // Gestión Contractual tiene su propio login y sesión (ver GcAuthProvider)
+      if (pathname?.startsWith("/gestion")) {
+        setLoading(false)
+        return
+      }
       const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
       
       if (!token) {

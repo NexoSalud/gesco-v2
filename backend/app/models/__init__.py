@@ -19,6 +19,7 @@ from app.models.periodo_evaluacion import PeriodoEvaluacion
 from app.models.apoyo_administrativo import ApoyoAdministrativo
 from app.models.actividad_apoyo import ActividadApoyo
 from app.models.evidencia_apoyo import EvidenciaApoyo
+from app.models.gestion_contractual import GcUsuario, GcContratista, GcContrato, GcDocumento, GcEvento
 
 __all__ = [
     "Resolucion",
@@ -43,4 +44,9 @@ __all__ = [
     "Acceso",
     "Evidencia",
     "PeriodoEvaluacion",
+    "GcUsuario",
+    "GcContratista",
+    "GcContrato",
+    "GcDocumento",
+    "GcEvento",
 ]

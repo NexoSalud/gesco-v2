@@ -14,8 +14,22 @@ import { Select } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { User, Search, ChevronLeft, Plus, Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { CONTRATOS_SOLO_LECTURA } from "@/lib/solo-lectura"
+import { AvisoGestionContractual } from "@/components/layout/aviso-gestion-contractual"
 
-export default function NuevoContratoPage() {
+export default function Page() {
+  if (CONTRATOS_SOLO_LECTURA) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <h1 className="text-2xl font-bold text-gray-900">Nuevo Contrato</h1>
+        <AvisoGestionContractual accion="Crear contratos" />
+      </div>
+    )
+  }
+  return <NuevoContratoFormulario />
+}
+
+function NuevoContratoFormulario() {
   const router = useRouter()
   const [perfiles, setPerfiles] = useState<any[]>([])
   const [resoluciones, setResoluciones] = useState<any[]>([])

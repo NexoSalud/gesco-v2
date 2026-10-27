@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.contrato import Contrato
+from app.services.gestion_contractual import contratos_solo_lectura
 from app.models.contratista import Contratista
 from app.models.pago import Pago
 from app.models.planilla import Planilla
@@ -250,7 +251,7 @@ def _map_estado(val) -> str:
     return "EN_PROCESO"
 
 
-@router.post("/excel", response_model=ImportResult)
+@router.post("/excel", response_model=ImportResult, dependencies=[Depends(contratos_solo_lectura)])
 async def importar_contratos_excel(
     resolucion_id: int = Query(..., description="ID de la resolución destino"),
     file: UploadFile = File(..., description="Archivo Excel (.xlsx)"),

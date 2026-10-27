@@ -17,9 +17,12 @@ import {
   Package,
   Shield,
   ClipboardCheck,
+  FolderArchive,
+  ArrowUpRight,
 } from "lucide-react"
 import { useState } from "react"
 import { useAuth } from "@/components/providers/auth-provider"
+import { CONTRATOS_SOLO_LECTURA } from "@/lib/solo-lectura"
 
 const NAV_ITEMS = [
   {
@@ -95,7 +98,8 @@ const NAV_ITEMS = [
     label: "Importar",
     href: "/dashboard/importar",
     icon: Upload,
-    permission: "importar"
+    permission: "importar",
+    oculto: CONTRATOS_SOLO_LECTURA,
   },
   {
     label: "Seguridad",
@@ -119,6 +123,7 @@ export default function Sidebar() {
 
   // Filtrar ítems de navegación según permisos
   const visibleItems = NAV_ITEMS.filter((item) => {
+    if ("oculto" in item && item.oculto) return false
     if (!item.permission) return true
     if (item.permission === "usuarios") {
       return user?.role?.nombre === "SUPER_ADMIN"
@@ -206,6 +211,18 @@ export default function Sidebar() {
           )
         })}
       </nav>
+
+      {/* Acceso al módulo independiente de Gestión Contractual (login propio) */}
+      <div className="px-3 pb-3">
+        <Link
+          href="/gestion/login"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all border border-white/10 hover:bg-sidebar-hover hover:text-white"
+        >
+          <FolderArchive className="w-4 h-4 flex-shrink-0" />
+          <span className="flex-1">Gestión Contractual</span>
+          <ArrowUpRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
 
       {/* Footer */}
       <div className="px-5 py-4 border-t border-white/10">

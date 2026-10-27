@@ -10,6 +10,7 @@ from app.database import get_db
 from app.models.contratista import Contratista
 from app.models.contrato import Contrato
 from app.schemas.contratista import ContratistaCreate, ContratistaUpdate, ContratistaOut
+from app.services.gestion_contractual import contratos_solo_lectura
 from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix="/api/v1/contratistas", tags=["Contratistas"])
@@ -43,7 +44,7 @@ async def obtener_contratista(identificacion: str, db: AsyncSession = Depends(ge
     return contratista
 
 
-@router.post("", response_model=ContratistaOut, status_code=201)
+@router.post("", response_model=ContratistaOut, status_code=201, dependencies=[Depends(contratos_solo_lectura)])
 async def crear_contratista(data: ContratistaCreate, db: AsyncSession = Depends(get_db)):
     # Verificar si ya existe
     result = await db.execute(
@@ -58,7 +59,7 @@ async def crear_contratista(data: ContratistaCreate, db: AsyncSession = Depends(
     return contratista
 
 
-@router.put("/{identificacion}", response_model=ContratistaOut)
+@router.put("/{identificacion}", response_model=ContratistaOut, dependencies=[Depends(contratos_solo_lectura)])
 async def actualizar_contratista(
     identificacion: str, data: ContratistaUpdate, db: AsyncSession = Depends(get_db)
 ):

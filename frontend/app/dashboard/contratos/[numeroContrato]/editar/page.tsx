@@ -11,10 +11,24 @@ import { Select } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { ChevronLeft, Save, Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { CONTRATOS_SOLO_LECTURA } from "@/lib/solo-lectura"
+import { AvisoGestionContractual } from "@/components/layout/aviso-gestion-contractual"
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://contratos.esenorte3.lat"
 
-export default function EditarContratoPage() {
+export default function Page() {
+  if (CONTRATOS_SOLO_LECTURA) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <h1 className="text-2xl font-bold text-gray-900">Editar Contrato</h1>
+        <AvisoGestionContractual accion="Editar contratos" />
+      </div>
+    )
+  }
+  return <EditarContratoPage />
+}
+
+function EditarContratoPage() {
   const params = useParams()
   const router = useRouter()
   const numero = decodeURIComponent(params.numeroContrato as string)
