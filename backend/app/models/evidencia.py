@@ -31,7 +31,7 @@ class Evidencia(Base):
         ForeignKey("contratistas.id", ondelete="CASCADE"), nullable=False
     )
     contrato_id: Mapped[str] = mapped_column(
-        ForeignKey("contratos.numero_contrato", ondelete="CASCADE"), nullable=False
+        ForeignKey("contratos.numero_contrato", ondelete="CASCADE", onupdate="CASCADE"), nullable=False
     )
 
     tipo: Mapped[str] = mapped_column(

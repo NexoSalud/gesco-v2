@@ -12,7 +12,7 @@ class Pago(Base):
     __tablename__ = "pagos"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    contrato_id: Mapped[str] = mapped_column(ForeignKey("contratos.numero_contrato", ondelete="CASCADE"), comment="FK por número de contrato")
+    contrato_id: Mapped[str] = mapped_column(ForeignKey("contratos.numero_contrato", ondelete="CASCADE", onupdate="CASCADE"), comment="FK por número de contrato")
 
     numero_pago: Mapped[int] = mapped_column(Integer, nullable=False)
     tipo_informe: Mapped[str | None] = mapped_column(String(50), default="SUPERVISION")

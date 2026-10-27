@@ -380,7 +380,10 @@ export function ContratoForm({
       <div className="space-y-6 lg:col-span-2">
         <Bloque titulo="Partes" desc="Número del contrato y contratista.">
           <div className="grid gap-4 sm:grid-cols-[1fr_1.4fr]">
-            <Campo label="Número de contrato">
+            <Campo
+              label="Número de contrato"
+              hint={inicial.numero_contrato && v.numero_contrato.trim() !== inicial.numero_contrato ? "Se cambia también en el GESCO principal, con sus pagos y planillas." : undefined}
+            >
               <input required value={v.numero_contrato} onChange={(e) => set("numero_contrato", e.target.value)} placeholder="Ej: 412 DEL 01 DE NOVIEMBRE DE 2026" className={cn(inputCls, "h-11")} />
             </Campo>
             <Campo label="Contratista">

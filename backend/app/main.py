@@ -186,6 +186,28 @@ async def lifespan(app: FastAPI):
                 logger.warning(f"Columna 'anexa_cert' en pagos: {e}")
     except Exception as e:
         logger.warning(f"Migración PDF supervisión: {e}")
+    # Migración: las tablas que referencian el contrato por su número siguen el cambio
+    # de número (se edita desde Gestión Contractual): ON UPDATE CASCADE.
+    try:
+        async with engine.begin() as conn:
+            fks = (await conn.execute(text("""
+                SELECT c.conname, c.conrelid::regclass::text, a.attname
+                FROM pg_constraint c
+                JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+                JOIN pg_attribute r ON r.attrelid = c.confrelid AND r.attnum = c.confkey[1]
+                WHERE c.contype = 'f' AND c.confrelid = 'contratos'::regclass
+                  AND r.attname = 'numero_contrato' AND c.confupdtype <> 'c'
+            """))).all()
+            for conname, tabla, columna in fks:
+                await conn.execute(text(f'ALTER TABLE {tabla} DROP CONSTRAINT "{conname}"'))
+                await conn.execute(text(
+                    f'ALTER TABLE {tabla} ADD CONSTRAINT "{conname}" FOREIGN KEY ({columna}) '
+                    "REFERENCES contratos(numero_contrato) ON DELETE CASCADE ON UPDATE CASCADE"
+                ))
+                logger.info(f"Migración OK: {tabla}.{columna} con ON UPDATE CASCADE")
+    except Exception as e:
+        logger.warning(f"Migración ON UPDATE CASCADE de contratos: {e}")
+
     # Migración: agregar columna usuario_id a actas_inventario
     try:
         async with engine.begin() as conn:
