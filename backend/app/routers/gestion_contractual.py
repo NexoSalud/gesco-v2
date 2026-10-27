@@ -771,7 +771,7 @@ async def resumen(_: GcUsuario = Depends(gc_usuario_actual), db: AsyncSession = 
     total_origen = (await db.execute(select(func.count(Contrato.id)))).scalar_one()
 
     eventos = (await db.execute(
-        select(GcEvento).options(selectinload(GcEvento.usuario)).order_by(GcEvento.created_at.desc(), GcEvento.id.desc()).limit(12)
+        select(GcEvento).options(selectinload(GcEvento.usuario)).order_by(GcEvento.created_at.desc(), GcEvento.id.desc()).limit(8)
     )).scalars().all()
 
     return GcResumenOut(
