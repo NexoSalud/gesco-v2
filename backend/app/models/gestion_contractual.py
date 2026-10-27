@@ -32,6 +32,35 @@ class GcUsuario(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
 
 
+class GcContratista(Base):
+    """Contratista del módulo: sincronizado desde el GESCO principal o creado aquí."""
+
+    __tablename__ = "gc_contratistas"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    contratista_origen_id: Mapped[int | None] = mapped_column(
+        ForeignKey("contratistas.id", ondelete="SET NULL"), unique=True, nullable=True, index=True,
+    )
+    origen: Mapped[str] = mapped_column(String(20), default="MANUAL", comment="SINCRONIZADO | MANUAL")
+
+    identificacion: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
+    nombre: Mapped[str] = mapped_column(String(300), nullable=False)
+    tipo_persona: Mapped[str | None] = mapped_column(String(20), default="NATURAL")
+    expedida_en: Mapped[str | None] = mapped_column(String(100))
+    telefono: Mapped[str | None] = mapped_column(String(30))
+    direccion: Mapped[str | None] = mapped_column(String(300))
+    correo: Mapped[str | None] = mapped_column(String(200))
+    banco: Mapped[str | None] = mapped_column(String(100))
+    tipo_cuenta: Mapped[str | None] = mapped_column(String(50))
+    numero_cuenta: Mapped[str | None] = mapped_column(String(50))
+    huella_origen: Mapped[str | None] = mapped_column(String(64))
+
+    sincronizado_at: Mapped[datetime.datetime | None] = mapped_column(DateTime)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("gc_usuarios.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, onupdate=func.now())
+
+
 class GcContrato(Base):
     """Contrato gestionado: copia sincronizada de un contrato del módulo actual."""
 
@@ -43,7 +72,15 @@ class GcContrato(Base):
         comment="Contrato del módulo actual del que proviene (NULL si el origen fue eliminado)",
     )
 
-    # Snapshot de los datos de origen
+    origen: Mapped[str] = mapped_column(
+        String(20), default="SINCRONIZADO",
+        comment="SINCRONIZADO (copia del módulo de contratos) | MANUAL (creado en este módulo)",
+    )
+    contratista_id: Mapped[int | None] = mapped_column(
+        ForeignKey("gc_contratistas.id", ondelete="SET NULL"), index=True
+    )
+
+    # Datos del contrato (snapshot del origen, o propios si es MANUAL)
     numero_contrato: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     contratista_nombre: Mapped[str | None] = mapped_column(String(300))
     contratista_identificacion: Mapped[str | None] = mapped_column(String(20), index=True)
@@ -80,6 +117,7 @@ class GcContrato(Base):
     updated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, onupdate=func.now())
 
     sincronizado_por = relationship("GcUsuario")
+    contratista = relationship("GcContratista")
     documentos = relationship(
         "GcDocumento", back_populates="contrato", cascade="all, delete-orphan",
         order_by="GcDocumento.created_at.desc()",

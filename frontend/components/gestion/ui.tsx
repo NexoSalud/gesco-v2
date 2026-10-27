@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { gcMiniaturaBlob } from "@/lib/gestion-api"
-import { FileText, Image as ImageIcon, type LucideIcon } from "lucide-react"
+import { Check, FileText, Image as ImageIcon, Minus, type LucideIcon } from "lucide-react"
 
 // ─── Formato ─────────────────────────────────────────────────────────────────
 
@@ -198,4 +198,34 @@ export function Miniatura({ docId, tiene, mime, className }: { docId: number; ti
   }
   if (!url) return <div className={cn("animate-pulse bg-gray-100", className)} />
   return <img src={url} alt="" className={cn("object-cover object-top", className)} draggable={false} />
+}
+
+// ─── Checkbox ────────────────────────────────────────────────────────────────
+
+export function Checkbox({
+  checked,
+  indeterminate,
+  onChange,
+  disabled,
+}: {
+  checked: boolean
+  indeterminate?: boolean
+  onChange: (e: React.MouseEvent<HTMLButtonElement>) => void
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={indeterminate ? "mixed" : checked}
+      disabled={disabled}
+      onClick={onChange}
+      className={cn(
+        "flex h-4 w-4 cursor-pointer items-center justify-center rounded-[5px] border transition-all disabled:cursor-not-allowed disabled:opacity-40",
+        checked || indeterminate ? "border-emerald-600 bg-emerald-600 text-[#fff]" : "border-gray-300 bg-white hover:border-gray-400"
+      )}
+    >
+      {checked ? <Check className="h-3 w-3" strokeWidth={3} /> : indeterminate ? <Minus className="h-3 w-3" strokeWidth={3} /> : null}
+    </button>
+  )
 }

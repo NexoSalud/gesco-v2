@@ -1,14 +1,15 @@
 "use client"
 
 import Link from "next/link"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { Check, CheckCircle2, CircleDashed, GitCompareArrows, Loader2, Minus, RefreshCcw, Search, X } from "lucide-react"
 import { gcOrigen, gcResoluciones, gcSincronizar, ContratoOrigen, VistaOrigen } from "@/lib/gestion-api"
 import { useGcAuth } from "@/components/gestion/gc-auth-provider"
-import { Btn, Chip, EmptyState, Kbd, PageHeader, Panel, Shimmer, formatCOP, formatFecha, inputCls } from "@/components/gestion/ui"
+import { Btn, Checkbox, Chip, EmptyState, Kbd, PageHeader, Panel, Shimmer, formatCOP, formatFecha, inputCls } from "@/components/gestion/ui"
 import { cn } from "@/lib/utils"
+import { SincronizarContratistas } from "@/components/gestion/sync-contratistas"
 
 const VISTAS: { value: VistaOrigen; label: string }[] = [
   { value: "pendientes", label: "Pendientes" },
@@ -20,8 +21,54 @@ const VISTAS: { value: VistaOrigen; label: string }[] = [
 const ESTADOS_ORIGEN = ["ACTIVO", "EN_PROCESO", "FINALIZADO", "ANULADO"]
 
 export default function SincronizarPage() {
+  return (
+    <Suspense>
+      <Sincronizar />
+    </Suspense>
+  )
+}
+
+function Sincronizar() {
   const { can } = useGcAuth()
   const router = useRouter()
+  const params = useSearchParams()
+  const tipo = params.get("tipo") === "contratistas" ? "contratistas" : "contratos"
+
+  useEffect(() => {
+    if (!can("editar")) router.replace("/gestion")
+  }, [can, router])
+
+  return (
+    <div className="space-y-6 pb-24 animate-fade-in">
+      <PageHeader
+        title="Sincronizar"
+        description="Elige qué registros del GESCO principal son reales y deben entrar al módulo. Solo se copian los que selecciones."
+      />
+      <div className="flex gap-6 border-b border-gray-200">
+        {(
+          [
+            ["contratos", "Contratos"],
+            ["contratistas", "Contratistas"],
+          ] as const
+        ).map(([v, l]) => (
+          <button
+            key={v}
+            onClick={() => router.replace(v === "contratos" ? "/gestion/sincronizar" : "/gestion/sincronizar?tipo=contratistas")}
+            className={cn(
+              "-mb-px cursor-pointer border-b-2 pb-2.5 text-sm font-medium transition-colors",
+              tipo === v ? "border-emerald-600 text-gray-900" : "border-transparent text-gray-500 hover:text-gray-800"
+            )}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+      {tipo === "contratos" ? <SincronizarContratos /> : <SincronizarContratistas />}
+    </div>
+  )
+}
+
+function SincronizarContratos() {
   const [vista, setVista] = useState<VistaOrigen>("pendientes")
   const [buscar, setBuscar] = useState("")
   const [estado, setEstado] = useState("")
@@ -32,10 +79,6 @@ export default function SincronizarPage() {
   const [syncing, setSyncing] = useState(false)
   const ultimoClick = useRef<number | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (!can("editar")) router.replace("/gestion")
-  }, [can, router])
 
   useEffect(() => {
     gcResoluciones().then(setResoluciones).catch(() => {})
@@ -131,22 +174,17 @@ export default function SincronizarPage() {
   }
 
   return (
-    <div className="space-y-6 pb-24 animate-fade-in">
-      <PageHeader
-        title="Sincronizar contratos"
-        description="Elige qué contratos del módulo actual son contratos reales y deben entrar al expediente. Solo se copian los que selecciones."
-      />
-
+    <>
       <Panel>
         {/* Barra de filtros */}
         <div className="flex flex-col gap-3 border-b border-gray-200 p-4 lg:flex-row lg:items-center">
-          <div className="inline-flex shrink-0 rounded-lg bg-gray-100 p-0.5">
+          <div className="inline-flex max-w-full shrink-0 overflow-x-auto rounded-lg bg-gray-100 p-0.5">
             {VISTAS.map((v) => (
               <button
                 key={v.value}
                 onClick={() => setVista(v.value)}
                 className={cn(
-                  "cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+                  "cursor-pointer whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-all",
                   vista === v.value ? "bg-white text-gray-900 shadow-sm ring-1 ring-gray-200" : "text-gray-500 hover:text-gray-800"
                 )}
               >
@@ -189,7 +227,7 @@ export default function SincronizarPage() {
 
         {/* Tabla */}
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full whitespace-nowrap text-sm">
             <thead>
               <tr className="border-b border-gray-200 text-left text-xs font-medium text-gray-500">
                 <th className="w-12 py-3 pl-4">
@@ -268,7 +306,7 @@ export default function SincronizarPage() {
                             </Chip>
                           </Link>
                         ) : (
-                          <span className="text-xs text-gray-400">No sincronizado</span>
+                          <span className="whitespace-nowrap text-xs text-gray-400">No sincronizado</span>
                         )}
                       </td>
                     </tr>
@@ -317,34 +355,6 @@ export default function SincronizarPage() {
           </Btn>
         </div>
       </div>
-    </div>
-  )
-}
-
-function Checkbox({
-  checked,
-  indeterminate,
-  onChange,
-  disabled,
-}: {
-  checked: boolean
-  indeterminate?: boolean
-  onChange: (e: React.MouseEvent<HTMLButtonElement>) => void
-  disabled?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={indeterminate ? "mixed" : checked}
-      disabled={disabled}
-      onClick={onChange}
-      className={cn(
-        "flex h-4 w-4 cursor-pointer items-center justify-center rounded-[5px] border transition-all disabled:cursor-not-allowed disabled:opacity-40",
-        checked || indeterminate ? "border-emerald-600 bg-emerald-600 text-[#fff]" : "border-gray-300 bg-white hover:border-gray-400"
-      )}
-    >
-      {checked ? <Check className="h-3 w-3" strokeWidth={3} /> : indeterminate ? <Minus className="h-3 w-3" strokeWidth={3} /> : null}
-    </button>
+    </>
   )
 }

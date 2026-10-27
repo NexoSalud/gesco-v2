@@ -4,7 +4,7 @@ import Link from "next/link"
 import { Suspense, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowUpDown, FolderKanban, GitCompareArrows, Paperclip, RefreshCcw, Search } from "lucide-react"
+import { ArrowUpDown, FolderKanban, GitCompareArrows, Paperclip, Plus, RefreshCcw, Search } from "lucide-react"
 import { gcContratos, GcContrato } from "@/lib/gestion-api"
 import { useGcAuth } from "@/components/gestion/gc-auth-provider"
 import {
@@ -24,6 +24,7 @@ import {
 } from "@/components/gestion/ui"
 import { DOCUMENTOS_CLAVE } from "@/components/gestion/documentos"
 import { cn } from "@/lib/utils"
+import { OrigenChip } from "@/components/gestion/formularios"
 
 type Orden = "reciente" | "vencimiento" | "valor" | "documentos"
 
@@ -81,14 +82,21 @@ function ContratosInner() {
     <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="Contratos"
-        description="Contratos reales sincronizados y el avance de su expediente documental."
+        description="Contratos reales, sincronizados o creados aquí, y el avance de su expediente documental."
         actions={
           can("editar") && (
-            <Link href="/gestion/sincronizar">
-              <Btn variant="primary">
-                <GitCompareArrows className="h-4 w-4" /> Sincronizar más
-              </Btn>
-            </Link>
+            <>
+              <Link href="/gestion/sincronizar">
+                <Btn>
+                  <GitCompareArrows className="h-4 w-4" /> Sincronizar
+                </Btn>
+              </Link>
+              <Link href="/gestion/contratos/nuevo">
+                <Btn variant="primary">
+                  <Plus className="h-4 w-4" /> Nuevo contrato
+                </Btn>
+              </Link>
+            </>
           )
         }
       />
@@ -160,6 +168,7 @@ function ContratosInner() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="truncate text-sm font-medium text-gray-900">{c.contratista_nombre || "Sin contratista"}</p>
+                        {c.origen === "MANUAL" && <OrigenChip origen="MANUAL" className="shrink-0" />}
                         {c.desactualizado && (
                           <Chip tone="amber" className="shrink-0">
                             <RefreshCcw className="h-3 w-3" /> Cambios
@@ -172,7 +181,7 @@ function ContratosInner() {
                       </p>
                     </div>
                     <div className="hidden min-w-0 md:block">
-                      <p className="text-sm tabular-nums text-gray-900">{formatCOP(c.valor_final ?? c.valor_total)}</p>
+                      <p className="text-sm tabular-nums text-gray-900">{formatCOP((c.valor_final ?? c.valor_total) + c.valor_transporte)}</p>
                       <p className={cn("text-xs", c.estado_gestion === "VIGENTE" && dias !== null && dias <= 30 && dias >= 0 ? "text-amber-600 dark:text-amber-400" : "text-gray-500")}>
                         {c.fecha_fin ? `Hasta ${formatFecha(c.fecha_fin)}` : "Sin fecha fin"}
                         {c.estado_gestion === "VIGENTE" && dias !== null && dias >= 0 && dias <= 30 ? ` · ${dias} d` : ""}

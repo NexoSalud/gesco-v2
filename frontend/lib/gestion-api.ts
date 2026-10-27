@@ -105,7 +105,9 @@ export interface ContratoOrigen {
 
 export interface GcContrato {
   id: number
+  origen: "SINCRONIZADO" | "MANUAL"
   contrato_origen_id: number | null
+  contratista_id: number | null
   numero_contrato: string
   contratista_nombre: string | null
   contratista_identificacion: string | null
@@ -116,7 +118,9 @@ export interface GcContrato {
   fecha_fin: string | null
   valor_total: number
   valor_final: number | null
+  valor_transporte: number
   supervisor: string | null
+  resolucion_id: number | null
   resolucion_codigo: string | null
   estado_origen: string | null
   estado_gestion: EstadoGestion
@@ -216,8 +220,9 @@ export const gcSincronizar = (contrato_ids: number[]) =>
 // ─── Contratos ───────────────────────────────────────────────────────────────
 
 export const gcResumen = () => request<GcResumen>("/resumen")
-export const gcContratos = (params: { buscar?: string; estado?: string } = {}) => {
+export const gcContratos = (params: { buscar?: string; estado?: string; contratista_id?: number } = {}) => {
   const qs = new URLSearchParams()
+  if (params.contratista_id) qs.set("contratista_id", String(params.contratista_id))
   if (params.buscar) qs.set("buscar", params.buscar)
   if (params.estado) qs.set("estado", params.estado)
   return request<GcContrato[]>(`/contratos?${qs}`)
@@ -335,3 +340,87 @@ export interface GcEstadisticas {
 
 export const gcEstadisticas = (resolucionId?: number) =>
   request<GcEstadisticas>(`/estadisticas${resolucionId ? `?resolucion_id=${resolucionId}` : ""}`)
+
+// ─── Contratos creados en el módulo ──────────────────────────────────────────
+
+export interface ContratoManualInput {
+  numero_contrato: string
+  contratista_id: number
+  perfil?: string | null
+  objeto?: string | null
+  fecha_contrato?: string | null
+  fecha_inicio?: string | null
+  fecha_fin?: string | null
+  valor_total: number
+  valor_transporte: number
+  valor_final?: number | null
+  supervisor?: string | null
+  resolucion_id?: number | null
+  estado_gestion?: EstadoGestion
+  observaciones?: string | null
+}
+
+export const gcCrearContrato = (data: ContratoManualInput) =>
+  request<GcContrato>("/contratos", { method: "POST", body: JSON.stringify(data) })
+export const gcEditarContrato = (id: number, data: Partial<ContratoManualInput>) =>
+  request<GcContrato>(`/contratos/${id}`, { method: "PATCH", body: JSON.stringify(data) })
+
+// ─── Contratistas ────────────────────────────────────────────────────────────
+
+export interface GcContratistaInput {
+  identificacion: string
+  nombre: string
+  tipo_persona: "NATURAL" | "JURIDICA"
+  expedida_en?: string | null
+  telefono?: string | null
+  direccion?: string | null
+  correo?: string | null
+  banco?: string | null
+  tipo_cuenta?: string | null
+  numero_cuenta?: string | null
+}
+
+export interface GcContratista extends GcContratistaInput {
+  id: number
+  origen: "SINCRONIZADO" | "MANUAL"
+  contratista_origen_id: number | null
+  total_contratos: number
+  contratos_vigentes: number
+  valor_contratado: number
+  desactualizado: boolean
+  created_at: string
+}
+
+export interface ContratistaOrigen {
+  id: number
+  identificacion: string
+  nombre: string
+  telefono: string | null
+  correo: string | null
+  contratos: number
+  sincronizado: boolean
+  gc_contratista_id: number | null
+  desactualizado: boolean
+}
+
+export const gcContratistas = (buscar?: string) =>
+  request<GcContratista[]>(`/contratistas${buscar ? `?buscar=${encodeURIComponent(buscar)}` : ""}`)
+export const gcContratista = (id: number) => request<GcContratista>(`/contratistas/${id}`)
+export const gcCrearContratista = (data: GcContratistaInput) =>
+  request<GcContratista>("/contratistas", { method: "POST", body: JSON.stringify(data) })
+export const gcEditarContratista = (id: number, data: Partial<GcContratistaInput>) =>
+  request<GcContratista>(`/contratistas/${id}`, { method: "PATCH", body: JSON.stringify(data) })
+export const gcEliminarContratista = (id: number) => request<void>(`/contratistas/${id}`, { method: "DELETE" })
+export const gcOrigenContratistas = (params: { buscar?: string; vista?: VistaOrigen }) => {
+  const qs = new URLSearchParams()
+  if (params.buscar) qs.set("buscar", params.buscar)
+  if (params.vista) qs.set("vista", params.vista)
+  return request<ContratistaOrigen[]>(`/origen/contratistas?${qs}`)
+}
+export const gcSincronizarContratistas = (contratista_ids: number[], incluir_contratos: boolean) =>
+  request<{
+    creados: number
+    actualizados: number
+    sin_cambios: number
+    contratos: { creados: number; actualizados: number; sin_cambios: number } | null
+  }>("/contratistas/sincronizar", { method: "POST", body: JSON.stringify({ contratista_ids, incluir_contratos }) })

@@ -111,7 +111,9 @@ class ResolucionMini(BaseModel):
 
 class GcContratoOut(BaseModel):
     id: int
+    origen: str = "SINCRONIZADO"
     contrato_origen_id: int | None = None
+    contratista_id: int | None = None
     numero_contrato: str
     contratista_nombre: str | None = None
     contratista_identificacion: str | None = None
@@ -122,7 +124,9 @@ class GcContratoOut(BaseModel):
     fecha_fin: date | None = None
     valor_total: float = 0
     valor_final: float | None = None
+    valor_transporte: float = 0
     supervisor: str | None = None
+    resolucion_id: int | None = None
     resolucion_codigo: str | None = None
     estado_origen: str | None = None
     estado_gestion: str
@@ -138,6 +142,110 @@ class GcContratoOut(BaseModel):
 class GcContratoUpdate(BaseModel):
     estado_gestion: EstadoGestion | None = None
     observaciones: str | None = None
+    # Solo para contratos creados en el módulo (MANUAL): se escriben también en el GESCO principal
+    numero_contrato: str | None = Field(default=None, min_length=1, max_length=50)
+    contratista_id: int | None = None
+    perfil: str | None = None
+    objeto: str | None = None
+    fecha_contrato: date | None = None
+    fecha_inicio: date | None = None
+    fecha_fin: date | None = None
+    valor_total: float | None = Field(default=None, ge=0)
+    valor_transporte: float | None = Field(default=None, ge=0)
+    valor_final: float | None = Field(default=None, ge=0)
+    supervisor: str | None = None
+    resolucion_id: int | None = None
+
+
+CAMPOS_EDITABLES_MANUAL = {
+    "numero_contrato", "contratista_id", "perfil", "objeto", "fecha_contrato", "fecha_inicio",
+    "fecha_fin", "valor_total", "valor_transporte", "valor_final", "supervisor", "resolucion_id",
+}
+
+
+class GcContratoCreate(BaseModel):
+    numero_contrato: str = Field(min_length=1, max_length=50)
+    contratista_id: int
+    perfil: str | None = None
+    objeto: str | None = None
+    fecha_contrato: date | None = None
+    fecha_inicio: date | None = None
+    fecha_fin: date | None = None
+    valor_total: float = Field(default=0, ge=0)
+    valor_transporte: float = Field(default=0, ge=0)
+    valor_final: float | None = Field(default=None, ge=0)
+    supervisor: str | None = None
+    resolucion_id: int
+    estado_gestion: EstadoGestion = "VIGENTE"
+    observaciones: str | None = None
+
+
+# ─── Contratistas ────────────────────────────────────────────────────────────
+
+class GcContratistaBase(BaseModel):
+    nombre: str = Field(min_length=2, max_length=300)
+    tipo_persona: Literal["NATURAL", "JURIDICA"] = "NATURAL"
+    expedida_en: str | None = None
+    telefono: str | None = None
+    direccion: str | None = None
+    correo: str | None = None
+    banco: str | None = None
+    tipo_cuenta: str | None = None
+    numero_cuenta: str | None = None
+
+
+class GcContratistaCreate(GcContratistaBase):
+    identificacion: str = Field(min_length=3, max_length=20)
+
+
+class GcContratistaUpdate(BaseModel):
+    identificacion: str | None = Field(default=None, min_length=3, max_length=20)
+    nombre: str | None = Field(default=None, min_length=2, max_length=300)
+    tipo_persona: Literal["NATURAL", "JURIDICA"] | None = None
+    expedida_en: str | None = None
+    telefono: str | None = None
+    direccion: str | None = None
+    correo: str | None = None
+    banco: str | None = None
+    tipo_cuenta: str | None = None
+    numero_cuenta: str | None = None
+
+
+class GcContratistaOut(GcContratistaBase):
+    id: int
+    identificacion: str
+    tipo_persona: str | None = None
+    origen: str
+    contratista_origen_id: int | None = None
+    total_contratos: int = 0
+    contratos_vigentes: int = 0
+    valor_contratado: float = 0
+    desactualizado: bool = False
+    created_at: datetime
+
+
+class ContratistaOrigenOut(BaseModel):
+    id: int
+    identificacion: str
+    nombre: str
+    telefono: str | None = None
+    correo: str | None = None
+    contratos: int = 0
+    sincronizado: bool = False
+    gc_contratista_id: int | None = None
+    desactualizado: bool = False
+
+
+class SincronizarContratistasIn(BaseModel):
+    contratista_ids: list[int] = Field(min_length=1, max_length=1000)
+    incluir_contratos: bool = False
+
+
+class SincronizarContratistasOut(BaseModel):
+    creados: int
+    actualizados: int
+    sin_cambios: int
+    contratos: SincronizarOut | None = None
 
 
 # ─── Documentos ──────────────────────────────────────────────────────────────

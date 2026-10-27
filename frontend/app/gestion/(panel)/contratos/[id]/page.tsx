@@ -13,6 +13,7 @@ import {
   FileStack,
   Link2Off,
   Loader2,
+  Pencil,
   Plus,
   RefreshCcw,
 } from "lucide-react"
@@ -34,6 +35,7 @@ import { useGcAuth } from "@/components/gestion/gc-auth-provider"
 import { Btn, ESTADOS_GESTION, EmptyState, EstadoChip, Panel, Shimmer, diasRestantes, formatCOP, formatFecha, formatRelativo, iniciales } from "@/components/gestion/ui"
 import { Cargador, DOCUMENTOS_CLAVE, ListaDocumentos } from "@/components/gestion/documentos"
 import { cn } from "@/lib/utils"
+import { OrigenChip } from "@/components/gestion/formularios"
 
 export default function ContratoDetallePage() {
   const { id } = useParams<{ id: string }>()
@@ -123,8 +125,17 @@ export default function ContratoDetallePage() {
               {contrato ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="truncate text-2xl font-semibold tracking-tight text-gray-900">{contrato.contratista_nombre || "Sin contratista"}</h1>
+                    <h1 className="truncate text-2xl font-semibold tracking-tight text-gray-900">
+                      {contrato.contratista_id ? (
+                        <Link href={`/gestion/contratistas/${contrato.contratista_id}`} className="hover:underline hover:decoration-gray-300 hover:underline-offset-4">
+                          {contrato.contratista_nombre || "Sin contratista"}
+                        </Link>
+                      ) : (
+                        contrato.contratista_nombre || "Sin contratista"
+                      )}
+                    </h1>
                     <EstadoChip estado={contrato.estado_gestion} />
+                    {contrato.origen === "MANUAL" && <OrigenChip origen="MANUAL" />}
                   </div>
                   <p className="mt-0.5 text-sm text-gray-500">
                     {contrato.numero_contrato}
@@ -154,6 +165,13 @@ export default function ContratoDetallePage() {
                     </option>
                   ))}
                 </select>
+              )}
+              {can("editar") && contrato.origen === "MANUAL" && (
+                <Link href={`/gestion/contratos/${contrato.id}/editar`}>
+                  <Btn>
+                    <Pencil className="h-4 w-4" /> Editar
+                  </Btn>
+                </Link>
               )}
               <Btn onClick={descargarExpediente} disabled={!docs?.length || busy === "zip"}>
                 {busy === "zip" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
@@ -330,7 +348,8 @@ export default function ContratoDetallePage() {
           <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl animate-scale-in">
             <Dialog.Title className="text-base font-semibold text-gray-900">¿Retirar este contrato del módulo?</Dialog.Title>
             <Dialog.Description className="mt-2 text-sm text-gray-500">
-              Se eliminará de Gestión Contractual junto con sus {docs?.length || 0} documento(s) escaneado(s). El contrato original en el módulo de contratos no se modifica.
+              Se eliminará de Gestión Contractual junto con sus {docs?.length || 0} documento(s) escaneado(s).{" "}
+              El contrato en el módulo de contratos del GESCO principal se conserva.
             </Dialog.Description>
             <div className="mt-6 flex justify-end gap-2">
               <Btn variant="ghost" onClick={() => setConfirmarRetiro(false)}>

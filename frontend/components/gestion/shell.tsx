@@ -11,6 +11,7 @@ import {
   FolderKanban,
   RefreshCcw,
   Users,
+  Contact,
   LogOut,
   Search,
   Sun,
@@ -31,6 +32,7 @@ import { Btn, EstadoChip, Kbd, iniciales, inputCls } from "@/components/gestion/
 const NAV = [
   { href: "/gestion", label: "Resumen", icon: LayoutGrid, exact: true },
   { href: "/gestion/contratos", label: "Contratos", icon: FolderKanban },
+  { href: "/gestion/contratistas", label: "Contratistas", icon: Contact },
   { href: "/gestion/estadisticas", label: "Estadísticas", icon: BarChart3 },
   { href: "/gestion/sincronizar", label: "Sincronizar", icon: RefreshCcw, permiso: "editar" as const },
   { href: "/gestion/usuarios", label: "Usuarios", icon: Users, permiso: "admin" as const },

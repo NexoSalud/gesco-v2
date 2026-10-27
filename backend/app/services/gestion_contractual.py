@@ -298,3 +298,14 @@ def valor_comprometido(valor_total: float | None, valor_final: float | None, tra
     """
     base = valor_final if valor_final is not None else (valor_total or 0)
     return float(base or 0) + float(transporte or 0)
+
+
+CAMPOS_CONTRATISTA = (
+    "identificacion", "nombre", "tipo_persona", "expedida_en", "telefono",
+    "direccion", "correo", "banco", "tipo_cuenta", "numero_cuenta",
+)
+
+
+def snapshot_contratista(contratista) -> dict:
+    """Campos del contratista de origen que se copian al módulo."""
+    return {campo: getattr(contratista, campo, None) for campo in CAMPOS_CONTRATISTA}

@@ -29,11 +29,17 @@ from starlette.background import BackgroundTask
 from app.database import get_db
 from app.models.contratista import Contratista
 from app.models.contrato import Contrato
-from app.models.gestion_contractual import GcContrato, GcDocumento, GcEvento, GcUsuario
+from app.models.gestion_contractual import GcContratista, GcContrato, GcDocumento, GcEvento, GcUsuario
 from app.models.resolucion import Resolucion
 from app.schemas.gestion_contractual import (
+    CAMPOS_EDITABLES_MANUAL,
     CATEGORIAS_DOCUMENTO,
+    ContratistaOrigenOut,
     ContratoOrigenOut,
+    GcContratistaCreate,
+    GcContratistaOut,
+    GcContratistaUpdate,
+    GcContratoCreate,
     GcCambioPassword,
     GcContratoOut,
     GcContratoUpdate,
@@ -48,10 +54,13 @@ from app.schemas.gestion_contractual import (
     GcUsuarioOut,
     GcUsuarioUpdate,
     ResolucionMini,
+    SincronizarContratistasIn,
+    SincronizarContratistasOut,
     SincronizarIn,
     SincronizarOut,
 )
 from app.services.auth_service import hash_password, verify_password
+from app.services.numero_letras import numero_a_letras
 from app.services.gestion_contractual import (
     ArchivoInvalido,
     aplicar_snapshot,
@@ -65,6 +74,7 @@ from app.services.gestion_contractual import (
     procesar_archivo,
     registrar_evento,
     ruta_absoluta,
+    snapshot_contratista,
     snapshot_contrato,
 )
 
@@ -134,7 +144,9 @@ def _contrato_out(
     desactualizado = bool(origen) and huella(snapshot_contrato(origen)) != gc.huella_origen
     return GcContratoOut(
         id=gc.id,
+        origen=gc.origen,
         contrato_origen_id=gc.contrato_origen_id,
+        contratista_id=gc.contratista_id,
         numero_contrato=gc.numero_contrato,
         contratista_nombre=gc.contratista_nombre,
         contratista_identificacion=gc.contratista_identificacion,
@@ -145,7 +157,9 @@ def _contrato_out(
         fecha_fin=gc.fecha_fin,
         valor_total=gc.valor_total or 0,
         valor_final=gc.valor_final,
+        valor_transporte=gc.valor_transporte or 0,
         supervisor=gc.supervisor,
+        resolucion_id=gc.resolucion_id,
         resolucion_codigo=gc.resolucion_codigo,
         estado_origen=gc.estado_origen,
         estado_gestion=gc.estado_gestion,
@@ -156,7 +170,7 @@ def _contrato_out(
         total_documentos=total_docs,
         categorias_cubiertas=categorias or [],
         desactualizado=desactualizado,
-        origen_eliminado=gc.contrato_origen_id is None,
+        origen_eliminado=gc.contrato_origen_id is None and (gc.origen == "SINCRONIZADO" or gc.huella_origen is not None),
     )
 
 
@@ -389,14 +403,112 @@ async def listar_origen(
     return salida
 
 
-@router.post("/sincronizar", response_model=SincronizarOut)
-async def sincronizar(
-    payload: SincronizarIn,
-    usuario: GcUsuario = Depends(puede_editar),
-    db: AsyncSession = Depends(get_db),
-):
-    """Sincroniza los contratos seleccionados: crea los nuevos y actualiza los existentes."""
-    ids = list(dict.fromkeys(payload.contrato_ids))
+async def _upsert_contratista(
+    db: AsyncSession, usuario: GcUsuario, origen: Contratista
+) -> tuple[GcContratista, str]:
+    """Crea o actualiza el contratista del módulo a partir del contratista de origen.
+
+    Si existe uno creado aquí con la misma identificación, se vincula al origen.
+    Devuelve (contratista, "creado" | "actualizado" | "sin_cambios").
+    """
+    snap = snapshot_contratista(origen)
+    h = huella(snap)
+    gc = (await db.execute(select(GcContratista).where(
+        or_(GcContratista.contratista_origen_id == origen.id, GcContratista.identificacion == origen.identificacion)
+    ).order_by(GcContratista.contratista_origen_id.is_(None)))).scalars().first()
+    ahora = datetime.datetime.now()
+    if gc is None:
+        gc = GcContratista(
+            contratista_origen_id=origen.id, origen="SINCRONIZADO", huella_origen=h,
+            sincronizado_at=ahora, creado_por_id=usuario.id, **snap,
+        )
+        db.add(gc)
+        await db.flush()
+        await registrar_evento(db, usuario, "CONTRATISTA_SINCRONIZADO", f"{gc.nombre} ({gc.identificacion})")
+        return gc, "creado"
+    if gc.contratista_origen_id == origen.id and gc.huella_origen == h:
+        return gc, "sin_cambios"
+    for campo, valor in snap.items():
+        setattr(gc, campo, valor)
+    gc.contratista_origen_id = origen.id
+    gc.huella_origen = h
+    gc.sincronizado_at = ahora
+    await _propagar_contratista(db, gc)
+    await registrar_evento(db, usuario, "CONTRATISTA_ACTUALIZADO", f"{gc.nombre} ({gc.identificacion})")
+    return gc, "actualizado"
+
+
+async def _propagar_contratista(db: AsyncSession, gc: GcContratista) -> None:
+    """Refleja nombre e identificación en los contratos creados aquí que lo usan."""
+    contratos = (await db.execute(
+        select(GcContrato).where(GcContrato.contratista_id == gc.id, GcContrato.origen == "MANUAL")
+    )).scalars().all()
+    origenes = await _origenes_por_id(db, [c.contrato_origen_id for c in contratos if c.contrato_origen_id])
+    for c in contratos:
+        c.contratista_nombre = gc.nombre
+        c.contratista_identificacion = gc.identificacion
+        origen = origenes.get(c.contrato_origen_id)
+        if origen and origen.contratista_rel and origen.contratista_rel.id == gc.contratista_origen_id:
+            c.huella_origen = huella(snapshot_contrato(origen))
+
+
+# ─── Escritura en el GESCO principal (registros creados aquí) ───────────────
+
+ESTADO_ORIGEN_POR_GESTION = {
+    "VIGENTE": "ACTIVO",
+    "SUSPENDIDO": "EN_PROCESO",
+    "TERMINADO": "FINALIZADO",
+    "LIQUIDADO": "FINALIZADO",
+    "ANULADO": "ANULADO",
+}
+
+
+async def _asegurar_contratista_origen(db: AsyncSession, gc: GcContratista) -> Contratista:
+    """Devuelve el contratista del GESCO principal enlazado; si no existe, lo crea con los datos del módulo."""
+    origen = await db.get(Contratista, gc.contratista_origen_id) if gc.contratista_origen_id else None
+    if origen is None:
+        origen = (await db.execute(
+            select(Contratista).where(Contratista.identificacion == gc.identificacion)
+        )).scalar_one_or_none()
+    if origen is None:
+        origen = Contratista(**snapshot_contratista(gc))
+        db.add(origen)
+        await db.flush()
+    gc.contratista_origen_id = origen.id
+    gc.huella_origen = huella(snapshot_contratista(origen))
+    gc.sincronizado_at = datetime.datetime.now()
+    return origen
+
+
+def _escribir_contrato_origen(contrato: Contrato, datos: dict) -> None:
+    """Copia al contrato del GESCO principal los campos editados en el módulo."""
+    mapa = {
+        "numero_contrato": "numero_contrato", "perfil": "perfil", "objeto": "objeto",
+        "fecha_contrato": "fecha_contrato", "fecha_inicio": "fecha_inicio", "fecha_fin": "fecha_fin",
+        "valor_total": "monto_total", "valor_final": "valor_final", "valor_transporte": "monto_transporte",
+        "supervisor": "supervisor", "resolucion_id": "resolucion_id",
+    }
+    for campo, destino in mapa.items():
+        if campo in datos:
+            setattr(contrato, destino, datos[campo])
+    if "valor_total" in datos:
+        contrato.valor_letras = numero_a_letras(contrato.monto_total or 0)
+    if "valor_transporte" in datos:
+        contrato.tiene_transporte = (contrato.monto_transporte or 0) > 0
+
+
+async def _recargar_origen(db: AsyncSession, contrato: Contrato) -> Contrato:
+    """Guarda el contrato de origen y lo vuelve a leer con su contratista y resolución actuales."""
+    await db.flush()
+    res = await db.execute(
+        _origen_query().where(Contrato.id == contrato.id).execution_options(populate_existing=True)
+    )
+    return res.scalar_one()
+
+
+async def _sincronizar_contratos(db: AsyncSession, usuario: GcUsuario, ids: list[int]) -> SincronizarOut:
+    """Crea los contratos nuevos y actualiza los existentes (junto con su contratista). No hace commit."""
+    ids = list(dict.fromkeys(ids))
     origenes = await _origenes_por_id(db, ids)
     existentes_res = await db.execute(select(GcContrato).where(GcContrato.contrato_origen_id.in_(ids)))
     existentes = {gc.contrato_origen_id: gc for gc in existentes_res.scalars().all()}
@@ -410,18 +522,26 @@ async def sincronizar(
             continue
         snap = snapshot_contrato(origen)
         gc = existentes.get(cid)
+        gc_contratista = None
+        if origen.contratista_rel:
+            gc_contratista, _ = await _upsert_contratista(db, usuario, origen.contratista_rel)
         if gc is None:
             gc = GcContrato(
                 contrato_origen_id=cid,
+                origen="SINCRONIZADO",
                 estado_gestion=estado_inicial(snap),
                 sincronizado_por_id=usuario.id,
                 sincronizado_at=ahora,
             )
             aplicar_snapshot(gc, snap)
+            gc.contratista_id = gc_contratista.id if gc_contratista else None
             db.add(gc)
             nuevos.append(gc)
             creados += 1
-        elif gc.huella_origen != huella(snap):
+            continue
+        if gc_contratista and gc.contratista_id != gc_contratista.id:
+            gc.contratista_id = gc_contratista.id
+        if gc.huella_origen != huella(snap):
             aplicar_snapshot(gc, snap)
             gc.sincronizado_at = ahora
             gc.sincronizado_por_id = usuario.id
@@ -433,7 +553,6 @@ async def sincronizar(
     await db.flush()
     for gc in nuevos:
         await registrar_evento(db, usuario, "CONTRATO_SINCRONIZADO", gc.numero_contrato, gc.id)
-    await db.commit()
     return SincronizarOut(
         creados=creados,
         actualizados=actualizados,
@@ -442,12 +561,248 @@ async def sincronizar(
     )
 
 
+@router.post("/sincronizar", response_model=SincronizarOut)
+async def sincronizar(
+    payload: SincronizarIn,
+    usuario: GcUsuario = Depends(puede_editar),
+    db: AsyncSession = Depends(get_db),
+):
+    """Sincroniza los contratos seleccionados (y sus contratistas): crea los nuevos y actualiza los existentes."""
+    resultado = await _sincronizar_contratos(db, usuario, payload.contrato_ids)
+    await db.commit()
+    return resultado
+
+
+# ─── Contratistas ────────────────────────────────────────────────────────────
+
+@router.get("/origen/contratistas", response_model=list[ContratistaOrigenOut])
+async def listar_contratistas_origen(
+    buscar: str | None = Query(None),
+    vista: str = Query("todos", pattern="^(todos|pendientes|sincronizados|desactualizados)$"),
+    _: GcUsuario = Depends(gc_usuario_actual),
+    db: AsyncSession = Depends(get_db),
+):
+    """Contratistas del GESCO principal con su estado de sincronización."""
+    stmt = select(Contratista).order_by(Contratista.nombre)
+    if buscar:
+        like = f"%{buscar.strip()}%"
+        stmt = stmt.where(or_(Contratista.nombre.ilike(like), Contratista.identificacion.ilike(like)))
+    contratistas = (await db.execute(stmt)).scalars().all()
+    conteo = dict((await db.execute(
+        select(Contrato.contratista_id, func.count(Contrato.id)).group_by(Contrato.contratista_id)
+    )).all())
+    vinculados = {
+        row[0]: (row[1], row[2]) for row in (await db.execute(
+            select(GcContratista.contratista_origen_id, GcContratista.id, GcContratista.huella_origen)
+            .where(GcContratista.contratista_origen_id.is_not(None))
+        )).all()
+    }
+    salida = []
+    for c in contratistas:
+        info = vinculados.get(c.id)
+        item = ContratistaOrigenOut(
+            id=c.id,
+            identificacion=c.identificacion,
+            nombre=c.nombre,
+            telefono=c.telefono,
+            correo=c.correo,
+            contratos=conteo.get(c.id, 0),
+            sincronizado=info is not None,
+            gc_contratista_id=info[0] if info else None,
+            desactualizado=bool(info) and huella(snapshot_contratista(c)) != info[1],
+        )
+        if vista == "pendientes" and item.sincronizado:
+            continue
+        if vista == "sincronizados" and not item.sincronizado:
+            continue
+        if vista == "desactualizados" and not item.desactualizado:
+            continue
+        salida.append(item)
+    return salida
+
+
+@router.post("/contratistas/sincronizar", response_model=SincronizarContratistasOut)
+async def sincronizar_contratistas(
+    payload: SincronizarContratistasIn,
+    usuario: GcUsuario = Depends(puede_editar),
+    db: AsyncSession = Depends(get_db),
+):
+    """Sincroniza contratistas seleccionados; opcionalmente también todos sus contratos."""
+    ids = list(dict.fromkeys(payload.contratista_ids))
+    origenes = (await db.execute(select(Contratista).where(Contratista.id.in_(ids)))).scalars().all()
+    conteo = {"creado": 0, "actualizado": 0, "sin_cambios": 0}
+    for origen in origenes:
+        _, accion = await _upsert_contratista(db, usuario, origen)
+        conteo[accion] += 1
+    contratos = None
+    if payload.incluir_contratos:
+        contrato_ids = (await db.execute(
+            select(Contrato.id).where(Contrato.contratista_id.in_([o.id for o in origenes]))
+        )).scalars().all()
+        if contrato_ids:
+            contratos = await _sincronizar_contratos(db, usuario, list(contrato_ids))
+    await db.commit()
+    return SincronizarContratistasOut(
+        creados=conteo["creado"], actualizados=conteo["actualizado"], sin_cambios=conteo["sin_cambios"], contratos=contratos,
+    )
+
+
+async def _contratistas_out(db: AsyncSession, contratistas: list[GcContratista]) -> list[GcContratistaOut]:
+    ids = [c.id for c in contratistas]
+    stats: dict[int, list] = {}
+    if ids:
+        for c in (await db.execute(select(GcContrato).where(GcContrato.contratista_id.in_(ids)))).scalars().all():
+            st = stats.setdefault(c.contratista_id, [0, 0, 0.0])
+            st[0] += 1
+            if c.estado_gestion == "VIGENTE":
+                st[1] += 1
+            if c.estado_gestion != "ANULADO":
+                st[2] += valor_comprometido(c.valor_total, c.valor_final, c.valor_transporte)
+    origen_ids = [c.contratista_origen_id for c in contratistas if c.contratista_origen_id]
+    origenes = {}
+    if origen_ids:
+        origenes = {o.id: o for o in (await db.execute(select(Contratista).where(Contratista.id.in_(origen_ids)))).scalars().all()}
+    salida = []
+    for c in contratistas:
+        st = stats.get(c.id, [0, 0, 0.0])
+        origen = origenes.get(c.contratista_origen_id)
+        salida.append(GcContratistaOut(
+            id=c.id,
+            identificacion=c.identificacion,
+            nombre=c.nombre,
+            tipo_persona=c.tipo_persona,
+            expedida_en=c.expedida_en,
+            telefono=c.telefono,
+            direccion=c.direccion,
+            correo=c.correo,
+            banco=c.banco,
+            tipo_cuenta=c.tipo_cuenta,
+            numero_cuenta=c.numero_cuenta,
+            origen=c.origen,
+            contratista_origen_id=c.contratista_origen_id,
+            total_contratos=st[0],
+            contratos_vigentes=st[1],
+            valor_contratado=st[2],
+            desactualizado=bool(origen) and huella(snapshot_contratista(origen)) != c.huella_origen,
+            created_at=c.created_at,
+        ))
+    return salida
+
+
+@router.get("/contratistas", response_model=list[GcContratistaOut])
+async def listar_contratistas(
+    buscar: str | None = Query(None),
+    _: GcUsuario = Depends(gc_usuario_actual),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(GcContratista).order_by(GcContratista.nombre)
+    if buscar:
+        like = f"%{buscar.strip()}%"
+        stmt = stmt.where(or_(GcContratista.nombre.ilike(like), GcContratista.identificacion.ilike(like)))
+    return await _contratistas_out(db, list((await db.execute(stmt)).scalars().all()))
+
+
+async def _get_gc_contratista(db: AsyncSession, contratista_id: int) -> GcContratista:
+    gc = await db.get(GcContratista, contratista_id)
+    if not gc:
+        raise HTTPException(404, "Contratista no encontrado")
+    return gc
+
+
+@router.get("/contratistas/{contratista_id}", response_model=GcContratistaOut)
+async def obtener_contratista(
+    contratista_id: int,
+    _: GcUsuario = Depends(gc_usuario_actual),
+    db: AsyncSession = Depends(get_db),
+):
+    return (await _contratistas_out(db, [await _get_gc_contratista(db, contratista_id)]))[0]
+
+
+@router.post("/contratistas", response_model=GcContratistaOut, status_code=201)
+async def crear_contratista(
+    payload: GcContratistaCreate,
+    usuario: GcUsuario = Depends(puede_editar),
+    db: AsyncSession = Depends(get_db),
+):
+    identificacion = payload.identificacion.strip()
+    if (await db.execute(select(GcContratista.id).where(GcContratista.identificacion == identificacion))).scalar_one_or_none():
+        raise HTTPException(409, "Ya existe un contratista con esa identificación en el módulo")
+    en_origen = (await db.execute(select(Contratista.id).where(Contratista.identificacion == identificacion))).scalar_one_or_none()
+    if en_origen:
+        raise HTTPException(409, "Ese contratista ya existe en el GESCO principal: sincronízalo en lugar de crearlo")
+    datos = payload.model_dump()
+    datos["identificacion"] = identificacion
+    datos["nombre"] = datos["nombre"].strip().upper()
+    gc = GcContratista(origen="MANUAL", creado_por_id=usuario.id, **datos)
+    db.add(gc)
+    await _asegurar_contratista_origen(db, gc)
+    await db.flush()
+    await registrar_evento(db, usuario, "CONTRATISTA_CREADO", f"{gc.nombre} ({gc.identificacion})")
+    await db.commit()
+    return (await _contratistas_out(db, [gc]))[0]
+
+
+@router.patch("/contratistas/{contratista_id}", response_model=GcContratistaOut)
+async def actualizar_contratista(
+    contratista_id: int,
+    payload: GcContratistaUpdate,
+    usuario: GcUsuario = Depends(puede_editar),
+    db: AsyncSession = Depends(get_db),
+):
+    gc = await _get_gc_contratista(db, contratista_id)
+    if gc.origen != "MANUAL":
+        raise HTTPException(409, "Este contratista vino del GESCO principal; edítalo allá y sincroniza")
+    datos = payload.model_dump(exclude_unset=True)
+    if "identificacion" in datos:
+        datos["identificacion"] = datos["identificacion"].strip()
+        dup = await db.execute(select(GcContratista.id).where(
+            GcContratista.identificacion == datos["identificacion"], GcContratista.id != gc.id
+        ))
+        if dup.scalar_one_or_none():
+            raise HTTPException(409, "Ya existe un contratista con esa identificación en el módulo")
+        dup_origen = select(Contratista.id).where(Contratista.identificacion == datos["identificacion"])
+        if gc.contratista_origen_id:
+            dup_origen = dup_origen.where(Contratista.id != gc.contratista_origen_id)
+        if (await db.execute(dup_origen)).scalar_one_or_none():
+            raise HTTPException(409, "Ya existe un contratista con esa identificación en el GESCO principal")
+    if datos.get("nombre"):
+        datos["nombre"] = datos["nombre"].strip().upper()
+    for campo, valor in datos.items():
+        setattr(gc, campo, valor)
+    # Se escribe también en el GESCO principal para que ambos queden iguales
+    origen = await _asegurar_contratista_origen(db, gc)
+    for campo, valor in snapshot_contratista(gc).items():
+        setattr(origen, campo, valor)
+    await db.flush()
+    gc.huella_origen = huella(snapshot_contratista(origen))
+    await _propagar_contratista(db, gc)
+    await registrar_evento(db, usuario, "CONTRATISTA_ACTUALIZADO", f"{gc.nombre} ({gc.identificacion})")
+    await db.commit()
+    return (await _contratistas_out(db, [gc]))[0]
+
+
+@router.delete("/contratistas/{contratista_id}", status_code=204)
+async def eliminar_contratista(
+    contratista_id: int,
+    usuario: GcUsuario = Depends(solo_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    gc = await _get_gc_contratista(db, contratista_id)
+    tiene = (await db.execute(select(GcContrato.id).where(GcContrato.contratista_id == gc.id).limit(1))).scalar_one_or_none()
+    if tiene:
+        raise HTTPException(409, "El contratista tiene contratos en el módulo; retíralos primero")
+    await registrar_evento(db, usuario, "CONTRATISTA_ELIMINADO", f"{gc.nombre} ({gc.identificacion})")
+    await db.delete(gc)
+    await db.commit()
+
+
 # ─── Contratos gestionados ───────────────────────────────────────────────────
 
 @router.get("/contratos", response_model=list[GcContratoOut])
 async def listar_contratos(
     buscar: str | None = Query(None),
     estado: str | None = Query(None),
+    contratista_id: int | None = Query(None),
     _: GcUsuario = Depends(gc_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
@@ -456,6 +811,8 @@ async def listar_contratos(
     )
     if estado:
         stmt = stmt.where(GcContrato.estado_gestion == estado)
+    if contratista_id:
+        stmt = stmt.where(GcContrato.contratista_id == contratista_id)
     if buscar:
         like = f"%{buscar.strip()}%"
         stmt = stmt.where(or_(
@@ -486,6 +843,80 @@ async def obtener_contrato(
     return _contrato_out(gc, origenes.get(gc.contrato_origen_id), totales.get(gc.id, 0), categorias.get(gc.id))
 
 
+async def _validar_datos_manual(
+    db: AsyncSession, datos: dict, excluir_id: int | None = None, excluir_origen_id: int | None = None
+) -> None:
+    """Valida número único, contratista y resolución, y completa los campos derivados."""
+    if "numero_contrato" in datos:
+        numero = datos["numero_contrato"].strip().upper()
+        datos["numero_contrato"] = numero
+        stmt = select(GcContrato.id).where(func.upper(GcContrato.numero_contrato) == numero)
+        if excluir_id:
+            stmt = stmt.where(GcContrato.id != excluir_id)
+        if (await db.execute(stmt)).scalar_one_or_none():
+            raise HTTPException(409, "Ya existe un contrato con ese número en el módulo")
+        stmt = select(Contrato.id).where(func.upper(Contrato.numero_contrato) == numero)
+        if excluir_origen_id:
+            stmt = stmt.where(Contrato.id != excluir_origen_id)
+        if (await db.execute(stmt)).scalar_one_or_none():
+            raise HTTPException(409, "Ese número ya existe en el GESCO principal: sincronízalo en lugar de crearlo")
+    if "contratista_id" in datos:
+        if datos["contratista_id"] is None:
+            raise HTTPException(400, "El contrato debe tener un contratista")
+        contratista = await _get_gc_contratista(db, datos["contratista_id"])
+        datos["contratista_nombre"] = contratista.nombre
+        datos["contratista_identificacion"] = contratista.identificacion
+    if "resolucion_id" in datos:
+        if not datos["resolucion_id"]:
+            raise HTTPException(400, "El contrato debe pertenecer a una resolución")
+        res = await db.get(Resolucion, datos["resolucion_id"])
+        if not res:
+            raise HTTPException(400, "Resolución no encontrada")
+        datos["resolucion_codigo"] = res.codigo
+    inicio, fin = datos.get("fecha_inicio"), datos.get("fecha_fin")
+    if inicio and fin and fin < inicio:
+        raise HTTPException(400, "La fecha de terminación no puede ser anterior a la de inicio")
+
+
+@router.post("/contratos", response_model=GcContratoOut, status_code=201)
+async def crear_contrato(
+    payload: GcContratoCreate,
+    usuario: GcUsuario = Depends(puede_editar),
+    db: AsyncSession = Depends(get_db),
+):
+    """Crea un contrato en el módulo y también en el GESCO principal, enlazados entre sí."""
+    datos = payload.model_dump()
+    await _validar_datos_manual(db, datos)
+    gc_contratista = await _get_gc_contratista(db, datos["contratista_id"])
+    contratista_origen = await _asegurar_contratista_origen(db, gc_contratista)
+    origen = Contrato(
+        contratista_id=contratista_origen.id,
+        estado=ESTADO_ORIGEN_POR_GESTION.get(datos["estado_gestion"], "EN_PROCESO"),
+    )
+    _escribir_contrato_origen(origen, datos)
+    origen.fecha_contrato = origen.fecha_contrato or origen.fecha_inicio
+    origen.valor_letras = numero_a_letras(origen.monto_total or 0)
+    origen.tiene_transporte = (origen.monto_transporte or 0) > 0
+    db.add(origen)
+    await db.flush()
+    origen = await _recargar_origen(db, origen)
+    gc = GcContrato(
+        origen="MANUAL",
+        contrato_origen_id=origen.id,
+        contratista_id=gc_contratista.id,
+        estado_gestion=datos["estado_gestion"],
+        observaciones=datos.get("observaciones"),
+        sincronizado_por_id=usuario.id,
+        sincronizado_at=datetime.datetime.now(),
+    )
+    aplicar_snapshot(gc, snapshot_contrato(origen))
+    db.add(gc)
+    await db.flush()
+    await registrar_evento(db, usuario, "CONTRATO_CREADO", f"{gc.numero_contrato} · {gc.contratista_nombre}", gc.id)
+    await db.commit()
+    return await obtener_contrato(gc.id, usuario, db)
+
+
 @router.patch("/contratos/{contrato_id}", response_model=GcContratoOut)
 async def actualizar_contrato(
     contrato_id: int,
@@ -495,6 +926,17 @@ async def actualizar_contrato(
 ):
     gc = await _get_gc_contrato(db, contrato_id)
     datos = payload.model_dump(exclude_unset=True)
+    propios = CAMPOS_EDITABLES_MANUAL & datos.keys()
+    if propios:
+        if gc.origen != "MANUAL":
+            raise HTTPException(409, "Los datos de un contrato sincronizado se actualizan desde el GESCO principal")
+        if (datos.get("numero_contrato") or "").strip().upper() in ("", gc.numero_contrato.upper()):
+            datos.pop("numero_contrato", None)
+        await _validar_datos_manual(db, datos, excluir_id=gc.id, excluir_origen_id=gc.contrato_origen_id)
+        inicio = datos.get("fecha_inicio", gc.fecha_inicio)
+        fin = datos.get("fecha_fin", gc.fecha_fin)
+        if inicio and fin and fin < inicio:
+            raise HTTPException(400, "La fecha de terminación no puede ser anterior a la de inicio")
     if "estado_gestion" in datos and datos["estado_gestion"] != gc.estado_gestion:
         await registrar_evento(
             db, usuario, "ESTADO_CAMBIADO",
@@ -502,7 +944,21 @@ async def actualizar_contrato(
         )
     for campo, valor in datos.items():
         setattr(gc, campo, valor)
+    if propios and gc.contrato_origen_id:
+        # Creado aquí: el cambio se escribe también en el GESCO principal
+        origen = await db.get(Contrato, gc.contrato_origen_id)
+        if origen:
+            cambios = {k: datos[k] for k in propios if k in datos}
+            if "contratista_id" in cambios:
+                contratista_origen = await _asegurar_contratista_origen(db, await _get_gc_contratista(db, gc.contratista_id))
+                origen.contratista_id = contratista_origen.id
+            _escribir_contrato_origen(origen, cambios)
+            origen = await _recargar_origen(db, origen)
+            aplicar_snapshot(gc, snapshot_contrato(origen))
+    if propios:
+        await registrar_evento(db, usuario, "CONTRATO_EDITADO", gc.numero_contrato, gc.id)
     await db.commit()
+    db.expire(gc)
     return await obtener_contrato(contrato_id, usuario, db)
 
 
@@ -519,6 +975,9 @@ async def resincronizar_contrato(
     if not origen:
         raise HTTPException(409, "El contrato de origen ya no existe; no se puede resincronizar")
     aplicar_snapshot(gc, snapshot_contrato(origen))
+    if origen.contratista_rel:
+        gc_contratista, _ = await _upsert_contratista(db, usuario, origen.contratista_rel)
+        gc.contratista_id = gc_contratista.id
     gc.sincronizado_at = datetime.datetime.now()
     gc.sincronizado_por_id = usuario.id
     await registrar_evento(db, usuario, "CONTRATO_ACTUALIZADO", gc.numero_contrato, gc.id)
@@ -537,7 +996,8 @@ async def desvincular_contrato(
     gc = await _get_gc_contrato(db, contrato_id)
     docs = (await db.execute(select(GcDocumento).where(GcDocumento.contrato_id == gc.id))).scalars().all()
     rutas = [(d.archivo_ruta, d.miniatura_ruta) for d in docs]
-    await registrar_evento(db, usuario, "CONTRATO_DESVINCULADO", f"{gc.numero_contrato} ({len(docs)} documentos)")
+    accion = "CONTRATO_ELIMINADO" if gc.origen == "MANUAL" else "CONTRATO_DESVINCULADO"
+    await registrar_evento(db, usuario, accion, f"{gc.numero_contrato} ({len(docs)} documentos)")
     await db.delete(gc)
     await db.commit()
     for ruta, thumb in rutas:

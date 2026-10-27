@@ -18,8 +18,7 @@ import {
   UserPlus,
   Pencil,
   Download,
-  Link2Off,
-} from "lucide-react"
+  Link2Off, Contact, FilePlus2 } from "lucide-react"
 import { gcEstadisticas, gcResumen, GcEstadisticas, GcResumen } from "@/lib/gestion-api"
 import { useGcAuth } from "@/components/gestion/gc-auth-provider"
 import {
@@ -41,6 +40,13 @@ const ACCION_META: Record<string, { label: string; icon: React.ComponentType<{ c
   CONTRATO_SINCRONIZADO: { label: "Contrato sincronizado", icon: GitCompareArrows, tone: "text-emerald-600 bg-emerald-500/10 dark:text-emerald-300" },
   CONTRATO_ACTUALIZADO: { label: "Datos actualizados desde el origen", icon: RefreshCcw, tone: "text-sky-600 bg-sky-500/10" },
   CONTRATO_DESVINCULADO: { label: "Contrato retirado del módulo", icon: Link2Off, tone: "text-red-600 bg-red-500/10" },
+  CONTRATO_CREADO: { label: "Contrato creado", icon: FilePlus2, tone: "text-emerald-600 bg-emerald-500/10 dark:text-emerald-300" },
+  CONTRATO_EDITADO: { label: "Contrato editado", icon: Pencil, tone: "text-sky-600 bg-sky-500/10" },
+  CONTRATO_ELIMINADO: { label: "Contrato retirado del módulo", icon: Link2Off, tone: "text-red-600 bg-red-500/10" },
+  CONTRATISTA_SINCRONIZADO: { label: "Contratista sincronizado", icon: Contact, tone: "text-emerald-600 bg-emerald-500/10 dark:text-emerald-300" },
+  CONTRATISTA_CREADO: { label: "Contratista creado", icon: Contact, tone: "text-emerald-600 bg-emerald-500/10 dark:text-emerald-300" },
+  CONTRATISTA_ACTUALIZADO: { label: "Contratista actualizado", icon: Contact, tone: "text-sky-600 bg-sky-500/10" },
+  CONTRATISTA_ELIMINADO: { label: "Contratista retirado", icon: Trash2, tone: "text-red-600 bg-red-500/10" },
   ESTADO_CAMBIADO: { label: "Cambio de estado", icon: Pencil, tone: "text-amber-600 bg-amber-500/10" },
   DOCUMENTO_CARGADO: { label: "Documento cargado", icon: FileUp, tone: "text-violet-600 bg-violet-500/10" },
   DOCUMENTO_ELIMINADO: { label: "Documento eliminado", icon: Trash2, tone: "text-red-600 bg-red-500/10" },
