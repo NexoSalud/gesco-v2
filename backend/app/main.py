@@ -29,6 +29,7 @@ from app.routers import (
     documentos_router,
     apoyo_router,
     maintenance_router,
+    gestion_contractual_router,
 )
 from app.models.plantilla_objeto import PlantillaObjeto
 from app.seed_data import seed_database
@@ -446,6 +447,16 @@ async def lifespan(app: FastAPI):
         logger.warning(f"Migración evidencias→actividad_perfil: {e}")
 
     await seed_database()
+
+    # Gestión Contractual: usuario administrador inicial del módulo
+    try:
+        from app.database import async_session_factory as _gc_asf
+        from app.services.gestion_contractual import seed_gestion_contractual
+        async with _gc_asf() as db:
+            await seed_gestion_contractual(db)
+    except Exception as e:
+        logger.warning(f"Seed gestión contractual: {e}")
+
     logger.info("Gesco V2 listo!")
     yield
     await engine.dispose()
@@ -486,6 +497,7 @@ app.include_router(evaluacion_router)
 app.include_router(documentos_router)
 app.include_router(apoyo_router)
 app.include_router(maintenance_router)
+app.include_router(gestion_contractual_router)
 
 # Archivos estáticos: logo, evidencias, etc.
 static_dir = os.path.join(os.path.dirname(__file__), "static")

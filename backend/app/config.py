@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     # Uploads
     upload_dir: str = "/app/uploads"
 
+    # Gestión Contractual — login propio y almacenamiento privado de documentos.
+    # El directorio NO debe estar bajo /app/uploads (que se sirve públicamente).
+    gc_secret_key: str = "GESCO_GC_SECRET_KEY_CAMBIAR!"
+    gc_upload_dir: str = "/app/private_uploads/gestion_contractual"
+    gc_max_file_mb: int = 50
+    gc_admin_password: str = "gcadmin123"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

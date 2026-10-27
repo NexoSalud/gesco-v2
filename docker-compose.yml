@@ -27,8 +27,13 @@ services:
       DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-gesco}:${POSTGRES_PASSWORD:-gesco123}@db:5432/${POSTGRES_DB:-gesco_v2}"
       CORS_ORIGINS: "https://contratos.esenorte3.lat,https://www.contratos.esenorte3.lat"
       DEBUG: "false"
+      # Gestión Contractual: clave propia del login del módulo (definirla en Coolify)
+      GC_SECRET_KEY: "${GC_SECRET_KEY:-GESCO_GC_SECRET_KEY_CAMBIAR!}"
+      GC_ADMIN_PASSWORD: "${GC_ADMIN_PASSWORD:-gcadmin123}"
     volumes:
       - uploads:/app/uploads
+      # Documentos escaneados de Gestión Contractual: volumen privado, no se sirve por /uploads
+      - gc_documentos:/app/private_uploads
 
   frontend:
     build: ./frontend
@@ -53,3 +58,4 @@ services:
 volumes:
   pgdata:
   uploads:
+  gc_documentos:
