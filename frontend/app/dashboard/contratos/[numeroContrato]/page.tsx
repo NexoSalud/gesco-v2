@@ -37,6 +37,8 @@ import {
   FileDown, X, Printer, Pencil, Trash2, ChevronDown,
 } from "lucide-react"
 import { toast } from "sonner"
+import { CONTRATOS_SOLO_LECTURA } from "@/lib/solo-lectura"
+import { AvisoGestionContractual } from "@/components/layout/aviso-gestion-contractual"
 
 const fmt = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 })
 
@@ -397,11 +399,13 @@ export default function ContratoDetailPage() {
         </div>
 
         <div className="flex gap-2">
+{!CONTRATOS_SOLO_LECTURA && (
           <Button variant="outline" size="sm" className="gap-1.5"
             onClick={() => router.push(`/dashboard/contratos/${encodeURIComponent(numero)}/editar`)}>
             <Pencil className="w-4 h-4" />
             Editar
           </Button>
+          )}
           <Button variant="outline" size="sm" className="gap-1.5"
             onClick={() => contrato ? descargarDocxById(contrato.id) : descargarDocx(numero)}>
             <FileDown className="w-4 h-4" />
@@ -444,19 +448,23 @@ export default function ContratoDetailPage() {
                 <Plus className="w-4 h-4" />
                 Pago
               </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="gap-1.5"
-                onClick={() => setShowAnular(true)}
-              >
-                <AlertTriangle className="w-4 h-4" />
-                Anular
-              </Button>
+              {!CONTRATOS_SOLO_LECTURA && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setShowAnular(true)}
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  Anular
+                </Button>
+              )}
             </>
           )}
         </div>
       </div>
+
+      {CONTRATOS_SOLO_LECTURA && <AvisoGestionContractual accion="Editar o anular este contrato" />}
 
       {/* Info Grid */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

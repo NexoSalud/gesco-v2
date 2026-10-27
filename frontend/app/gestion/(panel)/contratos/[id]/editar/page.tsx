@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { ChevronRight } from "lucide-react"
-import { gcContrato, gcEditarContrato, GcContrato } from "@/lib/gestion-api"
+import { gcContrato, gcEditarContrato, gcFicha, GcContrato, GcFicha } from "@/lib/gestion-api"
 import { useGcAuth } from "@/components/gestion/gc-auth-provider"
 import { PageHeader, Shimmer } from "@/components/gestion/ui"
 import { ContratoForm } from "@/components/gestion/formularios"
@@ -15,16 +15,18 @@ export default function EditarContratoPage() {
   const router = useRouter()
   const { can } = useGcAuth()
   const [contrato, setContrato] = useState<GcContrato | null>(null)
+  const [ficha, setFicha] = useState<GcFicha | null>(null)
 
   useEffect(() => {
-    gcContrato(Number(id))
-      .then((c) => {
-        if (c.origen !== "MANUAL" || !can("editar")) {
-          toast.error("Este contrato vino del GESCO principal; edítalo allá y sincroniza")
+    Promise.all([gcContrato(Number(id)), gcFicha(Number(id))])
+      .then(([c, f]) => {
+        if (c.origen_eliminado || !can("editar")) {
+          toast.error(c.origen_eliminado ? "El contrato ya no existe en el GESCO principal" : "No tienes permiso para editar")
           router.replace(`/gestion/contratos/${id}`)
           return
         }
         setContrato(c)
+        setFicha(f)
       })
       .catch((e) => toast.error(e.message))
   }, [id, can, router])
@@ -44,13 +46,14 @@ export default function EditarContratoPage() {
           <ChevronRight className="h-3 w-3" />
           <span className="text-gray-900">Editar</span>
         </nav>
-        <PageHeader title="Editar contrato" description="Contrato creado en Gestión Contractual." />
+        <PageHeader title="Editar contrato" description="Los cambios se guardan aquí y en el módulo de contratos del GESCO principal." />
       </div>
-      {!contrato ? (
+      {!contrato || !ficha ? (
         <Shimmer className="h-96" />
       ) : (
         <ContratoForm
           inicial={{
+            ...ficha,
             numero_contrato: contrato.numero_contrato,
             contratista_id: contrato.contratista_id,
             perfil: contrato.perfil,

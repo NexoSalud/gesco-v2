@@ -3,6 +3,8 @@
 Módulo independiente con login propio (usuarios en `gc_usuarios`, token con
 clave y audiencia propias). Permite:
   - Sincronizar de forma selectiva contratos del módulo de contratos actual.
+  - Crear y editar contratos y contratistas: es el único lugar donde se gestionan;
+    los cambios se escriben en el GESCO principal, que queda en solo lectura.
   - Llevar el estado de gestión de cada contrato real.
   - Cargar los documentos escaneados del expediente y previsualizarlos/descargarlos.
 
@@ -30,9 +32,15 @@ from app.database import get_db
 from app.models.contratista import Contratista
 from app.models.contrato import Contrato
 from app.models.gestion_contractual import GcContratista, GcContrato, GcDocumento, GcEvento, GcUsuario
+from app.models.perfil import Perfil
+from app.models.plantilla_objeto import PlantillaObjeto
 from app.models.resolucion import Resolucion
+from app.models.supervisor import Supervisor
 from app.schemas.gestion_contractual import (
     CAMPOS_EDITABLES_MANUAL,
+    CAMPOS_FICHA,
+    GcCatalogosOut,
+    GcFichaContrato,
     CATEGORIAS_DOCUMENTO,
     ContratistaOrigenOut,
     ContratoOrigenOut,
@@ -487,6 +495,7 @@ def _escribir_contrato_origen(contrato: Contrato, datos: dict) -> None:
         "fecha_contrato": "fecha_contrato", "fecha_inicio": "fecha_inicio", "fecha_fin": "fecha_fin",
         "valor_total": "monto_total", "valor_final": "valor_final", "valor_transporte": "monto_transporte",
         "supervisor": "supervisor", "resolucion_id": "resolucion_id",
+        **{campo: campo for campo in CAMPOS_FICHA},
     }
     for campo, destino in mapa.items():
         if campo in datos:
@@ -750,8 +759,6 @@ async def actualizar_contratista(
     db: AsyncSession = Depends(get_db),
 ):
     gc = await _get_gc_contratista(db, contratista_id)
-    if gc.origen != "MANUAL":
-        raise HTTPException(409, "Este contratista vino del GESCO principal; edítalo allá y sincroniza")
     datos = payload.model_dump(exclude_unset=True)
     if "identificacion" in datos:
         datos["identificacion"] = datos["identificacion"].strip()
@@ -878,6 +885,54 @@ async def _validar_datos_manual(
         raise HTTPException(400, "La fecha de terminación no puede ser anterior a la de inicio")
 
 
+def _cuotas_total(texto: str | None) -> int:
+    """'2' o 'DOS (2)' → 2. Sin número, una cuota."""
+    m = re.search(r"\d+", texto or "")
+    return int(m.group()) if m else 1
+
+
+async def _completar_desde_perfil(db: AsyncSession, datos: dict) -> None:
+    """Como en el GESCO principal: el perfil aporta objeto y UNSPSC si no se indicaron."""
+    if not datos.get("perfil"):
+        return
+    perfil = (await db.execute(select(Perfil).where(Perfil.nombre == datos["perfil"]))).scalar_one_or_none()
+    if not perfil:
+        return
+    for campo in ("objeto", "codigo_unspsc", "descripcion_unspsc"):
+        if not datos.get(campo) and getattr(perfil, campo):
+            datos[campo] = getattr(perfil, campo)
+
+
+@router.get("/catalogos", response_model=GcCatalogosOut)
+async def catalogos(_: GcUsuario = Depends(gc_usuario_actual), db: AsyncSession = Depends(get_db)):
+    """Perfiles, plantillas de objeto y supervisores del GESCO principal para el formulario de contrato."""
+    perfiles = (await db.execute(select(Perfil).order_by(Perfil.nombre))).scalars().all()
+    plantillas = (await db.execute(select(PlantillaObjeto).order_by(PlantillaObjeto.titulo))).scalars().all()
+    supervisores = (await db.execute(select(Supervisor).order_by(Supervisor.nombre))).scalars().all()
+    return GcCatalogosOut(
+        perfiles=[{"nombre": p.nombre, "objeto": p.objeto} for p in perfiles],
+        plantillas_objeto=[{"id": p.id, "titulo": p.titulo, "contenido": p.contenido} for p in plantillas],
+        supervisores=[
+            {"nombre": s.nombre, "identificacion": s.identificacion, "cargo": s.cargo, "nivel_profesional": s.nivel_profesional}
+            for s in supervisores
+        ],
+    )
+
+
+@router.get("/contratos/{contrato_id}/ficha", response_model=GcFichaContrato)
+async def ficha_contrato(
+    contrato_id: int,
+    _: GcUsuario = Depends(gc_usuario_actual),
+    db: AsyncSession = Depends(get_db),
+):
+    """Datos contractuales completos (CDP, supervisión, forma de pago...) tomados del GESCO principal."""
+    gc = await _get_gc_contrato(db, contrato_id)
+    origen = await db.get(Contrato, gc.contrato_origen_id) if gc.contrato_origen_id else None
+    if not origen:
+        return GcFichaContrato()
+    return GcFichaContrato(**{campo: getattr(origen, campo) for campo in CAMPOS_FICHA})
+
+
 @router.post("/contratos", response_model=GcContratoOut, status_code=201)
 async def crear_contrato(
     payload: GcContratoCreate,
@@ -887,13 +942,18 @@ async def crear_contrato(
     """Crea un contrato en el módulo y también en el GESCO principal, enlazados entre sí."""
     datos = payload.model_dump()
     await _validar_datos_manual(db, datos)
+    await _completar_desde_perfil(db, datos)
     gc_contratista = await _get_gc_contratista(db, datos["contratista_id"])
     contratista_origen = await _asegurar_contratista_origen(db, gc_contratista)
     origen = Contrato(
         contratista_id=contratista_origen.id,
         estado=ESTADO_ORIGEN_POR_GESTION.get(datos["estado_gestion"], "EN_PROCESO"),
+        cuotas_total=_cuotas_total(datos.get("cuotas")),
+        cuotas_pagadas=0,
     )
     _escribir_contrato_origen(origen, datos)
+    origen.cuotas = origen.cuotas or "1"
+    origen.costo_tipo = origen.costo_tipo or "DIRECTO"
     origen.fecha_contrato = origen.fecha_contrato or origen.fecha_inicio
     origen.valor_letras = numero_a_letras(origen.monto_total or 0)
     origen.tiene_transporte = (origen.monto_transporte or 0) > 0
@@ -924,12 +984,17 @@ async def actualizar_contrato(
     usuario: GcUsuario = Depends(puede_editar),
     db: AsyncSession = Depends(get_db),
 ):
+    """Edita el contrato. Los datos contractuales se escriben también en el GESCO principal,
+    que es de solo lectura: Gestión Contractual es donde se gestionan."""
     gc = await _get_gc_contrato(db, contrato_id)
     datos = payload.model_dump(exclude_unset=True)
+    motivo = datos.pop("motivo_anulacion", None)
     propios = CAMPOS_EDITABLES_MANUAL & datos.keys()
+    cambia_estado = "estado_gestion" in datos and datos["estado_gestion"] != gc.estado_gestion
+    origen = await db.get(Contrato, gc.contrato_origen_id) if gc.contrato_origen_id else None
     if propios:
-        if gc.origen != "MANUAL":
-            raise HTTPException(409, "Los datos de un contrato sincronizado se actualizan desde el GESCO principal")
+        if not origen:
+            raise HTTPException(409, "El contrato ya no existe en el GESCO principal; no se puede editar")
         if (datos.get("numero_contrato") or "").strip().upper() in ("", gc.numero_contrato.upper()):
             datos.pop("numero_contrato", None)
         await _validar_datos_manual(db, datos, excluir_id=gc.id, excluir_origen_id=gc.contrato_origen_id)
@@ -937,24 +1002,34 @@ async def actualizar_contrato(
         fin = datos.get("fecha_fin", gc.fecha_fin)
         if inicio and fin and fin < inicio:
             raise HTTPException(400, "La fecha de terminación no puede ser anterior a la de inicio")
-    if "estado_gestion" in datos and datos["estado_gestion"] != gc.estado_gestion:
+        propios = CAMPOS_EDITABLES_MANUAL & datos.keys()
+    if cambia_estado:
         await registrar_evento(
             db, usuario, "ESTADO_CAMBIADO",
             f"{gc.numero_contrato}: {gc.estado_gestion} → {datos['estado_gestion']}", gc.id,
         )
     for campo, valor in datos.items():
-        setattr(gc, campo, valor)
-    if propios and gc.contrato_origen_id:
-        # Creado aquí: el cambio se escribe también en el GESCO principal
-        origen = await db.get(Contrato, gc.contrato_origen_id)
-        if origen:
-            cambios = {k: datos[k] for k in propios if k in datos}
-            if "contratista_id" in cambios:
-                contratista_origen = await _asegurar_contratista_origen(db, await _get_gc_contratista(db, gc.contratista_id))
-                origen.contratista_id = contratista_origen.id
-            _escribir_contrato_origen(origen, cambios)
-            origen = await _recargar_origen(db, origen)
-            aplicar_snapshot(gc, snapshot_contrato(origen))
+        if campo not in CAMPOS_FICHA:
+            setattr(gc, campo, valor)
+    if origen and (propios or cambia_estado):
+        cambios = {k: datos[k] for k in propios}
+        if "contratista_id" in cambios:
+            contratista_origen = await _asegurar_contratista_origen(db, await _get_gc_contratista(db, gc.contratista_id))
+            origen.contratista_id = contratista_origen.id
+        _escribir_contrato_origen(origen, cambios)
+        if "cuotas" in cambios:
+            origen.cuotas_total = max(_cuotas_total(cambios["cuotas"]), origen.cuotas_pagadas or 0)
+        # Anular o reactivar aquí se refleja en el principal; los demás estados son propios del módulo
+        if cambia_estado and datos["estado_gestion"] == "ANULADO":
+            origen.estado = "ANULADO"
+            origen.motivo_anulacion = motivo or "Anulado desde Gestión Contractual"
+            origen.fecha_anulacion = datetime.date.today()
+        elif cambia_estado and origen.estado == "ANULADO":
+            origen.estado = "ACTIVO"
+            origen.motivo_anulacion = None
+            origen.fecha_anulacion = None
+        origen = await _recargar_origen(db, origen)
+        aplicar_snapshot(gc, snapshot_contrato(origen))
     if propios:
         await registrar_evento(db, usuario, "CONTRATO_EDITADO", gc.numero_contrato, gc.id)
     await db.commit()

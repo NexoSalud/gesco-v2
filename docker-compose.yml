@@ -30,6 +30,7 @@ services:
       # Gestión Contractual: clave propia del login del módulo (definirla en Coolify)
       GC_SECRET_KEY: "${GC_SECRET_KEY:-GESCO_GC_SECRET_KEY_CAMBIAR!}"
       GC_ADMIN_PASSWORD: "${GC_ADMIN_PASSWORD:-gcadmin123}"
+      CONTRATOS_SOLO_LECTURA: "${CONTRATOS_SOLO_LECTURA:-true}"
     volumes:
       - uploads:/app/uploads
       # Documentos escaneados de Gestión Contractual: volumen privado, no se sirve por /uploads

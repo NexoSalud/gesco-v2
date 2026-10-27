@@ -7,8 +7,11 @@ import { Check, ChevronsUpDown, Loader2, Plus, Search, UserPlus } from "lucide-r
 import {
   ContratoManualInput,
   EstadoGestion,
+  GcCatalogos,
+  GcFicha,
   GcContratista,
   GcContratistaInput,
+  gcCatalogos,
   gcContratistas,
   gcCrearContratista,
   gcEditarContratista,
@@ -16,11 +19,6 @@ import {
 } from "@/lib/gestion-api"
 import { Btn, Chip, ESTADOS_GESTION, formatCOP, iniciales, inputCls } from "@/components/gestion/ui"
 import { cn } from "@/lib/utils"
-
-const PERFILES = [
-  "MEDICINA", "ENFERMERIA", "PSICOLOGIA", "SALUD ORAL", "HIGIENISTA ORAL", "FONOAUDIOLOGIA",
-  "AUXILIAR ENFERMERIA", "AUXILIAR VACUNACION", "GESTOR COMUNITARIO", "TRANSPORTE", "OTRO",
-]
 
 export function Campo({ label, hint, className, children }: { label: string; hint?: string; className?: string; children: React.ReactNode }) {
   return (
@@ -288,9 +286,15 @@ export function SelectorContratista({ value, onChange }: { value: number | null;
 
 // ─── Formulario de contrato ──────────────────────────────────────────────────
 
-export interface ContratoFormValues extends Omit<ContratoManualInput, "contratista_id"> {
+export interface ContratoFormValues extends Omit<ContratoManualInput, "contratista_id">, GcFicha {
   contratista_id: number | null
 }
+
+const CAMPOS_TEXTO_FICHA: (keyof GcFicha)[] = [
+  "obligaciones", "lugar_ejecucion", "no_cdp", "fecha_cdp", "valor_cdp", "rubro", "rp", "costo_tipo", "cuotas",
+  "forma_pago", "cedula_supervisor", "cargo_supervisor", "unidad_atencion", "codigo_ciiu", "nivel_prof_supervisor",
+  "interventor", "nivel_prof_interventor", "tiempo_adicion", "codigo_unspsc", "descripcion_unspsc",
+]
 
 export function ContratoForm({
   inicial,
@@ -300,19 +304,49 @@ export function ContratoForm({
 }: {
   inicial: ContratoFormValues
   submitLabel: string
-  onSubmit: (v: ContratoManualInput) => Promise<void>
+  onSubmit: (v: ContratoManualInput & GcFicha) => Promise<void>
   onCancel: () => void
 }) {
   const [v, setV] = useState<ContratoFormValues>(inicial)
   const [resoluciones, setResoluciones] = useState<{ id: number; codigo: string }[]>([])
+  const [catalogos, setCatalogos] = useState<GcCatalogos>({ perfiles: [], plantillas_objeto: [], supervisores: [] })
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     gcResoluciones().then(setResoluciones).catch(() => {})
+    gcCatalogos().then(setCatalogos).catch(() => {})
   }, [])
 
   const set = <K extends keyof ContratoFormValues>(k: K, val: ContratoFormValues[K]) => setV((p) => ({ ...p, [k]: val }))
+  const texto = (k: keyof ContratoFormValues) => ({
+    value: (v[k] as string | null | undefined) || "",
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => set(k, e.target.value as never),
+  })
   const total = (v.valor_final ?? v.valor_total ?? 0) + (v.valor_transporte || 0)
+
+  const elegirPerfil = (nombre: string) => {
+    const anterior = catalogos.perfiles.find((p) => p.nombre === v.perfil)
+    const nuevo = catalogos.perfiles.find((p) => p.nombre === nombre)
+    setV((p) => ({
+      ...p,
+      perfil: nombre,
+      // El objeto del perfil se propone solo si no se ha escrito uno propio
+      objeto: !p.objeto?.trim() || p.objeto === anterior?.objeto ? nuevo?.objeto || p.objeto : p.objeto,
+    }))
+  }
+
+  const elegirSupervisor = (nombre: string) => {
+    const s = catalogos.supervisores.find((x) => x.nombre === nombre)
+    setV((p) => ({
+      ...p,
+      supervisor: nombre,
+      ...(s && {
+        cedula_supervisor: s.identificacion,
+        cargo_supervisor: s.cargo || p.cargo_supervisor,
+        nivel_prof_supervisor: s.nivel_profesional || p.nivel_prof_supervisor,
+      }),
+    }))
+  }
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -321,8 +355,11 @@ export function ContratoForm({
     if (v.fecha_inicio && v.fecha_fin && v.fecha_fin < v.fecha_inicio) return toast.error("La fecha de terminación es anterior a la de inicio")
     setSaving(true)
     try {
+      const ficha: GcFicha = {}
+      CAMPOS_TEXTO_FICHA.forEach((k) => (ficha[k] = (v[k] as string | null | undefined)?.trim() || null))
       await onSubmit({
         ...v,
+        ...ficha,
         contratista_id: v.contratista_id,
         numero_contrato: v.numero_contrato.trim(),
         perfil: v.perfil || null,
@@ -352,24 +389,49 @@ export function ContratoForm({
           </div>
         </Bloque>
 
-        <Bloque titulo="Objeto" desc="Qué se contrata y bajo qué perfil.">
+        <Bloque titulo="Objeto" desc="Qué se contrata, bajo qué perfil y dónde.">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Campo label="Perfil">
-              <select value={v.perfil || ""} onChange={(e) => set("perfil", e.target.value)} className={cn(inputCls, "cursor-pointer")}>
+            <Campo label="Perfil" hint="Propone el objeto y el código UNSPSC del perfil.">
+              <select value={v.perfil || ""} onChange={(e) => elegirPerfil(e.target.value)} className={cn(inputCls, "cursor-pointer")}>
                 <option value="">—</option>
-                {PERFILES.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+                {v.perfil && !catalogos.perfiles.some((p) => p.nombre === v.perfil) && <option value={v.perfil}>{v.perfil}</option>}
+                {catalogos.perfiles.map((p) => (
+                  <option key={p.nombre} value={p.nombre}>
+                    {p.nombre}
                   </option>
                 ))}
               </select>
             </Campo>
-            <Campo label="Supervisor">
-              <input value={v.supervisor || ""} onChange={(e) => set("supervisor", e.target.value)} className={inputCls} />
+            <Campo label="Lugar de ejecución">
+              <input {...texto("lugar_ejecucion")} className={inputCls} />
             </Campo>
           </div>
-          <Campo label="Objeto del contrato">
-            <textarea rows={4} value={v.objeto || ""} onChange={(e) => set("objeto", e.target.value)} className={cn(inputCls, "h-auto py-2")} />
+          <div>
+            <div className="mb-1.5 flex items-center justify-between gap-3">
+              <span className="text-xs font-medium text-gray-700">Objeto del contrato</span>
+              {catalogos.plantillas_objeto.length > 0 && (
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const pl = catalogos.plantillas_objeto.find((p) => String(p.id) === e.target.value)
+                    if (pl) set("objeto", pl.contenido)
+                  }}
+                  className="h-7 max-w-[14rem] cursor-pointer truncate rounded-md border border-gray-200 bg-white px-2 text-xs text-gray-600"
+                  aria-label="Cargar plantilla de objeto"
+                >
+                  <option value="">Usar plantilla…</option>
+                  {catalogos.plantillas_objeto.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.titulo}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <textarea rows={4} {...texto("objeto")} aria-label="Objeto del contrato" className={cn(inputCls, "h-auto py-2")} />
+          </div>
+          <Campo label="Obligaciones específicas" hint="Opcional. Si se deja vacío se usan las del perfil en los documentos.">
+            <textarea rows={3} {...texto("obligaciones")} className={cn(inputCls, "h-auto py-2")} />
           </Campo>
         </Bloque>
 
@@ -385,10 +447,91 @@ export function ContratoForm({
               <input type="date" value={v.fecha_fin || ""} min={v.fecha_inicio || undefined} onChange={(e) => set("fecha_fin", e.target.value)} className={inputCls} />
             </Campo>
           </div>
+          <Campo label="Tiempo de adición" hint="Solo si el contrato tuvo prórroga.">
+            <input {...texto("tiempo_adicion")} placeholder="Ej: 1 mes" className={inputCls} />
+          </Campo>
+        </Bloque>
+
+        <Bloque titulo="Presupuesto y pago" desc="Disponibilidad, registro presupuestal y forma de pago.">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Campo label="No. CDP">
+              <input {...texto("no_cdp")} placeholder="Ej: 046" className={inputCls} />
+            </Campo>
+            <Campo label="Fecha CDP">
+              <input type="date" {...texto("fecha_cdp")} className={inputCls} />
+            </Campo>
+            <Campo label="Valor CDP">
+              <input {...texto("valor_cdp")} className={inputCls} />
+            </Campo>
+            <Campo label="Imputación presupuestal">
+              <input {...texto("rubro")} placeholder="Ej: 3.1.1.01.002" className={inputCls} />
+            </Campo>
+            <Campo label="Registro presupuestal (RP)">
+              <input {...texto("rp")} className={inputCls} />
+            </Campo>
+            <Campo label="Costo">
+              <select value={v.costo_tipo || "DIRECTO"} onChange={(e) => set("costo_tipo", e.target.value)} className={cn(inputCls, "cursor-pointer")}>
+                <option value="DIRECTO">Directo</option>
+                <option value="INDIRECTO">Indirecto</option>
+              </select>
+            </Campo>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-[9rem_1fr]">
+            <Campo label="Cuotas">
+              <input {...texto("cuotas")} placeholder="Ej: DOS (2)" className={inputCls} />
+            </Campo>
+            <Campo label="Forma de pago">
+              <textarea rows={3} {...texto("forma_pago")} placeholder="Cláusula de forma de pago del contrato" className={cn(inputCls, "h-auto py-2")} />
+            </Campo>
+          </div>
+        </Bloque>
+
+        <Bloque titulo="Supervisión" desc="Quién vigila la ejecución. Elegir un supervisor registrado completa sus datos.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Campo label="Supervisor">
+              <input list="gc-supervisores" value={v.supervisor || ""} onChange={(e) => elegirSupervisor(e.target.value)} className={inputCls} />
+              <datalist id="gc-supervisores">
+                {catalogos.supervisores.map((s) => (
+                  <option key={s.identificacion} value={s.nombre}>
+                    {s.cargo || s.identificacion}
+                  </option>
+                ))}
+              </datalist>
+            </Campo>
+            <Campo label="Cédula del supervisor">
+              <input {...texto("cedula_supervisor")} className={inputCls} />
+            </Campo>
+            <Campo label="Cargo">
+              <input {...texto("cargo_supervisor")} className={inputCls} />
+            </Campo>
+            <Campo label="Nivel profesional">
+              <input {...texto("nivel_prof_supervisor")} className={inputCls} />
+            </Campo>
+            <Campo label="Unidad de atención">
+              <input {...texto("unidad_atencion")} className={inputCls} />
+            </Campo>
+            <Campo label="Código CIIU">
+              <input {...texto("codigo_ciiu")} className={inputCls} />
+            </Campo>
+            <Campo label="Interventor">
+              <input {...texto("interventor")} className={inputCls} />
+            </Campo>
+            <Campo label="Nivel profesional del interventor">
+              <input {...texto("nivel_prof_interventor")} className={inputCls} />
+            </Campo>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-[9rem_1fr]">
+            <Campo label="Código UNSPSC">
+              <input {...texto("codigo_unspsc")} className={inputCls} />
+            </Campo>
+            <Campo label="Descripción UNSPSC">
+              <input {...texto("descripcion_unspsc")} className={inputCls} />
+            </Campo>
+          </div>
         </Bloque>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
         <Bloque titulo="Valor y presupuesto">
           <Campo label="Valor del contrato">
             <Moneda value={v.valor_total} onChange={(n) => set("valor_total", n ?? 0)} required />

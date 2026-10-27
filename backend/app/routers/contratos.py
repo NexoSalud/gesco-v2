@@ -20,6 +20,7 @@ from app.schemas.contrato import ContratoCreate, ContratoUpdate, ContratoOut
 from app.schemas.contratista import ContratistaCreate
 from app.services.docx_generator import generar_contrato_docx
 from app.services.numero_letras import numero_a_letras
+from app.services.gestion_contractual import contratos_solo_lectura
 
 router = APIRouter(prefix="/api/v1/contratos", tags=["Contratos"])
 
@@ -69,7 +70,7 @@ async def listar_contratos(
     return result.scalars().all()
 
 
-@router.post("", response_model=ContratoOut, status_code=201)
+@router.post("", response_model=ContratoOut, status_code=201, dependencies=[Depends(contratos_solo_lectura)])
 async def crear_contrato(data: ContratoCreate, db: AsyncSession = Depends(get_db)):
     """Crea un contrato. Si se pasan datos del contratista, lo crea o actualiza."""
 
@@ -207,7 +208,7 @@ async def obtener_contrato(numero_contrato: str, db: AsyncSession = Depends(get_
     return contrato
 
 
-@router.put("/{numero_contrato}", response_model=ContratoOut)
+@router.put("/{numero_contrato}", response_model=ContratoOut, dependencies=[Depends(contratos_solo_lectura)])
 async def actualizar_contrato(
     numero_contrato: str, data: ContratoUpdate, db: AsyncSession = Depends(get_db)
 ):
@@ -237,7 +238,7 @@ async def actualizar_contrato(
     return result.scalar_one()
 
 
-@router.post("/{numero_contrato}/anular")
+@router.post("/{numero_contrato}/anular", dependencies=[Depends(contratos_solo_lectura)])
 async def anular_contrato(
     numero_contrato: str,
     motivo: str = Query(..., description="Motivo de anulación"),
@@ -457,7 +458,7 @@ async def obtener_contrato_por_id(contrato_id: int, db: AsyncSession = Depends(g
     return contrato
 
 
-@router.put("/id/{contrato_id}", response_model=ContratoOut)
+@router.put("/id/{contrato_id}", response_model=ContratoOut, dependencies=[Depends(contratos_solo_lectura)])
 async def actualizar_contrato_por_id(
     contrato_id: int, data: ContratoUpdate, db: AsyncSession = Depends(get_db)
 ):
@@ -482,7 +483,7 @@ async def actualizar_contrato_por_id(
     return result.scalar_one()
 
 
-@router.post("/id/{contrato_id}/anular")
+@router.post("/id/{contrato_id}/anular", dependencies=[Depends(contratos_solo_lectura)])
 async def anular_contrato_por_id(
     contrato_id: int,
     motivo: str = Query(..., description="Motivo de anulación"),

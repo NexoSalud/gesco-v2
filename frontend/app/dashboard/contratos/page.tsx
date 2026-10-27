@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/table"
 import { TableSkeleton } from "@/components/ui/skeleton"
 import { Search, Scale, ArrowRight, Plus } from "lucide-react"
+import { CONTRATOS_SOLO_LECTURA } from "@/lib/solo-lectura"
+import { AvisoGestionContractual } from "@/components/layout/aviso-gestion-contractual"
 
 const fmt = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 })
 
@@ -61,10 +63,13 @@ export default function ContratosGlobalPage() {
         <p className="text-gray-500 mt-1">
           {contratos.length} contrato{contratos.length !== 1 ? "s" : ""} registrado{contratos.length !== 1 ? "s" : ""}
         </p>
-        <Link href="/dashboard/contratos/nuevo" className="ml-auto">
-          <Button size="sm"><Plus className="w-4 h-4 mr-1" /> Nuevo Contrato</Button>
-        </Link>
+        {!CONTRATOS_SOLO_LECTURA && (
+          <Link href="/dashboard/contratos/nuevo" className="ml-auto">
+            <Button size="sm"><Plus className="w-4 h-4 mr-1" /> Nuevo Contrato</Button>
+          </Link>
+        )}
       </div>
+      {CONTRATOS_SOLO_LECTURA && <AvisoGestionContractual />}
 
       {/* Filters */}
       <div className="flex items-center gap-3">

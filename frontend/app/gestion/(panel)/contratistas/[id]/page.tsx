@@ -98,15 +98,14 @@ export default function ContratistaDetallePage() {
           </div>
           {c && can("editar") && (
             <div className="flex flex-wrap gap-2">
-              {c.origen === "MANUAL" ? (
-                <Btn onClick={() => setEditar(true)}>
-                  <Pencil className="h-4 w-4" /> Editar
-                </Btn>
-              ) : (
+              {c.desactualizado && (
                 <Btn onClick={actualizarDesdeOrigen} disabled={busy}>
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />} Actualizar desde GESCO
                 </Btn>
               )}
+              <Btn onClick={() => setEditar(true)}>
+                <Pencil className="h-4 w-4" /> Editar
+              </Btn>
               <Link href={`/gestion/contratos/nuevo?contratista=${c.id}`}>
                 <Btn variant="primary">
                   <Plus className="h-4 w-4" /> Nuevo contrato
@@ -140,9 +139,7 @@ export default function ContratistaDetallePage() {
               </div>
             ))}
           </dl>
-          {c?.origen === "SINCRONIZADO" && (
-            <p className="mt-4 border-t border-gray-100 pt-3 text-xs text-gray-500">Vino del GESCO principal: se edita allá y se actualiza aquí al sincronizar.</p>
-          )}
+          <p className="mt-4 border-t border-gray-100 pt-3 text-xs text-gray-500">Los cambios que hagas aquí se guardan también en el GESCO principal.</p>
         </Panel>
 
         <Panel className="lg:col-span-2">

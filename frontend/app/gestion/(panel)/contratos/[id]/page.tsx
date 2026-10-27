@@ -28,11 +28,13 @@ import {
   gcDesvincular,
   gcDocumentos,
   gcExpedienteBlob,
+  gcFicha,
+  GcFicha,
   gcResincronizar,
   guardarBlob,
 } from "@/lib/gestion-api"
 import { useGcAuth } from "@/components/gestion/gc-auth-provider"
-import { Btn, ESTADOS_GESTION, EmptyState, EstadoChip, Panel, Shimmer, diasRestantes, formatCOP, formatFecha, formatRelativo, iniciales } from "@/components/gestion/ui"
+import { Btn, ESTADOS_GESTION, EmptyState, EstadoChip, Panel, Shimmer, diasRestantes, formatCOP, formatFecha, formatRelativo, iniciales, inputCls } from "@/components/gestion/ui"
 import { Cargador, DOCUMENTOS_CLAVE, ListaDocumentos } from "@/components/gestion/documentos"
 import { cn } from "@/lib/utils"
 import { OrigenChip } from "@/components/gestion/formularios"
@@ -49,19 +51,29 @@ export default function ContratoDetallePage() {
   const [solicitud, setSolicitud] = useState<{ categoria: string; n: number } | null>(null)
   const [busy, setBusy] = useState<"zip" | "sync" | null>(null)
   const [confirmarRetiro, setConfirmarRetiro] = useState(false)
+  const [ficha, setFicha] = useState<GcFicha | null>(null)
+  const [anulando, setAnulando] = useState(false)
+  const [motivo, setMotivo] = useState("")
 
   useEffect(() => {
     gcContrato(contratoId).then(setContrato).catch((e) => setError(e.message))
     gcDocumentos(contratoId).then(setDocs).catch(() => setDocs([]))
     gcCategorias().then(setCategorias).catch(() => {})
+    gcFicha(contratoId).then(setFicha).catch(() => {})
   }, [contratoId])
 
   const refrescarContrato = () => gcContrato(contratoId).then(setContrato).catch(() => {})
 
-  const cambiarEstado = async (estado: EstadoGestion) => {
+  const cambiarEstado = async (estado: EstadoGestion, motivoAnulacion?: string) => {
+    if (estado === "ANULADO" && motivoAnulacion === undefined) {
+      setMotivo("")
+      setAnulando(true)
+      return
+    }
     try {
-      setContrato(await gcActualizarContrato(contratoId, { estado_gestion: estado }))
-      toast.success("Estado actualizado")
+      setContrato(await gcActualizarContrato(contratoId, { estado_gestion: estado, motivo_anulacion: motivoAnulacion || null }))
+      setAnulando(false)
+      toast.success(estado === "ANULADO" ? "Contrato anulado, también en el GESCO principal" : "Estado actualizado")
     } catch (e: any) {
       toast.error(e.message)
     }
@@ -166,7 +178,7 @@ export default function ContratoDetallePage() {
                   ))}
                 </select>
               )}
-              {can("editar") && contrato.origen === "MANUAL" && (
+              {can("editar") && !contrato.origen_eliminado && (
                 <Link href={`/gestion/contratos/${contrato.id}/editar`}>
                   <Btn>
                     <Pencil className="h-4 w-4" /> Editar
@@ -318,6 +330,15 @@ export default function ContratoDetallePage() {
                 <Dato label="Supervisor">{contrato.supervisor || "—"}</Dato>
                 <Dato label="Resolución">{contrato.resolucion_codigo || "—"}</Dato>
                 <Dato label="Estado en GESCO">{(contrato.estado_origen || "—").replace("_", " ")}</Dato>
+                {ficha?.no_cdp && (
+                  <Dato label="CDP">
+                    {ficha.no_cdp}
+                    {ficha.fecha_cdp ? <span className="text-gray-500"> · {formatFecha(ficha.fecha_cdp)}</span> : null}
+                  </Dato>
+                )}
+                {ficha?.rp && <Dato label="RP">{ficha.rp}</Dato>}
+                {ficha?.rubro && <Dato label="Imputación">{ficha.rubro}</Dato>}
+                {ficha?.cuotas && <Dato label="Cuotas">{ficha.cuotas}</Dato>}
                 {contrato.objeto && (
                   <Dato label="Objeto">
                     <span className="line-clamp-4 text-gray-700" title={contrato.objeto}>
@@ -341,6 +362,37 @@ export default function ContratoDetallePage() {
           {contrato && <Observaciones contrato={contrato} editable={can("editar")} onGuardado={setContrato} />}
         </div>
       </div>
+
+      <Dialog.Root open={anulando} onOpenChange={setAnulando}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-gray-900/30 backdrop-blur-[2px]" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl animate-scale-in">
+            <Dialog.Title className="text-base font-semibold text-gray-900">¿Anular este contrato?</Dialog.Title>
+            <Dialog.Description className="mt-2 text-sm text-gray-500">
+              Queda anulado también en el módulo de contratos del GESCO principal y deja de contar en el presupuesto de la resolución. Se puede reactivar después.
+            </Dialog.Description>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                cambiarEstado("ANULADO", motivo.trim())
+              }}
+            >
+              <label className="mt-4 block">
+                <span className="mb-1.5 block text-xs font-medium text-gray-700">Motivo</span>
+                <input autoFocus required value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej: Desistimiento del contratista" className={inputCls} />
+              </label>
+              <div className="mt-6 flex justify-end gap-2">
+                <Btn type="button" variant="ghost" onClick={() => setAnulando(false)}>
+                  Cancelar
+                </Btn>
+                <Btn type="submit" variant="danger" disabled={!motivo.trim()}>
+                  Anular contrato
+                </Btn>
+              </div>
+            </form>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       <Dialog.Root open={confirmarRetiro} onOpenChange={setConfirmarRetiro}>
         <Dialog.Portal>

@@ -51,6 +51,8 @@ function NuevoContrato() {
           valor_transporte: 0,
           valor_final: null,
           estado_gestion: "VIGENTE",
+          costo_tipo: "DIRECTO",
+          cuotas: "1",
         }}
         submitLabel="Crear contrato"
         onCancel={() => router.back()}

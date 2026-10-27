@@ -139,10 +139,38 @@ class GcContratoOut(BaseModel):
     origen_eliminado: bool = False
 
 
-class GcContratoUpdate(BaseModel):
+class GcFichaContrato(BaseModel):
+    """Datos contractuales que viven en el GESCO principal (documentos, CDP, supervisión...)."""
+    obligaciones: str | None = None
+    lugar_ejecucion: str | None = None
+    no_cdp: str | None = None
+    fecha_cdp: date | None = None
+    valor_cdp: str | None = None
+    rubro: str | None = None
+    rp: str | None = None
+    costo_tipo: str | None = None
+    cuotas: str | None = None
+    forma_pago: str | None = None
+    cedula_supervisor: str | None = None
+    cargo_supervisor: str | None = None
+    unidad_atencion: str | None = None
+    codigo_ciiu: str | None = None
+    nivel_prof_supervisor: str | None = None
+    interventor: str | None = None
+    nivel_prof_interventor: str | None = None
+    tiempo_adicion: str | None = None
+    codigo_unspsc: str | None = None
+    descripcion_unspsc: str | None = None
+
+
+CAMPOS_FICHA = set(GcFichaContrato.model_fields)
+
+
+class GcContratoUpdate(GcFichaContrato):
     estado_gestion: EstadoGestion | None = None
     observaciones: str | None = None
-    # Solo para contratos creados en el módulo (MANUAL): se escriben también en el GESCO principal
+    motivo_anulacion: str | None = None
+    # Datos del contrato: se escriben también en el GESCO principal
     numero_contrato: str | None = Field(default=None, min_length=1, max_length=50)
     contratista_id: int | None = None
     perfil: str | None = None
@@ -160,10 +188,10 @@ class GcContratoUpdate(BaseModel):
 CAMPOS_EDITABLES_MANUAL = {
     "numero_contrato", "contratista_id", "perfil", "objeto", "fecha_contrato", "fecha_inicio",
     "fecha_fin", "valor_total", "valor_transporte", "valor_final", "supervisor", "resolucion_id",
-}
+} | CAMPOS_FICHA
 
 
-class GcContratoCreate(BaseModel):
+class GcContratoCreate(GcFichaContrato):
     numero_contrato: str = Field(min_length=1, max_length=50)
     contratista_id: int
     perfil: str | None = None
@@ -178,6 +206,12 @@ class GcContratoCreate(BaseModel):
     resolucion_id: int
     estado_gestion: EstadoGestion = "VIGENTE"
     observaciones: str | None = None
+
+
+class GcCatalogosOut(BaseModel):
+    perfiles: list[dict]
+    plantillas_objeto: list[dict]
+    supervisores: list[dict]
 
 
 # ─── Contratistas ────────────────────────────────────────────────────────────

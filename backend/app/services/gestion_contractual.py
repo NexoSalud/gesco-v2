@@ -309,3 +309,19 @@ CAMPOS_CONTRATISTA = (
 def snapshot_contratista(contratista) -> dict:
     """Campos del contratista de origen que se copian al módulo."""
     return {campo: getattr(contratista, campo, None) for campo in CAMPOS_CONTRATISTA}
+
+
+# ─── Solo lectura en el GESCO principal ──────────────────────────────────────
+
+MENSAJE_SOLO_LECTURA = (
+    "Los contratos y contratistas se gestionan desde Gestión Contractual (/gestion). "
+    "En este módulo solo se pueden consultar."
+)
+
+
+def contratos_solo_lectura() -> None:
+    """Dependencia para los endpoints del GESCO principal que modifican contratos o contratistas."""
+    if settings.contratos_solo_lectura:
+        from fastapi import HTTPException
+
+        raise HTTPException(403, MENSAJE_SOLO_LECTURA)

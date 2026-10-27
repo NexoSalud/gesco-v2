@@ -228,7 +228,10 @@ export const gcContratos = (params: { buscar?: string; estado?: string; contrati
   return request<GcContrato[]>(`/contratos?${qs}`)
 }
 export const gcContrato = (id: number) => request<GcContrato>(`/contratos/${id}`)
-export const gcActualizarContrato = (id: number, data: { estado_gestion?: EstadoGestion; observaciones?: string | null }) =>
+export const gcActualizarContrato = (
+  id: number,
+  data: { estado_gestion?: EstadoGestion; observaciones?: string | null; motivo_anulacion?: string | null }
+) =>
   request<GcContrato>(`/contratos/${id}`, { method: "PATCH", body: JSON.stringify(data) })
 export const gcResincronizar = (id: number) =>
   request<GcContrato>(`/contratos/${id}/resincronizar`, { method: "POST" })
@@ -360,9 +363,42 @@ export interface ContratoManualInput {
   observaciones?: string | null
 }
 
-export const gcCrearContrato = (data: ContratoManualInput) =>
+/** Datos contractuales que se guardan en el GESCO principal (CDP, supervisión, forma de pago...). */
+export interface GcFicha {
+  obligaciones?: string | null
+  lugar_ejecucion?: string | null
+  no_cdp?: string | null
+  fecha_cdp?: string | null
+  valor_cdp?: string | null
+  rubro?: string | null
+  rp?: string | null
+  costo_tipo?: string | null
+  cuotas?: string | null
+  forma_pago?: string | null
+  cedula_supervisor?: string | null
+  cargo_supervisor?: string | null
+  unidad_atencion?: string | null
+  codigo_ciiu?: string | null
+  nivel_prof_supervisor?: string | null
+  interventor?: string | null
+  nivel_prof_interventor?: string | null
+  tiempo_adicion?: string | null
+  codigo_unspsc?: string | null
+  descripcion_unspsc?: string | null
+}
+
+export interface GcCatalogos {
+  perfiles: { nombre: string; objeto: string | null }[]
+  plantillas_objeto: { id: number; titulo: string; contenido: string }[]
+  supervisores: { nombre: string; identificacion: string; cargo: string | null; nivel_profesional: string | null }[]
+}
+
+export const gcFicha = (id: number) => request<GcFicha>(`/contratos/${id}/ficha`)
+export const gcCatalogos = () => request<GcCatalogos>("/catalogos")
+
+export const gcCrearContrato = (data: ContratoManualInput & GcFicha) =>
   request<GcContrato>("/contratos", { method: "POST", body: JSON.stringify(data) })
-export const gcEditarContrato = (id: number, data: Partial<ContratoManualInput>) =>
+export const gcEditarContrato = (id: number, data: Partial<ContratoManualInput> & GcFicha) =>
   request<GcContrato>(`/contratos/${id}`, { method: "PATCH", body: JSON.stringify(data) })
 
 // ─── Contratistas ────────────────────────────────────────────────────────────
