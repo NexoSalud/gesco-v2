@@ -184,3 +184,50 @@ class GcResumenOut(BaseModel):
     pendientes_sincronizar: int
     proximos_vencer: list[GcContratoOut]
     actividad: list[GcEventoOut]
+
+
+# ─── Estadísticas ────────────────────────────────────────────────────────────
+
+class EstadisticaResolucion(BaseModel):
+    id: int
+    codigo: str
+    titulo: str | None = None
+    vigencia: int | None = None
+    activa: bool = False
+    presupuesto: float
+    # "Real": contratos sincronizados en este módulo (sin anulados)
+    contratos_reales: int
+    comprometido_real: float
+    # "Registrado": todos los contratos del módulo de contratos (sin anulados)
+    contratos_registrados: int
+    comprometido_registrado: float
+    saldo_real: float
+    ejecucion_real_pct: float
+    expedientes_completos: int
+
+
+class EstadisticaGrupo(BaseModel):
+    clave: str
+    contratos: int
+    valor: float
+
+
+class EstadisticasTotales(BaseModel):
+    resoluciones: int
+    presupuesto: float
+    contratos_reales: int
+    comprometido_real: float
+    contratos_registrados: int
+    comprometido_registrado: float
+    saldo_real: float
+    ejecucion_real_pct: float
+    cobertura_pct: float
+    valor_promedio: float
+
+
+class GcEstadisticasOut(BaseModel):
+    totales: EstadisticasTotales
+    por_resolucion: list[EstadisticaResolucion]
+    por_estado: list[EstadisticaGrupo]
+    por_perfil: list[EstadisticaGrupo]
+    por_mes: list[EstadisticaGrupo]

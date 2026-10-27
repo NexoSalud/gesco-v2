@@ -68,7 +68,9 @@ def snapshot_contrato(contrato: Contrato) -> dict:
         "fecha_fin": contrato.fecha_fin,
         "valor_total": contrato.monto_total or 0,
         "valor_final": contrato.valor_final,
+        "valor_transporte": contrato.monto_transporte or 0,
         "supervisor": contrato.supervisor,
+        "resolucion_id": contrato.resolucion_id,
         "resolucion_codigo": resolucion.codigo if resolucion else None,
         "estado_origen": contrato.estado,
     }
@@ -287,3 +289,12 @@ async def seed_gestion_contractual(db: AsyncSession) -> None:
     ))
     await db.commit()
     logger.info("Gestión Contractual: usuario 'gcadmin' creado (debe cambiar la contraseña)")
+
+
+def valor_comprometido(valor_total: float | None, valor_final: float | None, transporte: float | None) -> float:
+    """Valor comprometido de un contrato: valor final (con adiciones) o inicial, más transporte.
+
+    Es la misma base que usa el módulo de resoluciones (monto_total + monto_transporte).
+    """
+    base = valor_final if valor_final is not None else (valor_total or 0)
+    return float(base or 0) + float(transporte or 0)

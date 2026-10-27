@@ -289,3 +289,49 @@ export function guardarBlob(blob: Blob, nombre: string) {
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
+
+// ─── Estadísticas ────────────────────────────────────────────────────────────
+
+export interface EstadisticaResolucion {
+  id: number
+  codigo: string
+  titulo: string | null
+  vigencia: number | null
+  activa: boolean
+  presupuesto: number
+  contratos_reales: number
+  comprometido_real: number
+  contratos_registrados: number
+  comprometido_registrado: number
+  saldo_real: number
+  ejecucion_real_pct: number
+  expedientes_completos: number
+}
+
+export interface EstadisticaGrupo {
+  clave: string
+  contratos: number
+  valor: number
+}
+
+export interface GcEstadisticas {
+  totales: {
+    resoluciones: number
+    presupuesto: number
+    contratos_reales: number
+    comprometido_real: number
+    contratos_registrados: number
+    comprometido_registrado: number
+    saldo_real: number
+    ejecucion_real_pct: number
+    cobertura_pct: number
+    valor_promedio: number
+  }
+  por_resolucion: EstadisticaResolucion[]
+  por_estado: EstadisticaGrupo[]
+  por_perfil: EstadisticaGrupo[]
+  por_mes: EstadisticaGrupo[]
+}
+
+export const gcEstadisticas = (resolucionId?: number) =>
+  request<GcEstadisticas>(`/estadisticas${resolucionId ? `?resolucion_id=${resolucionId}` : ""}`)

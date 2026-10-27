@@ -11,7 +11,7 @@ import {
   FolderKanban,
   FolderOpen,
   GitCompareArrows,
-  HardDrive,
+  Landmark,
   RefreshCcw,
   Activity,
   Trash2,
@@ -20,7 +20,7 @@ import {
   Download,
   Link2Off,
 } from "lucide-react"
-import { gcResumen, GcResumen } from "@/lib/gestion-api"
+import { gcEstadisticas, gcResumen, GcEstadisticas, GcResumen } from "@/lib/gestion-api"
 import { useGcAuth } from "@/components/gestion/gc-auth-provider"
 import {
   Btn,
@@ -31,7 +31,7 @@ import {
   Panel,
   Shimmer,
   diasRestantes,
-  formatBytes,
+  formatCOP,
   formatFecha,
   formatRelativo,
 } from "@/components/gestion/ui"
@@ -52,10 +52,12 @@ const ACCION_META: Record<string, { label: string; icon: React.ComponentType<{ c
 export default function ResumenPage() {
   const { user, can } = useGcAuth()
   const [data, setData] = useState<GcResumen | null>(null)
+  const [stats, setStats] = useState<GcEstadisticas | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     gcResumen().then(setData).catch((e) => setError(e.message))
+    gcEstadisticas().then(setStats).catch(() => {})
   }, [])
 
   const saludo = (() => {
@@ -102,7 +104,15 @@ export default function ResumenPage() {
           hint={data?.desactualizados ? `${data.desactualizados} con cambios en origen` : "Del módulo de contratos"}
           warn={!!data?.desactualizados}
         />
-        <Kpi loading={!data} label="Almacenamiento" value={data ? formatBytes(data.almacenamiento_bytes) : undefined} icon={HardDrive} hint="Documentos escaneados" />
+        <Link href="/gestion/estadisticas" className="block rounded-2xl transition hover:-translate-y-0.5">
+          <Kpi
+            loading={!stats}
+            label="Ejecución presupuestal"
+            value={stats ? `${stats.totales.ejecucion_real_pct.toLocaleString("es-CO")}%` : undefined}
+            icon={Landmark}
+            hint={stats ? `${formatCOP(stats.totales.comprometido_real)} de ${formatCOP(stats.totales.presupuesto)}` : undefined}
+          />
+        </Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">

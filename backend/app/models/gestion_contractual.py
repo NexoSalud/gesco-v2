@@ -54,7 +54,11 @@ class GcContrato(Base):
     fecha_fin: Mapped[date | None] = mapped_column(Date)
     valor_total: Mapped[float] = mapped_column(Float, default=0)
     valor_final: Mapped[float | None] = mapped_column(Float)
+    valor_transporte: Mapped[float] = mapped_column(Float, default=0)
     supervisor: Mapped[str | None] = mapped_column(String(200))
+    resolucion_id: Mapped[int | None] = mapped_column(
+        Integer, index=True, comment="Resolución de origen (sin FK: se conserva aunque se elimine)"
+    )
     resolucion_codigo: Mapped[str | None] = mapped_column(String(100))
     estado_origen: Mapped[str | None] = mapped_column(String(30))
     huella_origen: Mapped[str | None] = mapped_column(

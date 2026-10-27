@@ -39,6 +39,7 @@ from app.schemas.gestion_contractual import (
     GcContratoUpdate,
     GcDocumentoOut,
     GcDocumentoUpdate,
+    GcEstadisticasOut,
     GcEventoOut,
     GcLogin,
     GcResumenOut,
@@ -58,6 +59,7 @@ from app.services.gestion_contractual import (
     decodificar_token_gc,
     eliminar_archivo,
     estado_inicial,
+    valor_comprometido,
     guardar_archivo,
     huella,
     procesar_archivo,
@@ -794,4 +796,118 @@ async def resumen(_: GcUsuario = Depends(gc_usuario_actual), db: AsyncSession = 
             )
             for e in eventos
         ],
+    )
+
+
+# ─── Estadísticas ────────────────────────────────────────────────────────────
+
+@router.get("/estadisticas", response_model=GcEstadisticasOut)
+async def estadisticas(
+    resolucion_id: int | None = Query(None),
+    _: GcUsuario = Depends(gc_usuario_actual),
+    db: AsyncSession = Depends(get_db),
+):
+    """Contratos, presupuesto y resoluciones.
+
+    Compara lo *real* (contratos sincronizados en este módulo) con lo *registrado*
+    en el módulo de contratos, sobre el presupuesto de cada resolución. Los
+    contratos anulados no comprometen presupuesto.
+    """
+    resoluciones = (await db.execute(select(Resolucion).order_by(Resolucion.created_at.desc()))).scalars().all()
+
+    stmt = select(GcContrato)
+    if resolucion_id:
+        stmt = stmt.where(GcContrato.resolucion_id == resolucion_id)
+    contratos = (await db.execute(stmt)).scalars().all()
+    activos = [c for c in contratos if c.estado_gestion != "ANULADO"]
+
+    # Lo registrado en el módulo de contratos, por resolución (misma fórmula que /resoluciones)
+    reg_rows = (await db.execute(
+        select(
+            Contrato.resolucion_id,
+            func.count(Contrato.id),
+            func.coalesce(func.sum(Contrato.monto_total + func.coalesce(Contrato.monto_transporte, 0)), 0),
+        )
+        .where(Contrato.estado != "ANULADO")
+        .group_by(Contrato.resolucion_id)
+    )).all()
+    registrado = {r[0]: (int(r[1]), float(r[2])) for r in reg_rows}
+
+    # Expedientes completos = tienen todas las categorías clave
+    clave = ("CONTRATO_FIRMADO", "CDP", "RP", "POLIZA", "ACTA_INICIO")
+    _, categorias = await _estadisticas_docs(db, [c.id for c in contratos])
+    completos = {c.id for c in contratos if set(clave) <= set(categorias.get(c.id, []))}
+
+    def valor(c: GcContrato) -> float:
+        return valor_comprometido(c.valor_total, c.valor_final, c.valor_transporte)
+
+    por_resolucion = []
+    for r in resoluciones:
+        if resolucion_id and r.id != resolucion_id:
+            continue
+        propios = [c for c in activos if c.resolucion_id == r.id]
+        comp = sum(valor(c) for c in propios)
+        n_reg, comp_reg = registrado.get(r.id, (0, 0.0))
+        presupuesto = float(r.presupuesto or 0)
+        por_resolucion.append({
+            "id": r.id,
+            "codigo": r.codigo,
+            "titulo": r.titulo,
+            "vigencia": r.vigencia,
+            "activa": bool(r.activa),
+            "presupuesto": presupuesto,
+            "contratos_reales": len(propios),
+            "comprometido_real": comp,
+            "contratos_registrados": n_reg,
+            "comprometido_registrado": comp_reg,
+            "saldo_real": presupuesto - comp,
+            "ejecucion_real_pct": round(comp / presupuesto * 100, 1) if presupuesto else 0.0,
+            "expedientes_completos": sum(1 for c in propios if c.id in completos),
+        })
+
+    def agrupar(clave_fn, items) -> list[dict]:
+        grupos: dict[str, dict] = {}
+        for c in items:
+            k = clave_fn(c) or "Sin dato"
+            g = grupos.setdefault(k, {"clave": k, "contratos": 0, "valor": 0.0})
+            g["contratos"] += 1
+            g["valor"] += valor(c)
+        return list(grupos.values())
+
+    por_estado = agrupar(lambda c: c.estado_gestion, contratos)
+    por_perfil = sorted(agrupar(lambda c: c.perfil, activos), key=lambda g: -g["valor"])
+    if len(por_perfil) > 8:
+        resto = por_perfil[7:]
+        por_perfil = por_perfil[:7] + [{
+            "clave": "Otros",
+            "contratos": sum(g["contratos"] for g in resto),
+            "valor": sum(g["valor"] for g in resto),
+        }]
+    por_mes = sorted(
+        agrupar(lambda c: c.fecha_inicio.strftime("%Y-%m") if c.fecha_inicio else None, activos),
+        key=lambda g: g["clave"],
+    )[-12:]
+
+    presupuesto_total = sum(r["presupuesto"] for r in por_resolucion)
+    comp_total = sum(r["comprometido_real"] for r in por_resolucion)
+    comp_reg_total = sum(r["comprometido_registrado"] for r in por_resolucion)
+    n_reg_total = sum(r["contratos_registrados"] for r in por_resolucion)
+    n_real = sum(r["contratos_reales"] for r in por_resolucion)
+    return GcEstadisticasOut(
+        totales={
+            "resoluciones": len(por_resolucion),
+            "presupuesto": presupuesto_total,
+            "contratos_reales": n_real,
+            "comprometido_real": comp_total,
+            "contratos_registrados": n_reg_total,
+            "comprometido_registrado": comp_reg_total,
+            "saldo_real": presupuesto_total - comp_total,
+            "ejecucion_real_pct": round(comp_total / presupuesto_total * 100, 1) if presupuesto_total else 0.0,
+            "cobertura_pct": round(n_real / n_reg_total * 100, 1) if n_reg_total else 0.0,
+            "valor_promedio": comp_total / n_real if n_real else 0.0,
+        },
+        por_resolucion=por_resolucion,
+        por_estado=por_estado,
+        por_perfil=por_perfil,
+        por_mes=por_mes,
     )
